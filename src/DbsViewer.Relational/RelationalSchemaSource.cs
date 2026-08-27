@@ -3,10 +3,20 @@ using System.Data.Common;
 namespace DbsViewer.Relational;
 
 /// <summary>
+/// Zdroj, který umí půjčit své připojení. Implementuje ho živá introspekce,
+/// aby náhled dat nemusel navazovat druhé spojení.
+/// </summary>
+public interface IDbConnectionProvider
+{
+    /// <summary>Připojení k databázi. Volající ho zavírá jen tehdy, když ho sám otevřel.</summary>
+    DbConnection GetConnection();
+}
+
+/// <summary>
 /// Zdroj schématu čtoucí z živé databáze. Providerové čtečky doplňují jen dotazy
 /// a mapování řádků; otevírání připojení, ošetření chyb a sestavení výsledku je společné.
 /// </summary>
-public abstract class RelationalSchemaSource : ISchemaSource
+public abstract class RelationalSchemaSource : ISchemaSource, IDbConnectionProvider
 {
     private readonly Func<DbConnection> _connectionFactory;
     private readonly bool _ownsConnection;
@@ -48,6 +58,12 @@ public abstract class RelationalSchemaSource : ISchemaSource
         SchemaReadOptions options,
         List<string> warnings,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Připojení, se kterým zdroj pracuje. Umožňuje náhledu dat použít stejné spojení
+    /// místo navazování druhého.
+    /// </summary>
+    public DbConnection GetConnection() => _connectionFactory();
 
     public async Task<DatabaseSchema> ReadAsync(
         SchemaReadOptions options,

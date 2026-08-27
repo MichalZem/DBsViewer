@@ -66,6 +66,13 @@ public static class SchemaComparer
             }
 
             CompareColumns(modelTable, databaseTable, options, findings);
+
+            if (modelTable.IsView || databaseTable.IsView)
+            {
+                // Pohled nemá klíče, indexy ani cizí klíče.
+                continue;
+            }
+
             ComparePrimaryKey(modelTable, databaseTable, findings);
             CompareIndexes(modelTable, databaseTable, findings);
             CompareForeignKeys(modelTable, databaseTable, findings);
@@ -96,6 +103,8 @@ public static class SchemaComparer
         DiffOptions options,
         List<DiffFinding> findings)
     {
+        var isView = model.IsView || database.IsView;
+
         foreach (var modelColumn in model.Columns)
         {
             var databaseColumn = database.FindColumn(modelColumn.Name);
@@ -110,6 +119,13 @@ public static class SchemaComparer
                     Object = modelColumn.Name,
                     Message = "Sloupec je v modelu, ale v databázi chybí.",
                 });
+                continue;
+            }
+
+            if (isView)
+            {
+                // Pohled atributy sloupců nedeklaruje — plynou z dotazu a databáze
+                // je často vůbec nevystavuje. Porovnává se tedy jen jejich existence.
                 continue;
             }
 
@@ -302,12 +318,15 @@ public static class SchemaComparer
 
     private static void CompareForeignKeys(DbTable model, DbTable database, List<DiffFinding> findings)
     {
-        var databaseKeys = database.ForeignKeys.ToDictionary(
-            static f => f.Name, StringComparer.OrdinalIgnoreCase);
+        // Páruje se podle sloupců, ne podle jména: SQLite jména cizích klíčů vůbec
+        // nevystavuje a skládají se podle konvence, která se s EF nemusí trefit.
+        // Sloupce naopak vazbu určují jednoznačně.
+        var databaseKeys = database.ForeignKeys.ToDictionary(ForeignKeyIdentity, StringComparer.Ordinal);
+        var matched = new HashSet<string>(StringComparer.Ordinal);
 
         foreach (var modelKey in model.ForeignKeys)
         {
-            if (!databaseKeys.TryGetValue(modelKey.Name, out var databaseKey))
+            if (!databaseKeys.TryGetValue(ForeignKeyIdentity(modelKey), out var databaseKey))
             {
                 findings.Add(new DiffFinding
                 {
@@ -320,6 +339,8 @@ public static class SchemaComparer
                 });
                 continue;
             }
+
+            matched.Add(ForeignKeyIdentity(databaseKey));
 
             if (modelKey.PrincipalTable != databaseKey.PrincipalTable)
             {
@@ -350,12 +371,9 @@ public static class SchemaComparer
             }
         }
 
-        var modelKeys = new HashSet<string>(
-            model.ForeignKeys.Select(static f => f.Name), StringComparer.OrdinalIgnoreCase);
-
         foreach (var databaseKey in database.ForeignKeys)
         {
-            if (modelKeys.Contains(databaseKey.Name))
+            if (matched.Contains(ForeignKeyIdentity(databaseKey)))
             {
                 continue;
             }
@@ -500,6 +518,19 @@ public static class SchemaComparer
 
         static bool IsNoOp(DbDeleteBehavior behavior) =>
             behavior is DbDeleteBehavior.Restrict or DbDeleteBehavior.NoAction;
+    }
+
+    /// <summary>
+    /// Identita cizího klíče pro párování — sloupce závislé tabulky. Jméno v ní není,
+    /// protože ho SQLite vůbec nevystavuje a skládá se uměle podle konvence.
+    /// Cílová tabulka v ní taky není, aby se přesměrování vazby dalo nahlásit
+    /// jako změna, ne jako dvojice „chybí" a „přebývá".
+    /// </summary>
+    internal static string ForeignKeyIdentity(DbForeignKey foreignKey)
+    {
+        ArgumentNullException.ThrowIfNull(foreignKey);
+
+        return string.Join(',', foreignKey.Columns.Select(static c => c.ToUpperInvariant()));
     }
 
     private static string Describe(IReadOnlyList<string> columns) =>

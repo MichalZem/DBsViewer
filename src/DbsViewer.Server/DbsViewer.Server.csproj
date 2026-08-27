@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <Description>Zapojení DbsVieweru do ASP.NET Core aplikace: AddDbsViewer, MapDbsViewer, HTTP endpointy, cache a autorizace.</Description>
+    <PackageId>DbsViewer.Server</PackageId>
+    <OutputType>Library</OutputType>
+    <IsPackable>true</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DbsViewer.Abstractions\DbsViewer.Abstractions.csproj" />
+    <ProjectReference Include="..\DbsViewer.Analysis\DbsViewer.Analysis.csproj" />
+    <ProjectReference Include="..\DbsViewer.Relational\DbsViewer.Relational.csproj" />
+    <ProjectReference Include="..\DbsViewer.EfCore\DbsViewer.EfCore.csproj" />
+    <ProjectReference Include="..\DbsViewer.SqlServer\DbsViewer.SqlServer.csproj" />
+    <ProjectReference Include="..\DbsViewer.Sqlite\DbsViewer.Sqlite.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="DbsViewer.Server.Tests" />
+  </ItemGroup>
+
+</Project>

@@ -55,6 +55,39 @@ public static class QueryRunner
     }
 }
 
+/// <summary>
+/// Držení otevřeného připojení po dobu operace. Zavře ho jen tehdy, když ho samo otevřelo —
+/// cizí připojení patří volajícímu.
+/// </summary>
+public sealed class ConnectionScope : IAsyncDisposable
+{
+    private readonly DbConnection _connection;
+    private readonly bool _closeOnDispose;
+
+    private ConnectionScope(DbConnection connection, bool closeOnDispose)
+    {
+        _connection = connection;
+        _closeOnDispose = closeOnDispose;
+    }
+
+    /// <summary>Otevře připojení, pokud otevřené není.</summary>
+    public static async Task<ConnectionScope> OpenAsync(
+        DbConnection connection,
+        CancellationToken cancellationToken = default)
+    {
+        var openedHere = await QueryRunner.EnsureOpenAsync(connection, cancellationToken).ConfigureAwait(false);
+        return new ConnectionScope(connection, openedHere);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_closeOnDispose)
+        {
+            await _connection.CloseAsync().ConfigureAwait(false);
+        }
+    }
+}
+
 /// <summary>Čtení hodnot z <see cref="DbDataReader"/> se zacházením s NULL.</summary>
 public static class DataReaderExtensions
 {

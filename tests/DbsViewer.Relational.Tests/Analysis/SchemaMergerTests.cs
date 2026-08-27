@@ -320,6 +320,37 @@ public class SchemaMergerTests
     }
 
     [Fact]
+    public void Stejny_cizi_klic_s_jinym_jmenem_se_neduplikuje()
+    {
+        // Táž vazba, dvě jména: EF přidává jméno sloupce, SQLite ho vůbec nezná.
+        var modelKey = Build.ForeignKey("FK_Posts_Blogs_BlogId", ["BlogId"], "Blogs")
+            with { NavigationName = "Blog" };
+        var databaseKey = Build.ForeignKey("FK_Posts_Blogs", ["BlogId"], "Blogs");
+
+        var merged = Assert.Single(SchemaMerger
+            .Merge(Model(WithForeignKeys("Posts", modelKey)), Database(WithForeignKeys("Posts", databaseKey)))
+            .Tables.Single().ForeignKeys);
+
+        Assert.Equal("Blog", merged.NavigationName);
+        Assert.Equal("FK_Posts_Blogs", merged.Name);
+    }
+
+    [Fact]
+    public void Dva_cizi_klice_na_stejnou_tabulku_zustanou_oba()
+    {
+        var shipping = Build.ForeignKey("FK_Ship", ["ShippingAddressId"], "Addresses");
+        var billing = Build.ForeignKey("FK_Bill", ["BillingAddressId"], "Addresses");
+
+        var merged = SchemaMerger
+            .Merge(
+                Model(WithForeignKeys("Orders", shipping, billing)),
+                Database(WithForeignKeys("Orders", shipping, billing)))
+            .Tables.Single().ForeignKeys;
+
+        Assert.Equal(2, merged.Count);
+    }
+
+    [Fact]
     public void Nezname_chovani_v_databazi_doplni_model()
     {
         var modelKey = Build.ForeignKey("FK", ["AId"], "A", delete: DbDeleteBehavior.Cascade);
@@ -364,6 +395,93 @@ public class SchemaMergerTests
 
         Assert.Equal("Customer", relationship.FromNavigation);
     }
+
+    [Fact]
+    public void Stejna_vazba_s_jinym_jmenem_klice_se_neduplikuje()
+    {
+        // EF pojmenuje klíč FK_Posts_Blogs_BlogId, SQLite ho neumí vystavit a složí
+        // FK_Posts_Blogs. Je to jedna vazba a v diagramu smí být jen jedna hrana.
+        var model = Model() with
+        {
+            Relationships =
+            [
+                new DbRelationship
+                {
+                    Id = "fk:Posts|FK_Posts_Blogs_BlogId",
+                    From = new DbObjectName(null, "Posts"),
+                    To = new DbObjectName(null, "Blogs"),
+                    FromColumns = ["BlogId"],
+                    FromNavigation = "Blog",
+                },
+            ],
+        };
+
+        var database = Database() with
+        {
+            Relationships =
+            [
+                new DbRelationship
+                {
+                    Id = "fk:Posts|FK_Posts_Blogs",
+                    From = new DbObjectName(null, "Posts"),
+                    To = new DbObjectName(null, "Blogs"),
+                    FromColumns = ["BlogId"],
+                },
+            ],
+        };
+
+        var relationship = Assert.Single(SchemaMerger.Merge(model, database).Relationships);
+
+        Assert.Equal("Blog", relationship.FromNavigation);
+    }
+
+    [Fact]
+    public void Ruzne_vazby_mezi_stejnymi_tabulkami_zustanou_obe()
+    {
+        // Dva cizí klíče mezi týmiž tabulkami jsou dva vztahy, ne duplicita.
+        var model = Model() with
+        {
+            Relationships =
+            [
+                Relationship("fk:Orders|FK_Ship", "Orders", "Addresses", "ShippingAddressId"),
+                Relationship("fk:Orders|FK_Bill", "Orders", "Addresses", "BillingAddressId"),
+            ],
+        };
+
+        Assert.Equal(2, SchemaMerger.Merge(model, Database()).Relationships.Count);
+    }
+
+    [Fact]
+    public void Sbalene_NM_se_paruje_podle_vazebni_tabulky()
+    {
+        var manyToMany = new DbRelationship
+        {
+            Id = "m2m:Products<->Tags|ProductTags",
+            From = new DbObjectName(null, "Products"),
+            To = new DbObjectName(null, "Tags"),
+            Cardinality = DbCardinality.ManyToMany,
+            ViaJoinTable = new DbObjectName(null, "ProductTags"),
+            FromNavigation = "Tags",
+        };
+
+        var model = Model() with { Relationships = [manyToMany] };
+        var database = Database() with
+        {
+            Relationships = [manyToMany with { Id = "m2m:jine-id", FromNavigation = null }],
+        };
+
+        var merged = Assert.Single(SchemaMerger.Merge(model, database).Relationships);
+
+        Assert.Equal("Tags", merged.FromNavigation);
+    }
+
+    private static DbRelationship Relationship(string id, string from, string to, string column) => new()
+    {
+        Id = id,
+        From = new DbObjectName(null, from),
+        To = new DbObjectName(null, to),
+        FromColumns = [column],
+    };
 
     [Fact]
     public void Vztah_jen_v_databazi_se_doplni()

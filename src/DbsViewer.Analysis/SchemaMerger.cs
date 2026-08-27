@@ -79,8 +79,15 @@ public static class SchemaMerger
 
         // Klíče, indexy a cizí klíče bere skutečnost v databázi; co v ní není, doplní model.
         PrimaryKey = database.PrimaryKey ?? model.PrimaryKey,
-        Indexes = MergeByName(model.Indexes, database.Indexes, static i => i.Name, MergeIndex),
-        ForeignKeys = MergeByName(model.ForeignKeys, database.ForeignKeys, static f => f.Name, MergeForeignKey),
+        Indexes = MergeByKey(model.Indexes, database.Indexes, static i => i.Name, MergeIndex),
+
+        // Cizí klíče se párují podle sloupců, ne podle jména — SQLite jména nevystavuje
+        // a skládá se podle konvence, která se s EF nemusí trefit.
+        ForeignKeys = MergeByKey(
+            model.ForeignKeys,
+            database.ForeignKeys,
+            SchemaComparer.ForeignKeyIdentity,
+            MergeForeignKey),
         CheckConstraints = database.CheckConstraints.Count > 0
             ? database.CheckConstraints
             : model.CheckConstraints,
@@ -183,7 +190,7 @@ public static class SchemaMerger
         IReadOnlyList<DbRelationship> database)
     {
         var merged = new List<DbRelationship>(model);
-        var known = new HashSet<string>(model.Select(static r => r.Id), StringComparer.Ordinal);
+        var known = new HashSet<string>(model.Select(RelationshipIdentity), StringComparer.Ordinal);
 
         // Sbalené N:M v modelu skryjí i cizí klíče vazební tabulky, které databáze hlásí zvlášť.
         var collapsedJoinTables = new HashSet<DbObjectName>(
@@ -191,7 +198,8 @@ public static class SchemaMerger
 
         foreach (var relationship in database)
         {
-            if (known.Contains(relationship.Id) || collapsedJoinTables.Contains(relationship.From))
+            if (known.Contains(RelationshipIdentity(relationship))
+                || collapsedJoinTables.Contains(relationship.From))
             {
                 continue;
             }
@@ -201,6 +209,21 @@ public static class SchemaMerger
 
         merged.Sort(static (a, b) => string.CompareOrdinal(a.Id, b.Id));
         return merged;
+    }
+
+    /// <summary>
+    /// Identita vztahu pro párování mezi zdroji: strany a sloupce, ne <c>Id</c>.
+    /// Id obsahuje jméno cizího klíče, které SQLite nevystavuje a skládá se podle konvence —
+    /// stejná vazba by pak z modelu a z databáze měla různá Id a objevila by se dvakrát.
+    /// </summary>
+    private static string RelationshipIdentity(DbRelationship relationship)
+    {
+        var columns = string.Join(',', relationship.FromColumns.Select(static c => c.ToUpperInvariant()));
+
+        return relationship.ViaJoinTable is { } join
+            ? $"m2m:{join.Qualified.ToUpperInvariant()}"
+            : $"{relationship.From.Qualified.ToUpperInvariant()}|{columns}"
+                + $"->{relationship.To.Qualified.ToUpperInvariant()}";
     }
 
     private static IReadOnlyList<DbMigration> MergeMigrations(
@@ -229,26 +252,35 @@ public static class SchemaMerger
         return [.. byId.Values];
     }
 
-    private static IReadOnlyList<T> MergeByName<T>(
+    /// <summary>
+    /// Spojí dvě kolekce podle zadaného klíče. Co je v obou, projde slučovací funkcí;
+    /// co je jen na jedné straně, zůstane beze změny.
+    /// </summary>
+    private static IReadOnlyList<T> MergeByKey<T>(
         IReadOnlyList<T> model,
         IReadOnlyList<T> database,
-        Func<T, string> nameSelector,
+        Func<T, string> keySelector,
         Func<T, T, T> merge)
     {
-        var modelByName = model.ToDictionary(nameSelector, StringComparer.OrdinalIgnoreCase);
+        var modelByKey = new Dictionary<string, T>(StringComparer.OrdinalIgnoreCase);
+        foreach (var item in model)
+        {
+            modelByKey[keySelector(item)] = item;
+        }
+
         var merged = new List<T>(Math.Max(model.Count, database.Count));
 
         foreach (var item in database)
         {
-            merged.Add(modelByName.TryGetValue(nameSelector(item), out var modelItem)
+            merged.Add(modelByKey.TryGetValue(keySelector(item), out var modelItem)
                 ? merge(modelItem, item)
                 : item);
         }
 
-        var databaseNames = new HashSet<string>(
-            database.Select(nameSelector), StringComparer.OrdinalIgnoreCase);
+        var databaseKeys = new HashSet<string>(
+            database.Select(keySelector), StringComparer.OrdinalIgnoreCase);
 
-        merged.AddRange(model.Where(item => !databaseNames.Contains(nameSelector(item))));
+        merged.AddRange(model.Where(item => !databaseKeys.Contains(keySelector(item))));
 
         return merged;
     }

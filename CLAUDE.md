@@ -66,7 +66,7 @@ src/
   DbsViewer.SqlServer      Živá introspekce nad sys.*
   DbsViewer.Sqlite         Živá introspekce nad sqlite_master a PRAGMA
   DbsViewer.Analysis       Slučování a porovnání schémat (diff engine).
-  DbsViewer.Server         (plánováno) AddDbsViewer / MapDbsViewer, minimal API, hosting UI
+  DbsViewer.Server         AddDbsViewer / MapDbsViewer, HTTP API, cache, autorizace, náhled dat
   DbsViewer.Ui             (plánováno) Blazor WASM, embedovaný do DbsViewer.Server
 samples/
   DbsViewer.SampleShop     Ukázkový model pro testy a ověření
@@ -76,6 +76,7 @@ tests/
   DbsViewer.TestKit        Pomůcky sdílené testy. Neměří se pokrytí.
   DbsViewer.EfCore.Tests   Testy Abstractions a EfCore
   DbsViewer.Relational.Tests  Testy Relational, SqlServer, Sqlite a Analysis
+  DbsViewer.Server.Tests   Testy Serveru proti běžící aplikaci
 docs/adr/                  Architektonická rozhodnutí
 ```
 
@@ -106,6 +107,12 @@ dotnet run --project tools/DbsViewer.Dump -- --help
 # testy včetně vynuceného pokrytí (spouštět z adresáře testovacího projektu)
 cd tests/DbsViewer.EfCore.Tests && dotnet test
 cd tests/DbsViewer.Relational.Tests && dotnet test
+cd tests/DbsViewer.Server.Tests && dotnet test
+
+# zabalení do NuGet balíčků (výstup do artifacts/packages/)
+for p in Abstractions EfCore Relational SqlServer Sqlite Analysis Server; do
+  dotnet pack src/DbsViewer.$p -c Release -o artifacts/packages
+done
 ```
 
 Report pokrytí končí v `artifacts/coverage/` ve formátech cobertura, lcov a json.
@@ -134,6 +141,10 @@ se v casingu běžně liší; od toho je `DbObjectName`.
 **Bezpečnostní defaulty jsou restriktivní** a mimo Development komponenta bez autorizace
 nenastartuje. Viz [ADR-0006](docs/adr/0006-bezpecnostni-defaulty.md).
 
+**Objekty se mezi zdroji párují podle struktury, ne podle jména.** SQLite jména cizích klíčů
+nevystavuje a skládají se podle konvence, která se s EF nemusí trefit.
+Viz [ADR-0011](docs/adr/0011-parovani-podle-sloupcu.md).
+
 ---
 
 ## Styl
@@ -151,15 +162,17 @@ nenastartuje. Viz [ADR-0006](docs/adr/0006-bezpecnostni-defaulty.md).
 
 ## Stav a další kroky
 
-Hotové jsou **etapy 01 a 02**: datový model, čtení z EF modelu, živá introspekce obou
-providerů, slučování, diff engine a ověřovací nástroj. 404 testů.
+Hotové jsou **etapy 01 až 03**: datový model, čtení z EF modelu, živá introspekce obou
+providerů, slučování, diff engine, HTTP API s autorizací, cache a náhledem dat. 542 testů.
+
+Ověřeno end-to-end: balíček se dá zabalit, nainstalovat do čerstvé Web API aplikace
+a dvěma řádky zapojit. Postup instalace je v [README](README.md).
 
 Zbývá:
 
 | # | Etapa |
 |---|---|
-| 03 | `DbsViewer.Server` — `AddDbsViewer` / `MapDbsViewer`, endpointy, cache, autorizace |
 | 04 | Blazor WASM UI bez diagramu, embedding do balíčku |
 | 05 | ER diagram — SVG renderer, elkjs layout, focus mode, export |
 | 06 | Diff a náhled dat v UI |
-| 07 | NuGet balíčky, `dotnet tool`, statický snapshot do `docs/` |
+| 07 | Publikování na nuget.org, `dotnet tool`, statický snapshot do `docs/` |

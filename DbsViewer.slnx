@@ -7,12 +7,14 @@
     <Project Path="src/DbsViewer.Analysis/DbsViewer.Analysis.csproj" />
     <Project Path="src/DbsViewer.EfCore/DbsViewer.EfCore.csproj" />
     <Project Path="src/DbsViewer.Relational/DbsViewer.Relational.csproj" />
+    <Project Path="src/DbsViewer.Server/DbsViewer.Server.csproj" />
     <Project Path="src/DbsViewer.Sqlite/DbsViewer.Sqlite.csproj" />
     <Project Path="src/DbsViewer.SqlServer/DbsViewer.SqlServer.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/DbsViewer.EfCore.Tests/DbsViewer.EfCore.Tests.csproj" />
     <Project Path="tests/DbsViewer.Relational.Tests/DbsViewer.Relational.Tests.csproj" />
+    <Project Path="tests/DbsViewer.Server.Tests/DbsViewer.Server.Tests.csproj" />
     <Project Path="tests/DbsViewer.TestKit/DbsViewer.TestKit.csproj" />
   </Folder>
   <Folder Name="/tools/">
