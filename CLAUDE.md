@@ -60,23 +60,30 @@ Balíčky se **nepojmenovávají** s prefixem organizace — je to holé `DbsVie
 
 ```
 src/
-  DbsViewer.Abstractions   Datový model a kontrakty. Bez závislostí, trimmovatelné.
+  DbsViewer.Abstractions   Datový model, kontrakty a odvozovací funkce. Bez závislostí.
   DbsViewer.EfCore         Čtení schématu z EF modelu. Provider-agnostické.
-  DbsViewer.SqlServer      (plánováno) Živá introspekce nad sys.*
-  DbsViewer.Sqlite         (plánováno) Živá introspekce nad PRAGMA
+  DbsViewer.Relational     Sdílená introspekce: surový model, assembler, spouštění dotazů.
+  DbsViewer.SqlServer      Živá introspekce nad sys.*
+  DbsViewer.Sqlite         Živá introspekce nad sqlite_master a PRAGMA
+  DbsViewer.Analysis       Slučování a porovnání schémat (diff engine).
   DbsViewer.Server         (plánováno) AddDbsViewer / MapDbsViewer, minimal API, hosting UI
   DbsViewer.Ui             (plánováno) Blazor WASM, embedovaný do DbsViewer.Server
 samples/
   DbsViewer.SampleShop     Ukázkový model pro testy a ověření
 tools/
-  DbsViewer.Dump           Konzolový výpis schématu do textu a JSON
+  DbsViewer.Dump           Konzolový výpis schématu, diff a sloučený pohled
 tests/
-  DbsViewer.EfCore.Tests   Testy Abstractions i EfCore, vynucují pokrytí
+  DbsViewer.TestKit        Pomůcky sdílené testy. Neměří se pokrytí.
+  DbsViewer.EfCore.Tests   Testy Abstractions a EfCore
+  DbsViewer.Relational.Tests  Testy Relational, SqlServer, Sqlite a Analysis
 docs/adr/                  Architektonická rozhodnutí
 ```
 
 Závislosti jdou vždy jedním směrem: `Abstractions` → zdroje → `Server` → `Ui`.
 `Abstractions` nesmí záviset na ničem, protože ho používá i WASM klient.
+
+**Testy patří k projektu, který testují** — jinak se pokrytí měří jinde, než se testuje,
+a práh spadne bez skutečné příčiny. Sdílené pomůcky jdou do `DbsViewer.TestKit`.
 
 ---
 
@@ -86,11 +93,19 @@ Závislosti jdou vždy jedním směrem: `Abstractions` → zdroje → `Server` �
 # ověřovací výpis schématu ukázkového modelu
 dotnet run --project tools/DbsViewer.Dump
 
-# totéž plus JSON na disk
-dotnet run --project tools/DbsViewer.Dump -- --json schema.json
+# živá databáze
+dotnet run --project tools/DbsViewer.Dump -- --sqlite ./app.db --rows
+dotnet run --project tools/DbsViewer.Dump -- --sqlserver "Server=.;Database=Eshop;Trusted_Connection=True"
+
+# drift mezi EF modelem a databází (návratový kód 2 při nálezu chyby)
+dotnet run --project tools/DbsViewer.Dump -- --diff ./app.db
+
+# nápověda
+dotnet run --project tools/DbsViewer.Dump -- --help
 
 # testy včetně vynuceného pokrytí (spouštět z adresáře testovacího projektu)
 cd tests/DbsViewer.EfCore.Tests && dotnet test
+cd tests/DbsViewer.Relational.Tests && dotnet test
 ```
 
 Report pokrytí končí v `artifacts/coverage/` ve formátech cobertura, lcov a json.
@@ -136,15 +151,15 @@ nenastartuje. Viz [ADR-0006](docs/adr/0006-bezpecnostni-defaulty.md).
 
 ## Stav a další kroky
 
-Hotová je **etapa 01**: datový model, čtení z EF modelu, ověřovací výpis, 166 testů.
+Hotové jsou **etapy 01 a 02**: datový model, čtení z EF modelu, živá introspekce obou
+providerů, slučování, diff engine a ověřovací nástroj. 404 testů.
 
 Zbývá:
 
 | # | Etapa |
 |---|---|
-| 02 | Živá introspekce SQL Server a SQLite, sloučený pohled |
 | 03 | `DbsViewer.Server` — `AddDbsViewer` / `MapDbsViewer`, endpointy, cache, autorizace |
 | 04 | Blazor WASM UI bez diagramu, embedding do balíčku |
 | 05 | ER diagram — SVG renderer, elkjs layout, focus mode, export |
-| 06 | Diff engine v UI, read-only náhled dat s maskováním |
+| 06 | Diff a náhled dat v UI |
 | 07 | NuGet balíčky, `dotnet tool`, statický snapshot do `docs/` |

@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 namespace DbsViewer;
 
 /// <summary>Tabulka nebo pohled včetně všeho, co se o ní dá zjistit.</summary>
-public sealed class DbTable
+public sealed record DbTable
 {
     public required DbObjectName Name { get; init; }
 
@@ -61,7 +61,7 @@ public sealed class DbTable
 }
 
 /// <summary>Sloupec tabulky.</summary>
-public sealed class DbColumn
+public sealed record DbColumn
 {
     public required string Name { get; init; }
 
@@ -117,7 +117,7 @@ public sealed class DbColumn
 }
 
 /// <summary>Primární klíč.</summary>
-public sealed class DbPrimaryKey
+public sealed record DbPrimaryKey
 {
     public string? Name { get; init; }
 
@@ -129,7 +129,7 @@ public sealed class DbPrimaryKey
 }
 
 /// <summary>Check constraint.</summary>
-public sealed class DbCheckConstraint
+public sealed record DbCheckConstraint
 {
     public required string Name { get; init; }
 

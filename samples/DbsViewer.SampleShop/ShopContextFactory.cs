@@ -21,6 +21,16 @@ public static class ShopContextFactory
         return new ShopContext(options);
     }
 
+    /// <summary>Kontext nad SQLite z hotového connection stringu.</summary>
+    public static ShopContext CreateSqliteRaw(string connectionString)
+    {
+        var options = new DbContextOptionsBuilder<ShopContext>()
+            .UseSqlite(connectionString)
+            .Options;
+
+        return new ShopContext(options);
+    }
+
     /// <summary>
     /// Kontext nad SQL Serverem. Připojení se nikdy neotevírá jen kvůli čtení modelu,
     /// takže connection string nemusí ukazovat na existující databázi.

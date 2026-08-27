@@ -6,7 +6,7 @@ namespace DbsViewer;
 /// Kompletní popis databázového schématu. Jedna instance je to, co jde po drátě do UI
 /// a co porovnává diff engine — nezávisle na tom, jestli vznikla z EF modelu nebo z živé databáze.
 /// </summary>
-public sealed class DatabaseSchema
+public sealed record DatabaseSchema
 {
     /// <summary>Jméno databáze, pokud ho jde zjistit.</summary>
     public string? DatabaseName { get; init; }

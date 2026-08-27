@@ -1,7 +1,7 @@
 namespace DbsViewer;
 
 /// <summary>Index nad tabulkou.</summary>
-public sealed class DbIndex
+public sealed record DbIndex
 {
     public required string Name { get; init; }
 
@@ -29,7 +29,7 @@ public sealed class DbIndex
 }
 
 /// <summary>Cizí klíč z pohledu závislé tabulky.</summary>
-public sealed class DbForeignKey
+public sealed record DbForeignKey
 {
     public required string Name { get; init; }
 

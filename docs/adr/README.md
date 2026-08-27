@@ -43,3 +43,5 @@ Drobnosti (přejmenování metody, oprava chyby, doplnění testu) ADR nepotřeb
 | [0005](0005-stoprocentni-pokryti.md) | Vynucené 100% pokrytí řádků a metod | Přijato | 2026-08-27 |
 | [0006](0006-bezpecnostni-defaulty.md) | Restriktivní bezpečnostní defaulty s pádem při startu | Přijato | 2026-08-27 |
 | [0007](0007-vztahy-ne-cizi-klice.md) | Diagram kreslí vztahy, ne cizí klíče | Přijato | 2026-08-27 |
+| [0008](0008-sdilena-introspekcni-vrstva.md) | Sdílená introspekční vrstva se surovým modelem | Přijato | 2026-08-27 |
+| [0009](0009-databaze-ma-pravdu-o-sobe.md) | Při slučování má databáze pravdu o sobě, model o záměru | Přijato | 2026-08-27 |

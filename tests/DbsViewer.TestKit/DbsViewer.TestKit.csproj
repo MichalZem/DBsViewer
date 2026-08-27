@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <Description>Pomůcky sdílené testovacími projekty. Není součástí dodávky ani se neměří pokrytí.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\DbsViewer.Abstractions\DbsViewer.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>

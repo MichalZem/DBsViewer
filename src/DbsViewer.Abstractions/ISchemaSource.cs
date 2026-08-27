@@ -25,7 +25,7 @@ public interface ISchemaSource
 }
 
 /// <summary>Co všechno se má při čtení schématu zjišťovat.</summary>
-public sealed class SchemaReadOptions
+public sealed record SchemaReadOptions
 {
     /// <summary>Sdílená instance s výchozím nastavením.</summary>
     public static SchemaReadOptions Default { get; } = new();

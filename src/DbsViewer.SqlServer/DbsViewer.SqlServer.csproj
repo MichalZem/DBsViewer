@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Čtení schématu z živé Microsoft SQL Server databáze přes systémové pohledy sys.*.</Description>
+    <PackageId>DbsViewer.SqlServer</PackageId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.SqlClient" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DbsViewer.Relational\DbsViewer.Relational.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="DbsViewer.Relational.Tests" />
+  </ItemGroup>
+
+</Project>

@@ -8,7 +8,8 @@ builder.Services.AddDbsViewer<AppDbContext>();
 app.MapDbsViewer();          // → /dbschema
 ```
 
-> **Stav:** rozpracované. Hotové je čtení schématu z EF modelu (etapa 01 ze sedmi).
+> **Stav:** rozpracované. Hotové je čtení schématu z EF modelu i z živé databáze,
+> slučování obou pohledů a diff engine (etapy 01 a 02 ze sedmi).
 > Hostování, UI ani diagram zatím nejsou. Přehled etap je na konci.
 
 ---
@@ -37,7 +38,29 @@ nebo `DeleteBehavior`, které se v praxi chová jinak, než model tvrdí.
 - **Migrace** rozdělené na nasazené, čekající a osiřelé
 - Načtení schématu **nikdy nespadne** — dílčí selhání skončí jako upozornění ve výsledku
 
-Plánované: ER diagram s focus modem, diff engine, read-only náhled dat, export do Mermaid,
+**Detekce driftu** je hotová a dá se spustit z příkazové řádky:
+
+```bash
+dotnet run --project tools/DbsViewer.Dump -- --diff ./app.db
+```
+
+```
+Nálezů: 9 chyb, 3 varování
+
+── Chyby ──
+  Orders
+    Tabulka je v modelu, ale v databázi chybí. Nejspíš neaplikovaná migrace.
+
+── Varování ──
+  Customers.IX_Rucne_Pridany
+    Index je v databázi, ale v modelu není. Ručně doladěný výkon mimo migrace.
+  Customers.LegacySloupecNavic
+    Sloupec je v databázi, ale v modelu není. EF s ním nepracuje.
+```
+
+Nenulový návratový kód při nálezu chyby umožňuje použít nástroj jako kontrolu v CI.
+
+Plánované: ER diagram s focus modem, read-only náhled dat, export do Mermaid,
 DBML a Markdownu.
 
 ## Podporované prostředí
@@ -159,18 +182,22 @@ Pravidla pro práci na projektu v [`CLAUDE.md`](CLAUDE.md).
 
 | Projekt | Účel |
 |---|---|
-| `src/DbsViewer.Abstractions` | Datový model a kontrakty, bez závislostí |
+| `src/DbsViewer.Abstractions` | Datový model, kontrakty a odvozovací funkce |
 | `src/DbsViewer.EfCore` | Čtení schématu z EF modelu |
+| `src/DbsViewer.Relational` | Sdílená vrstva živé introspekce |
+| `src/DbsViewer.SqlServer` | Introspekce SQL Serveru nad `sys.*` |
+| `src/DbsViewer.Sqlite` | Introspekce SQLite nad `PRAGMA` |
+| `src/DbsViewer.Analysis` | Slučování a porovnání schémat |
 | `samples/DbsViewer.SampleShop` | Ukázkový model pro testy |
-| `tools/DbsViewer.Dump` | Konzolový výpis schématu |
-| `tests/DbsViewer.EfCore.Tests` | Testy s vynuceným pokrytím |
+| `tools/DbsViewer.Dump` | Výpis schématu, diff a sloučený pohled |
+| `tests/*` | Testy s vynuceným pokrytím |
 
 ### Etapy
 
 | # | Etapa | Stav |
 |---|---|---|
 | 01 | Datový model, čtení z EF modelu, ověřovací výpis | ✅ hotovo |
-| 02 | Živá introspekce SQL Server a SQLite | ⬜ |
+| 02 | Živá introspekce, slučování, diff engine | ✅ hotovo |
 | 03 | `AddDbsViewer` / `MapDbsViewer`, endpointy, autorizace | ⬜ |
 | 04 | Blazor WASM UI bez diagramu | ⬜ |
 | 05 | ER diagram, focus mode, export | ⬜ |

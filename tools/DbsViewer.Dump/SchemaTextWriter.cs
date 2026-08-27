@@ -1,4 +1,5 @@
 using System.Text;
+using DbsViewer.Analysis;
 
 namespace DbsViewer.Dump;
 
@@ -31,6 +32,55 @@ public static class SchemaTextWriter
         return output.ToString();
     }
 
+    /// <summary>Výpis nálezů porovnání modelu proti databázi.</summary>
+    public static string RenderDiff(SchemaDiff diff, DatabaseSchema model, DatabaseSchema database)
+    {
+        var output = new StringBuilder();
+
+        output.AppendLine($"Model    : {model.SourceName} — {model.Tables.Count} tabulek");
+        output.AppendLine($"Databáze : {database.SourceName} — {database.Tables.Count} tabulek");
+        output.AppendLine();
+
+        if (diff.IsClean)
+        {
+            output.AppendLine("✓ Model a databáze se shodují.");
+            return output.ToString();
+        }
+
+        output.AppendLine($"Nálezů: {diff.ErrorCount} chyb, {diff.WarningCount} varování");
+        output.AppendLine();
+
+        foreach (var group in diff.Findings.GroupBy(static f => f.Severity))
+        {
+            output.AppendLine(group.Key switch
+            {
+                DiffSeverity.Error => "── Chyby ──",
+                DiffSeverity.Warning => "── Varování ──",
+                _ => "── Informace ──",
+            });
+
+            foreach (var finding in group)
+            {
+                var where = finding.Table is { } table
+                    ? $"{table}{(finding.Object is null ? "" : "." + finding.Object)}"
+                    : finding.Object ?? "(schéma)";
+
+                output.AppendLine($"  {where}");
+                output.AppendLine($"    {finding.Message}");
+
+                if (finding.ModelValue is not null || finding.DatabaseValue is not null)
+                {
+                    output.AppendLine(
+                        $"    model: {finding.ModelValue ?? "—"}   databáze: {finding.DatabaseValue ?? "—"}");
+                }
+            }
+
+            output.AppendLine();
+        }
+
+        return output.ToString();
+    }
+
     private static void RenderTable(StringBuilder output, DbTable table)
     {
         var flags = new List<string>();
@@ -52,6 +102,11 @@ public static class SchemaTextWriter
         if (table.DiscriminatorColumn is { } discriminator)
         {
             flags.Add($"TPH:{discriminator}");
+        }
+
+        if (table.RowCountEstimate is { } rows)
+        {
+            flags.Add($"~{rows:N0} řádků");
         }
 
         output.AppendLine($"■ {table.Qualified}{(flags.Count > 0 ? $"   [{string.Join(" · ", flags)}]" : "")}");

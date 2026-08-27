@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Sloučení a porovnání schémat z různých zdrojů — detekce driftu mezi EF modelem a živou databází. Čistá logika bez závislosti na databázi.</Description>
+    <PackageId>DbsViewer.Analysis</PackageId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DbsViewer.Abstractions\DbsViewer.Abstractions.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="DbsViewer.Relational.Tests" />
+  </ItemGroup>
+
+</Project>

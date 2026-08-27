@@ -4,7 +4,7 @@ namespace DbsViewer;
 /// Vztah mezi dvěma tabulkami tak, jak se kreslí v diagramu. Není to totéž co cizí klíč:
 /// vztah N:M vzniká ze dvou cizích klíčů přes vazební tabulku a kreslí se jako jedna hrana.
 /// </summary>
-public sealed class DbRelationship
+public sealed record DbRelationship
 {
     /// <summary>Stabilní identifikátor pro UI (výběr hrany, uložené rozložení).</summary>
     public required string Id { get; init; }
@@ -50,7 +50,7 @@ public sealed class DbRelationship
 }
 
 /// <summary>Jedna migrace a její stav.</summary>
-public sealed class DbMigration
+public sealed record DbMigration
 {
     public required string Id { get; init; }
 

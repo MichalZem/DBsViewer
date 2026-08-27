@@ -2,6 +2,7 @@ using DbsViewer.EfCore;
 using DbsViewer.EfCore.Internal;
 using DbsViewer.SampleShop;
 using Microsoft.EntityFrameworkCore;
+using DbsViewer.TestKit;
 
 namespace DbsViewer.Tests.EfCore;
 

@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Sdílená vrstva pro čtení schématu z živé databáze: surový model, sestavení do DatabaseSchema a spouštění dotazů. Providerově nezávislá.</Description>
+    <PackageId>DbsViewer.Relational</PackageId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DbsViewer.Abstractions\DbsViewer.Abstractions.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="DbsViewer.Relational.Tests" />
+    <InternalsVisibleTo Include="DbsViewer.SqlServer" />
+    <InternalsVisibleTo Include="DbsViewer.Sqlite" />
+  </ItemGroup>
+
+</Project>

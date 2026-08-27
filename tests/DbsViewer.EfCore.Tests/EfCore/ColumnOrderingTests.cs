@@ -1,5 +1,6 @@
 using DbsViewer.EfCore;
 using DbsViewer.SampleShop;
+using DbsViewer.TestKit;
 
 namespace DbsViewer.Tests.EfCore;
 
