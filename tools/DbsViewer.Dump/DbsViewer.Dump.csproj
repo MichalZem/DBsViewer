@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>DbsViewer.Dump</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\DbsViewer.EfCore\DbsViewer.EfCore.csproj" />
+    <ProjectReference Include="..\..\samples\DbsViewer.SampleShop\DbsViewer.SampleShop.csproj" />
+  </ItemGroup>
+
+</Project>

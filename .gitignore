@@ -427,3 +427,18 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+## --- DbsViewer ---
+
+# Výstup měření pokrytí (cobertura, lcov, json)
+artifacts/
+
+# Nástroje agentů
+.claude/
+
+# Lokální databáze pro zkoušení
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+appsettings.Local.json

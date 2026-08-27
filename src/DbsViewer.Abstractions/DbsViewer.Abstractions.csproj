@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Sdílený datový model a kontrakty pro DbsViewer — popis databázového schématu nezávislý na zdroji i na databázovém providerovi.</Description>
+    <PackageId>DbsViewer.Abstractions</PackageId>
+  </PropertyGroup>
+
+</Project>

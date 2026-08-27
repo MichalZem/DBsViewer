@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/samples/">
+    <Project Path="samples/DbsViewer.SampleShop/DbsViewer.SampleShop.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/DbsViewer.Abstractions/DbsViewer.Abstractions.csproj" />
+    <Project Path="src/DbsViewer.EfCore/DbsViewer.EfCore.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/DbsViewer.EfCore.Tests/DbsViewer.EfCore.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/DbsViewer.Dump/DbsViewer.Dump.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <!-- Pokrytí se vynucuje při každém `dotnet test`. Měří se jen to, co se publikuje
+       jako balíček; samples/ a tools/ jsou pomůcky, ne dodávaný kód. -->
+  <PropertyGroup Label="Pokrytí kódu">
+    <CollectCoverage>true</CollectCoverage>
+    <CoverletOutputFormat>cobertura,lcov,json</CoverletOutputFormat>
+    <CoverletOutput>$(MSBuildThisFileDirectory)../../artifacts/coverage/</CoverletOutput>
+    <Include>[DbsViewer.Abstractions]*,[DbsViewer.EfCore]*</Include>
+    <SkipAutoProps>true</SkipAutoProps>
+    <!-- Kód z generátorů (JSON source generator) se netestuje — testuje se chování,
+         které přes něj prochází, ne jeho vygenerované větve. -->
+    <ExcludeByAttribute>GeneratedCodeAttribute,ExcludeFromCodeCoverageAttribute</ExcludeByAttribute>
+    <!-- Řádky a metody musí být pokryté beze zbytku. Větve ne: zbylých ~10 % jsou
+         null-coalescing pojistky nad metadaty EF, které platný model nikdy netrefí.
+         Hodnota je regresní pojistka — smí růst, ne klesat. Viz ADR-0005. -->
+    <Threshold>100,100,85</Threshold>
+    <ThresholdType>line,method,branch</ThresholdType>
+    <ThresholdStat>total</ThresholdStat>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.msbuild">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\DbsViewer.EfCore\DbsViewer.EfCore.csproj" />
+    <ProjectReference Include="..\..\samples\DbsViewer.SampleShop\DbsViewer.SampleShop.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+</Project>

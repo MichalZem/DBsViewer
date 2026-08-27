@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Čtení databázového schématu z EF Core modelu (DbContext.Model). Funguje s libovolným relačním providerem.</Description>
+    <PackageId>DbsViewer.EfCore</PackageId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DbsViewer.Abstractions\DbsViewer.Abstractions.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="DbsViewer.EfCore.Tests" />
+  </ItemGroup>
+
+</Project>
