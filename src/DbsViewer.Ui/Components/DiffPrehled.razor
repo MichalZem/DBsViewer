@@ -17,8 +17,8 @@ else
 {
     <div class="diff">
         <header class="diff-souhrn">
-            <span class="pocet chyba">@Diff.ErrorCount chyb</span>
-            <span class="pocet varovani">@Diff.WarningCount varování</span>
+            <span class="pocet chyba">@Cestina.Chyby(Diff.ErrorCount)</span>
+            <span class="pocet varovani">@Cestina.Varovani(Diff.WarningCount)</span>
         </header>
 
         @foreach (var group in Diff.Findings.GroupBy(static f => f.Severity))

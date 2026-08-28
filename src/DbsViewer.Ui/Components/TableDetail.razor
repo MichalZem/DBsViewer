@@ -32,7 +32,7 @@ else
             }
             @if (Table.RowCountEstimate is { } rows)
             {
-                <span class="odznak" title="Odhad ze statistik">~@rows.ToString("N0") řádků</span>
+                <span class="odznak" title="Odhad ze statistik">~@Cestina.Radky(rows)</span>
             }
         </div>
 

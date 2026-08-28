@@ -52,7 +52,7 @@ else
     </div>
 
     <p class="poznamka">
-        @Preview.Rows.Count řádků@(Preview.IsTruncated ? $" (omezeno na {Preview.Limit})" : "")
+        @Cestina.Radky(Preview.Rows.Count)@(Preview.IsTruncated ? $" (omezeno na {Preview.Limit})" : "")
         <button class="odkaz" @onclick="OnLoad">načíst znovu</button>
     </p>
 }

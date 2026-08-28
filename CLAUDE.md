@@ -185,6 +185,8 @@ Viz [ADR-0011](docs/adr/0011-parovani-podle-sloupcu.md).
 - Testovací databáze v paměti musí mít **unikátní jméno** (GUID). xUnit spouští třídy
   paralelně a dvě databáze stejného jména si přepisují obsah.
 - CSS třídy a texty v UI jsou česky, stejně jako zbytek projektu.
+- Počty v UI se **skloňují** přes `Cestina` — „1 tabulka“, ne „1 tabulek“.
+  Výjimka je vazba po předložce (`2 z 5 tabulek`), kde je vždy genitiv plurálu.
 
 ---
 

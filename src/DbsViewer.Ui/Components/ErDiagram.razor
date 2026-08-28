@@ -38,7 +38,7 @@ else
                                   fill="none"
                                   marker-end="url(#sipka)"
                                   stroke-dasharray="@(relationship.IsRequired ? null : "5 4")" />
-                        <text x="@Fmt(edge.LabelAt.X)" y="@Fmt(edge.LabelAt.Y - 4)" class="kardinalita">
+                        <text x="@Fmt(edge.LabelAt.X)" y="@Fmt(edge.LabelAt.Y - 6)" class="kardinalita">
                             @CardinalityLabel(relationship.Cardinality)
                         </text>
                     </g>

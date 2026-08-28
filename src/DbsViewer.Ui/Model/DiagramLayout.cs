@@ -339,7 +339,10 @@ public static class DiagramLayout
         {
             Relationship = relationship,
             Points = points,
-            LabelAt = (midX, (start.Item2 + end.Item2) / 2),
+
+            // Popisek patří na vodorovný úsek u závislé tabulky, ne na zalomení —
+            // tam by ležel přímo na svislé čáře a překrýval ji.
+            LabelAt = ((start.Item1 + midX) / 2, start.Item2),
         };
     }
 
