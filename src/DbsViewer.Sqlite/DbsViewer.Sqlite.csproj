@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Čtení schématu z živé SQLite databáze přes sqlite_master a PRAGMA.</Description>
+    <PackageId>DbsViewer.Sqlite</PackageId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DbsViewer.Relational\DbsViewer.Relational.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="DbsViewer.Relational.Tests" />
+  </ItemGroup>
+
+</Project>

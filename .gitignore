@@ -436,9 +436,15 @@ artifacts/
 # Nástroje agentů
 .claude/
 
-# Lokální databáze pro zkoušení
-*.db
-*.db-shm
-*.db-wal
-*.sqlite
+# Lokální databáze pro zkoušení.
+# Vzory musí mít lomítko nebo cestu — holé *.sqlite matchuje i adresář
+# src/DbsViewer.Sqlite a celý projekt by z repozitáře zmizel.
+/*.db
+/*.db-shm
+/*.db-wal
+/*.sqlite
+**/bin/**/*.db
+**/bin/**/*.db-shm
+**/bin/**/*.db-wal
+**/bin/**/*.sqlite
 appsettings.Local.json
