@@ -1,5 +1,7 @@
 # DbsViewer
 
+[![Build a publikace](https://github.com/MichalZem/DBsViewer/actions/workflows/build-a-publikace.yml/badge.svg)](https://github.com/MichalZem/DBsViewer/actions/workflows/build-a-publikace.yml)
+
 Prohlížečka databázového schématu, kterou přidáš do jakékoli EF Core aplikace. Dvěma řádky
 v `Program.cs` dostaneš přehled tabulek, sloupců, indexů, klíčů a vazeb — plus detekci rozdílů
 mezi tím, co si EF myslí, a tím, co v databázi opravdu je.
@@ -32,7 +34,13 @@ PostgreSQL a jiné databáze podporované nejsou.
 
 ### Krok 1: získej balíčky
 
-Balíčky **zatím nejsou na nuget.org**. Sestav je ze zdrojů:
+Až bude balíček na nuget.org, stačí:
+
+```bash
+dotnet add package DbsViewer.Server
+```
+
+Do té doby, nebo když chceš nejnovější vývojovou verzi, si balíčky sestav ze zdrojů:
 
 ```bash
 git clone https://github.com/MichalZem/DBsViewer.git
@@ -538,6 +546,40 @@ Pravidla pro práci na projektu v [`CLAUDE.md`](CLAUDE.md).
 | 06 | Diff a náhled dat v UI | ✅ hotovo |
 | 07 | `dotnet tool`, statický snapshot | ✅ hotovo |
 | — | Publikování na nuget.org | ⬜ |
+
+## Vydávání
+
+Publikaci na NuGet obstarává [GitHub Actions](.github/workflows/build-a-publikace.yml).
+
+| Co uděláš | Co se stane |
+|---|---|
+| Push na `main` | Kompilace, testy a vydání **předběžné** verze, například `0.2.1-alpha.0.7` |
+| `git tag v1.2.3 && git push origin v1.2.3` | Totéž plus vydání **stabilní** verze `1.2.3` a release na GitHubu |
+| Pull request | Jen kompilace a testy, nic se nepublikuje |
+
+Verzi určuje **poslední git tag**, ne číslo v souboru — obstarává to
+[MinVer](https://github.com/adamralph/minver). Po tagu `v1.2.3` dostane každý další
+commit verzi `1.2.4-alpha.0.N`, takže se dvě sestavení nikdy neperou o stejné číslo.
+
+### Co je potřeba nastavit
+
+V repozitáři pod *Settings → Secrets and variables → Actions*:
+
+| Tajemství | K čemu | Povinné |
+|---|---|---|
+| `NUGET_API_KEY` | Klíč z [nuget.org](https://www.nuget.org/account/apikeys) s právem *Push* | Ano, jinak se publikace přeskočí |
+| `TEST_SQL_PASSWORD` | Heslo pro testovací SQL Server v kontejneru | Ne, má výchozí hodnotu |
+
+Bez `NUGET_API_KEY` workflow **neselže** — jen přeskočí publikaci a nechá balíčky
+v artefaktech běhu, odkud se dají stáhnout ručně.
+
+### Proč běží na CI SQL Server
+
+Integrační testy potřebují skutečnou databázi: mapování řádků se testuje čtečkou v paměti,
+ale spouštění dotazů nad `sys.*` jinak ověřit nejde. Bez nich klesne pokrytí
+`DbsViewer.SqlServer` pod práh a build právem selže. Workflow proto spouští
+SQL Server v kontejneru; lokálně stačí jakákoli instance a připojení se dá přesměrovat
+proměnnou `DBSVIEWER_TEST_SQLSERVER`.
 
 ## Licence
 

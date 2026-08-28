@@ -87,8 +87,10 @@ public class UiHostingTests
     [Fact]
     public async Task Bez_zabudovaneho_UI_se_vrati_vysvetleni()
     {
-        // Testovací sestava soubory UI nemá, takže server musí poradit, kde je API.
-        await using var app = await DbsViewerApp.StartAsync();
+        // Assembly bez souborů UI. Výchozí DbsViewer.Server je má vložené jen v Release,
+        // takže by test jinak procházel v Debugu a padal v Release.
+        await using var app = await DbsViewerApp.StartAsync(
+            o => o.UiAssembly = typeof(DbObjectName).Assembly);
 
         var response = await app.Client.GetAsync("/dbschema");
         var text = await response.Content.ReadAsStringAsync();

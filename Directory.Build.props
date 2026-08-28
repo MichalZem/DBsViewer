@@ -17,7 +17,20 @@
     <RepositoryUrl>https://github.com/mzemek/DbsViewer</RepositoryUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageTags>ef-core;database;schema;er-diagram;documentation;blazor</PackageTags>
-    <Version>0.1.0-alpha</Version>
   </PropertyGroup>
+
+  <!--
+    Verze se odvozuje z git tagů, ne z čísla v souboru. Tag v1.2.3 vydá verzi 1.2.3;
+    commit za ním dostane 1.2.4-alpha.0.N, takže každý build z main má vlastní verzi
+    a nesnaží se přepsat už publikovanou.
+  -->
+  <PropertyGroup Label="Verzování">
+    <MinVerTagPrefix>v</MinVerTagPrefix>
+    <MinVerDefaultPreReleaseIdentifiers>alpha.0</MinVerDefaultPreReleaseIdentifiers>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(IsPackable)' != 'false'">
+    <PackageReference Include="MinVer" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
+  </ItemGroup>
 
 </Project>

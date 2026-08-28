@@ -51,6 +51,7 @@ Kdy ADR založit, je popsané v [README ADR složky](docs/adr/README.md).
 | Databáze | Microsoft SQL Server a SQLite. **PostgreSQL zatím ne.** |
 | Frontend | Blazor WebAssembly |
 | Repozitář | https://github.com/MichalZem/DBsViewer |
+| Verzování | Z git tagů přes MinVer. Číslo verze **není** v souboru. |
 
 Balíčky se **nepojmenovávají** s prefixem organizace — je to holé `DbsViewer.*`.
 
@@ -122,6 +123,14 @@ dotnet pack tools/DbsViewer.Dump -c Release -o artifacts/packages
 
 **Blazor UI se do serverového balíčku vkládá jen v Release.** V Debugu by publish UI
 zdržoval každý build; vynutit jde přes `-p:EmbedDbsViewerUi=true`.
+
+**Verzi neurčuje soubor, ale git tag.** `Directory.Build.props` proto žádný `<Version>`
+nemá — obstarává to MinVer. Tag `v1.2.3` vydá `1.2.3`, commit za ním `1.2.4-alpha.0.N`.
+Publikaci na NuGet dělá [workflow](.github/workflows/build-a-publikace.yml), ne člověk.
+
+**Integrační testy SQL Serveru jsou pro pokrytí nutné.** Bez běžící instance klesne
+pokrytí `DbsViewer.SqlServer` na necelých 60 % a `dotnet test` selže. Připojení se dá
+přesměrovat proměnnou `DBSVIEWER_TEST_SQLSERVER`; na CI běží server v kontejneru.
 
 Report pokrytí končí v `artifacts/coverage/` ve formátech cobertura, lcov a json.
 
@@ -200,5 +209,6 @@ pokrytí řádků a metod ve všech pěti sadách.
 Ověřeno end-to-end: balíčky se zabalí, nainstalují do čerstvé Web API aplikace, dvěma
 řádky zapojí a prohlížečka se všemi 47 soubory UI se servíruje z embedded resources.
 
-Zbývá jediné: **publikování na nuget.org.** Do té doby se balíčky sestavují ze zdrojů —
-postup je v [README](README.md).
+Publikaci obstarává GitHub Actions: push na `main` vydá předběžnou verzi, tag `v*`
+stabilní. Zbývá jen nastavit tajemství `NUGET_API_KEY` v repozitáři — do té doby
+workflow balíčky sestaví a nechá v artefaktech, ale nepublikuje.

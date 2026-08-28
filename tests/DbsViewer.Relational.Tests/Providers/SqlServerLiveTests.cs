@@ -10,8 +10,14 @@ namespace DbsViewer.Tests.Relational;
 /// </summary>
 public sealed class SqlServerLiveFixture : IAsyncLifetime
 {
-    private const string MasterConnectionString =
-        "Server=localhost;Database=master;Integrated Security=True;TrustServerCertificate=True;Connect Timeout=5";
+    /// <summary>
+    /// Připojení k serveru, na kterém se vytvoří dočasná testovací databáze.
+    /// Dá se přepsat proměnnou prostředí — na CI běží SQL Server v kontejneru
+    /// s jinými přihlašovacími údaji než lokálně.
+    /// </summary>
+    private static string MasterConnectionString =>
+        Environment.GetEnvironmentVariable("DBSVIEWER_TEST_SQLSERVER")
+        ?? "Server=localhost;Database=master;Integrated Security=True;TrustServerCertificate=True;Connect Timeout=5";
 
     private readonly string _databaseName = $"DbsViewerTest_{Guid.NewGuid():N}";
 
@@ -92,7 +98,10 @@ public sealed class SqlServerLiveFixture : IAsyncLifetime
     public DatabaseSchema Schema { get; private set; } = new();
 
     public string ConnectionString =>
-        $"Server=localhost;Database={_databaseName};Integrated Security=True;TrustServerCertificate=True";
+        new SqlConnectionStringBuilder(MasterConnectionString)
+        {
+            InitialCatalog = _databaseName,
+        }.ConnectionString;
 
     public async Task InitializeAsync()
     {
@@ -481,7 +490,7 @@ public class SqlServerLiveTests(SqlServerLiveFixture fixture) : IClassFixture<Sq
 
         // Databáze spravovaná jinak než přes EF historii migrací nemá — a to je normální stav.
         var master = new SqlServerSchemaSource(
-            "Server=localhost;Database=master;Integrated Security=True;TrustServerCertificate=True");
+            new SqlConnectionStringBuilder(fixture.ConnectionString) { InitialCatalog = "master" }.ConnectionString);
 
         var schema = await master.ReadAsync(SchemaReadOptions.Default);
 

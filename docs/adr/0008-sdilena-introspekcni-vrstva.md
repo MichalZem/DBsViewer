@@ -40,9 +40,13 @@ a znečitelnilo mapování.
 
 ## Důsledky
 
-- Mapování řádků je čistá funkce nad `DbDataReader`, takže se testuje čtečkou v paměti.
-  **Pokrytí tím přestává záviset na dostupnosti SQL Serveru** — integrační testy proti
-  reálné databázi ověřují, že SQL funguje, ale nejsou pro práh pokrytí nutné.
+- Mapování řádků je čistá funkce nad `DbDataReader`, takže se testuje čtečkou v paměti
+  a nevyžaduje běžící databázi.
+- **Spouštění dotazů ale otestovat bez databáze nejde.** Integrační testy proti reálnému
+  SQL Serveru jsou proto pro dosažení prahu pokrytí nutné — bez nich klesne pokrytí
+  `DbsViewer.SqlServer` na necelých 60 %. Na CI se server spouští v kontejneru;
+  lokálně se testy bez něj přeskočí a práh pokrytí neprojde.
+  Připojení se dá přesměrovat proměnnou `DBSVIEWER_TEST_SQLSERVER`.
 - Přidání dalšího providera znamená napsat dotazy a mapování, nic víc.
 - Cena je jeden mezityp navíc a jedno kopírování dat, které je proti dotazům do databáze
   zanedbatelné.

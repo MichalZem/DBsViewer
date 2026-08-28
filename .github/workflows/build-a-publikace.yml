@@ -1,0 +1,163 @@
+name: Build a publikace
+
+# Po každém commitu na main se sestaví, otestuje a vydá předběžná verze na NuGet.
+# Stabilní verze vzniká z tagu: `git tag v1.2.3 && git push origin v1.2.3`.
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  test:
+    name: Kompilace a testy
+    runs-on: ubuntu-latest
+
+    # Integrační testy potřebují skutečný SQL Server. Bez něj klesne pokrytí
+    # DbsViewer.SqlServer pod práh a build právem selže — viz ADR-0008.
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: 'Y'
+          MSSQL_SA_PASSWORD: ${{ secrets.TEST_SQL_PASSWORD || 'DbsViewer_CI_2026!' }}
+          MSSQL_PID: Developer
+        ports:
+          - 1433:1433
+
+    env:
+      DBSVIEWER_TEST_SQLSERVER: >-
+        Server=localhost,1433;Database=master;User Id=sa;
+        Password=${{ secrets.TEST_SQL_PASSWORD || 'DbsViewer_CI_2026!' }};
+        TrustServerCertificate=True;Connect Timeout=30
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # MinVer odvozuje verzi z git tagů, takže potřebuje celou historii.
+          fetch-depth: 0
+
+      - name: Instalace .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Čekání na SQL Server
+        run: |
+          for pokus in $(seq 1 60); do
+            if (echo > /dev/tcp/localhost/1433) 2>/dev/null; then
+              echo "SQL Server přijímá spojení po $pokus s."
+              # Port je otevřený dřív, než server dokončí start.
+              sleep 15
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "SQL Server nenaběhl do 60 s."
+          exit 1
+
+      - name: Obnovení balíčků
+        run: dotnet restore
+
+      - name: Kompilace
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Testy včetně vynuceného pokrytí
+        run: |
+          selhalo=0
+          for projekt in EfCore Relational Server Ui Tool; do
+            echo "::group::DbsViewer.$projekt.Tests"
+            if ! dotnet test "tests/DbsViewer.$projekt.Tests/DbsViewer.$projekt.Tests.csproj" \
+                 --configuration Release --no-build --logger "trx;LogFileName=$projekt.trx"; then
+              selhalo=1
+            fi
+            echo "::endgroup::"
+          done
+          exit $selhalo
+
+      - name: Výsledky testů
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vysledky-testu
+          path: |
+            **/TestResults/*.trx
+            artifacts/coverage/**
+          retention-days: 14
+
+  publikace:
+    name: Vydání na NuGet
+    needs: test
+    runs-on: ubuntu-latest
+
+    # Na pull requestech se nepublikuje — jinak by každý návrh zabral číslo verze.
+    if: github.event_name != 'pull_request'
+
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Instalace .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Sestavení balíčků
+        # Blazor UI se do serverového balíčku vkládá jen v Release.
+        run: |
+          dotnet pack --configuration Release --output artifacts/packages
+          ls -lh artifacts/packages
+
+      - name: Zjištění verze
+        id: verze
+        run: |
+          soubor=$(ls artifacts/packages/DbsViewer.Server.*.nupkg | head -1)
+          verze=$(basename "$soubor" .nupkg | sed 's/^DbsViewer\.Server\.//')
+          echo "verze=$verze" >> "$GITHUB_OUTPUT"
+          echo "Vydávaná verze: $verze"
+
+      - name: Balíčky jako artefakt
+        uses: actions/upload-artifact@v4
+        with:
+          name: balicky-${{ steps.verze.outputs.verze }}
+          path: artifacts/packages/*.nupkg
+          retention-days: 30
+
+      - name: Publikace na NuGet
+        # Bez klíče se krok přeskočí, aby fork nebo čerstvě naklonovaný
+        # repozitář neselhal na chybějícím tajemství.
+        if: env.NUGET_API_KEY != ''
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          dotnet nuget push "artifacts/packages/*.nupkg" \
+            --source https://api.nuget.org/v3/index.json \
+            --api-key "$NUGET_API_KEY" \
+            --skip-duplicate
+
+      - name: Upozornění na chybějící klíč
+        if: env.NUGET_API_KEY == ''
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          echo "::warning::Tajemství NUGET_API_KEY není nastavené, publikace se přeskočila. Balíčky jsou v artefaktech."
+
+      - name: Vydání na GitHubu
+        # Jen u tagů — z každého commitu na main by vznikala záplava vydání.
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/packages/*.nupkg
+          generate_release_notes: true
+          name: DbsViewer ${{ steps.verze.outputs.verze }}
