@@ -1,0 +1,202 @@
+@*
+    ER diagram jako SVG. Uzly jsou foreignObject s běžným HTML, takže se stylují CSS
+    a mají normální hover i klik. Pan a zoom řeší jedna transformace na kořenové skupině.
+*@
+
+@if (Layout.Nodes.Count == 0)
+{
+    <p class="prazdno">Žádné tabulky k zobrazení. Zkus změnit filtr nebo vypnout focus.</p>
+}
+else
+{
+    <div class="diagram-plocha"
+         @onwheel="OnWheel"
+         @onwheel:preventDefault="true"
+         @onpointerdown="OnPointerDown"
+         @onpointermove="OnPointerMove"
+         @onpointerup="OnPointerUp"
+         @onpointerleave="OnPointerUp">
+
+        <svg class="diagram" width="100%" height="100%">
+            <defs>
+                <marker id="sipka" viewBox="0 0 10 10" refX="9" refY="5"
+                        markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                    <path d="M 0 0 L 10 5 L 0 10 z" />
+                </marker>
+            </defs>
+
+            <g transform="translate(@Fmt(_panX) @Fmt(_panY)) scale(@Fmt(_zoom))">
+
+                @foreach (var edge in Layout.Edges)
+                {
+                    var relationship = edge.Relationship;
+                    var zvyrazneno = SelectedTable is not null
+                        && (relationship.From == SelectedTable || relationship.To == SelectedTable);
+
+                    <g class="hrana @DeleteClass(relationship.DeleteBehavior) @(zvyrazneno ? "zvyraznena" : "")">
+                        <polyline points="@Points(edge)"
+                                  fill="none"
+                                  marker-end="url(#sipka)"
+                                  stroke-dasharray="@(relationship.IsRequired ? null : "5 4")" />
+                        <text x="@Fmt(edge.LabelAt.X)" y="@Fmt(edge.LabelAt.Y - 4)" class="kardinalita">
+                            @CardinalityLabel(relationship.Cardinality)
+                        </text>
+                    </g>
+                }
+
+                @foreach (var node in Layout.Nodes)
+                {
+                    var jeVybrany = node.Table.Name == SelectedTable;
+                    var zavaznost = SeverityOf?.Invoke(node.Table.Name);
+
+                    <foreignObject x="@Fmt(node.X)" y="@Fmt(node.Y)"
+                                   width="@Fmt(node.Width)" height="@Fmt(node.Height)">
+                        <div class="uzel @(jeVybrany ? "vybrany" : "") @SeverityClass(zavaznost)"
+                             @onclick="() => OnSelect.InvokeAsync(node.Table.Name)">
+
+                            <div class="uzel-hlavicka">
+                                <span class="uzel-jmeno">@node.Table.Name.Name</span>
+                                @if (node.Table.IsJoinTable)
+                                {
+                                    <span class="odznak" title="Vazební tabulka N:M">N:M</span>
+                                }
+                                @if (node.Table.IsView)
+                                {
+                                    <span class="odznak" title="Pohled">VIEW</span>
+                                }
+                                <button class="uzel-prepinac"
+                                        title="Zobrazit všechny sloupce"
+                                        @onclick:stopPropagation="true"
+                                        @onclick="() => OnToggleExpand.InvokeAsync(node.Table.Name)">
+                                    @(IsExpanded(node.Table.Name) ? "−" : "+")
+                                </button>
+                            </div>
+
+                            <div class="uzel-sloupce">
+                                @foreach (var column in DiagramLayout.VisibleColumns(
+                                    node.Table, IsExpanded(node.Table.Name)))
+                                {
+                                    <div class="uzel-sloupec @(column.IsPrimaryKey ? "pk" : "")">
+                                        <span class="klic">@KeyMark(column)</span>
+                                        <span class="jmeno">@column.Name</span>
+                                        <span class="typ">@column.StoreType</span>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </foreignObject>
+                }
+            </g>
+        </svg>
+
+        <div class="diagram-ovladani">
+            <button title="Přiblížit" @onclick="() => Zoom(1.2)">+</button>
+            <button title="Oddálit" @onclick="() => Zoom(1 / 1.2)">−</button>
+            <button title="Původní velikost" @onclick="ResetView">⌂</button>
+            <span class="zoom-hodnota">@((int)(_zoom * 100)) %</span>
+        </div>
+    </div>
+}
+
+@code {
+    private double _panX;
+    private double _panY;
+    private double _zoom = 1;
+    private bool _tahne;
+    private double _tahX;
+    private double _tahY;
+
+    /// <summary>Spočítané rozložení diagramu.</summary>
+    [Parameter, EditorRequired]
+    public DiagramLayoutResult Layout { get; set; } = new() { Nodes = [], Edges = [] };
+
+    /// <summary>Vybraná tabulka — zvýrazní se i s jejími hranami.</summary>
+    [Parameter]
+    public DbObjectName? SelectedTable { get; set; }
+
+    /// <summary>Uzly zobrazené se všemi sloupci.</summary>
+    [Parameter]
+    public IReadOnlySet<DbObjectName> Expanded { get; set; } = new HashSet<DbObjectName>();
+
+    /// <summary>Závažnost nálezu diffu pro tabulku, pro barevné orámování uzlu.</summary>
+    [Parameter]
+    public Func<DbObjectName, DiffSeverity?>? SeverityOf { get; set; }
+
+    [Parameter]
+    public EventCallback<DbObjectName> OnSelect { get; set; }
+
+    [Parameter]
+    public EventCallback<DbObjectName> OnToggleExpand { get; set; }
+
+    private bool IsExpanded(DbObjectName table) => Expanded.Contains(table);
+
+    private void Zoom(double factor) => _zoom = Math.Clamp(_zoom * factor, 0.2, 3);
+
+    private void ResetView()
+    {
+        _zoom = 1;
+        _panX = 0;
+        _panY = 0;
+    }
+
+    private void OnWheel(WheelEventArgs e) => Zoom(e.DeltaY < 0 ? 1.1 : 1 / 1.1);
+
+    private void OnPointerDown(PointerEventArgs e)
+    {
+        _tahne = true;
+        _tahX = e.ClientX;
+        _tahY = e.ClientY;
+    }
+
+    private void OnPointerMove(PointerEventArgs e)
+    {
+        if (!_tahne)
+        {
+            return;
+        }
+
+        _panX += e.ClientX - _tahX;
+        _panY += e.ClientY - _tahY;
+        _tahX = e.ClientX;
+        _tahY = e.ClientY;
+    }
+
+    private void OnPointerUp(PointerEventArgs e) => _tahne = false;
+
+    private static string Points(DiagramEdge edge) =>
+        string.Join(' ', edge.Points.Select(p => $"{Fmt(p.X)},{Fmt(p.Y)}"));
+
+    /// <summary>Čísla do SVG vždy s tečkou — desetinná čárka by atribut rozbila.</summary>
+    internal static string Fmt(double value) =>
+        value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+
+    internal static string CardinalityLabel(DbCardinality cardinality) => cardinality switch
+    {
+        DbCardinality.ManyToMany => "N:M",
+        DbCardinality.OneToOne => "1:1",
+        _ => "1:N",
+    };
+
+    /// <summary>Kaskády jsou to, co člověk v cizím schématu hledá nejčastěji — mají vlastní barvu.</summary>
+    internal static string DeleteClass(DbDeleteBehavior behavior) => behavior switch
+    {
+        DbDeleteBehavior.Cascade => "kaskada",
+        DbDeleteBehavior.SetNull or DbDeleteBehavior.SetDefault => "setnull",
+        _ => "restrict",
+    };
+
+    internal static string SeverityClass(DiffSeverity? severity) => severity switch
+    {
+        DiffSeverity.Error => "nalez-chyba",
+        DiffSeverity.Warning => "nalez-varovani",
+        _ => "",
+    };
+
+    internal static string KeyMark(DbColumn column) => column switch
+    {
+        { IsPrimaryKey: true, IsForeignKey: true } => "PF",
+        { IsPrimaryKey: true } => "PK",
+        { IsForeignKey: true } => "FK",
+        _ => "",
+    };
+}

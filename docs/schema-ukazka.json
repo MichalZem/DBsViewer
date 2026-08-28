@@ -1,0 +1,1437 @@
+﻿{
+  "databaseName": "main",
+  "providerName": "Microsoft.EntityFrameworkCore.Sqlite",
+  "provider": "Sqlite",
+  "sourceKind": "EfModel",
+  "sourceName": "EF model (ShopContext)",
+  "generatedAtUtc": "2026-08-28T04:20:03.7475465+00:00",
+  "tables": [
+    {
+      "name": {
+        "name": "Categories"
+      },
+      "entityClrNames": [
+        "Category"
+      ],
+      "isView": false,
+      "isJoinTable": false,
+      "isExcludedFromMigrations": false,
+      "columns": [
+        {
+          "name": "Id",
+          "ordinal": 1,
+          "storeType": "INTEGER",
+          "clrType": "System.Int32",
+          "isNullable": false,
+          "isPrimaryKey": true,
+          "isForeignKey": false,
+          "isIdentity": true,
+          "isComputed": false,
+          "isConcurrencyToken": false,
+          "isShadowProperty": false,
+          "valueGenerated": "OnAdd",
+          "propertyNames": [
+            "Id"
+          ]
+        },
+        {
+          "name": "Name",
+          "ordinal": 2,
+          "storeType": "TEXT",
+          "clrType": "System.String",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "isForeignKey": false,
+          "isIdentity": false,
+          "isComputed": false,
+          "maxLength": 120,
+          "isConcurrencyToken": false,
+          "isShadowProperty": false,
+          "valueGenerated": "Never",
+          "propertyNames": [
+            "Name"
+          ]
+        },
+        {
+          "name": "ParentCategoryId",
+          "ordinal": 3,
+          "storeType": "INTEGER",
+          "clrType": "System.Nullable\u00601[[System.Int32, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+          "isNullable": true,
+          "isPrimaryKey": false,
+          "isForeignKey": true,
+          "isIdentity": false,
+          "isComputed": false,
+          "isConcurrencyToken": false,
+          "isShadowProperty": false,
+          "valueGenerated": "Never",
+          "propertyNames": [
+            "ParentCategoryId"
+          ]
+        }
+      ],
+      "primaryKey": {
+        "name": "PK_Categories",
+        "columns": [
+          "Id"
+        ]
+      },
+      "indexes": [
+        {
+          "name": "IX_Categories_ParentCategoryId",
+          "columns": [
+            "ParentCategoryId"
+          ],
+          "includedColumns": [],
+          "isUnique": false,
+          "isDescending": []
+        }
+      ],
+      "foreignKeys": [
+        {
+          "name": "FK_Categories_Categories_ParentCategoryId",
+          "columns": [
+            "ParentCategoryId"
+          ],
+          "principalTable": {
+            "name": "Categories"
+          },
+          "principalColumns": [
+            "Id"
+          ],
+          "deleteBehavior": "Restrict",
+          "isRequired": false,
+          "isUnique": false,
+          "navigationName": "ParentCategory",
+          "inverseNavigationName": "Children"
+        }
+      ],
+      "checkConstraints": []
+    },
+    {
+      "name": {
+        "name": "CustomerProfiles"
+      },
+      "entityClrNames": [
+        "CustomerProfile"
+      ],
+      "isView": false,
+      "isJoinTable": false,
+      "isExcludedFromMigrations": false,
+      "columns": [
+        {
+          "name": "CustomerId",
+          "ordinal": 1,
+          "storeType": "INTEGER",
+          "clrType": "System.Int32",
+          "isNullable": false,
+          "isPrimaryKey": true,
+          "isForeignKey": true,
+          "isIdentity": false,
+          "isComputed": false,
+          "isConcurrencyToken": false,
+          "isShadowProperty": false,
+          "valueGenerated": "Never",
+          "propertyNames": [
+            "CustomerId"
+          ]
+        },
+        {
+          "name": "Bio",
+          "ordinal": 2,
+          "storeType": "TEXT",
+          "clrType": "System.String",
+          "isNullable": true,
+          "isPrimaryKey": false,
+          "isForeignKey": false,
+          "isIdentity": false,
+          "isComputed": false,
+          "maxLength": 2000,
+          "isConcurrencyToken": false,
+          "isShadowProperty": false,
+          "valueGenerated": "Never",
+          "propertyNames": [
+            "Bio"
+          ]
+        },
+        {
+          "name": "PreferredLanguage",
+          "ordinal": 3,
+          "storeType": "TEXT",
+          "clrType": "System.String",
+          "isNullable": true,
+          "isPrimaryKey": false,
+          "isForeignKey": false,
+          "isIdentity": false,
+          "isComputed": false,
+          "maxLength": 10,
+          "isConcurrencyToken": false,
+          "isShadowProperty": false,
+          "valueGenerated": "Never",
+          "propertyNames": [
+            "PreferredLanguage"
+          ]
+        }
+      ],
+      "primaryKey": {
+        "name": "PK_CustomerProfiles",
+        "columns": [
+          "CustomerId"
+        ]
+      },
+      "indexes": [],
+      "foreignKeys": [
+        {
+          "name": "FK_CustomerProfiles_Customers_CustomerId",
+          "columns": [
+            "CustomerId"
+          ],
+          "principalTable": {
+            "name": "Customers"
+          },
+          "principalColumns": [
+            "Id"
+          ],
+          "deleteBehavior": "Cascade",
+          "isRequired": true,
+          "isUnique": true,
+          "navigationName": "Customer",
+          "inverseNavigationName": "Profile"
+        }
+      ],
+      "checkConstraints": []
+    },
+    {
+      "name": {
+        "name": "Customers"
+      },
+      "comment": "Z\u00E1kazn\u00EDci e-shopu",
+      "entityClrNames": [
+        "Address",
+        "Customer"
+      ],
+      "isView": false,
+      "isJoinTable": false,
+      "isExcludedFromMigrations": false,
+      "columns": [
+        {
+          "name": "Id",
+          "ordinal": 1,
+          "storeType": "INTEGER",
+          "clrType": "System.Int32",
+          "isNullable": false,
+          "isPrimaryKey": true,
+          "isForeignKey": false,
+          "isIdentity": true,
+          "isComputed": false,
+          "isConcurrencyToken": false,
+          "isShadowProperty": false,
+          "valueGenerated": "OnAdd",
+          "propertyNames": [
+            "CustomerId",
+            "Id"
+          ]
+        },
+        {
+          "name": "BillingCity",
+          "ordinal": 2,
+          "storeType": "TEXT",
+          "clrType": "System.String",
+          "isNullable": true,
+          "isPrimaryKey": false,
+          "isForeignKey": false,
+          "isIdentity": false,
+          "isComputed": false,
+          "maxLength": 100,
+          "isConcurrencyToken": false,
+          "isShadowProperty": false,
+          "valueGenerated": "Never",
+          "propertyNames": [
+            "City"
+          ]
+        },
+        {
+          "name": "BillingPostalCode",
+          "ordinal": 3,
+          "storeType": "TEXT",
+          "clrType": "System.String",
+          "isNullable": true,
+          "isPrimaryKey": false,
+          "isForeignKey": false,
+          "isIdentity": false,
+          "isComputed": false,
+          "maxLength": 20,
+          "isConcurrencyToken": false,
+          "isShadowProperty": false,
+          "valueGenerated": "Never",
+          "propertyNames": [
+            "PostalCode"
+          ]
+        },
+        {
+          "name": "BillingStreet",
+          "ordinal": 4,
+          "storeType": "TEXT",
+          "clrType": "System.String",
+          "isNullable": true,
+          "isPrimaryKey": false,
+          "isForeignKey": false,
+          "isIdentity": false,
+          "isComputed": false,
+          "maxLength": 200,
+          "isConcurrencyToken": false,
+          "isShadowProperty": false,
+          "valueGenerated": "Never",
+          "propertyNames": [
+            "Street"
+          ]
+        },
+        {
+          "name": "CreatedAt",
+          "ordinal": 5,
+          "storeType": "TEXT",
+          "clrType": "System.DateTimeOffset",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "isForeignKey": false,
+          "isIdentity": false,
+          "isComputed": false,
+          "defaultValueSql": "CURRENT_TIMESTAMP",
+          "isConcurrencyToken": false,
+          "isShadowProperty": false,
+          "valueGenerated": "OnAdd",
+          "propertyNames": [
+            "CreatedAt"
+          ]
+        },
+        {
+          "name": "DisplayName",
+          "ordinal": 6,
+          "storeType": "TEXT",
+          "clrType": "System.String",
+          "isNullable": true,
+          "isPrimaryKey": false,
+          "isForeignKey": false,
+          "isIdentity": false,
+          "isComputed": false,
+          "maxLength": 200,
+          "isConcurrencyToken": false,
+          "isShadowProperty": false,
+          "valueGenerated": "Never",
+          "propertyNames": [
+            "DisplayName"
+          ]
+        },
+        {
+          "name": "Email",
+          "ordinal": 7,
+          "storeType": "TEXT",
+          "clrType": "System.String",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "isForeignKey": false,
+          "isIdentity": false,
+          "isComputed": false,
+          "maxLength": 256,
+          "isConcurrencyToken": false,
+          "isShadowProperty": false,
+          "valueGenerated": "Never",
+          "propertyNames": [
+            "Email"
+          ]
+        }
+      ],
+      "primaryKey": {
+        "name": "PK_Customers",
+        "columns": [
+          "Id"
+        ]
+      },
+      "indexes": [
+        {
+          "name": "UX_Customers_Email",
+          "columns": [
+            "Email"
+          ],
+          "includedColumns": [],
+          "isUnique": true,
+          "isDescending": []
+        }
+      ],
+      "foreignKeys": [],
+      "checkConstraints": []
+    },
+    {
+      "name": {
+        "name": "OrderLines"
+      },
+      "entityClrNames": [
+        "OrderLine"
+      ],
+      "isView": false,
+      "isJoinTable": false,
+      "isExcludedFromMigrations": false,
+      "columns": [
+        {
+          "name": "OrderId",
+          "ordinal": 1,
+          "storeType": "INTEGER",
+          "clrType": "System.Int32",
+          "isNullable": false,
+          "isPrimaryKey": true,
+          "isForeignKey": true,
+          "isIdentity": false,
+          "isComputed": false,
+          "isConcurrencyToken": false,
+          "isShadowProperty": false,
+          "valueGenerated": "Never",
+          "propertyNames": [
+            "OrderId"
+          ]
+        },
+        {
+          "name": "LineNumber",
+          "ordinal": 2,
+          "storeType": "INTEGER",
+          "clrType": "System.Int32",
+          "isNullable": false,
+          "isPrimaryKey": true,
+          "isForeignKey": false,
+          "isIdentity": false,
+          "isComputed": false,
+          "isConcurrencyToken": false,
+          "isShadowProperty": false,
+          "valueGenerated": "Never",
+          "propertyNames": [
+            "LineNumber"
+          ]
+        },
+        {
+          "name": "ProductId",
+          "ordinal": 3,
+          "storeType": "INTEGER",
+          "clrType": "System.Int32",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "isForeignKey": true,
+          "isIdentity": false,
+          "isComputed": false,
+          "isConcurrencyToken": false,
+          "isShadowProperty": false,
+          "valueGenerated": "Never",
+          "propertyNames": [
+            "ProductId"
+          ]
+        },
+        {
+          "name": "Quantity",
+          "ordinal": 4,
+          "storeType": "INTEGER",
+          "clrType": "System.Int32",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "isForeignKey": false,
+          "isIdentity": false,
+          "isComputed": false,
+          "isConcurrencyToken": false,
+          "isShadowProperty": false,
+          "valueGenerated": "Never",
+          "propertyNames": [
+            "Quantity"
+          ]
+        },
+        {
+          "name": "Total",
+          "ordinal": 5,
+          "storeType": "TEXT",
+          "clrType": "System.Decimal",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "isForeignKey": false,
+          "isIdentity": false,
+          "isComputed": true,
+          "computedSql": "\u0022Quantity\u0022 * \u0022UnitPrice\u0022",
+          "isStored": true,
+          "precision": 18,
+          "scale": 2,
+          "isConcurrencyToken": false,
+          "isShadowProperty": false,
+          "valueGenerated": "OnAddOrUpdate",
+          "propertyNames": [
+            "Total"
+          ]
+        },
+        {
+          "name": "UnitPrice",
+          "ordinal": 6,
+          "storeType": "TEXT",
+          "clrType": "System.Decimal",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "isForeignKey": false,
+          "isIdentity": false,
+          "isComputed": false,
+          "precision": 18,
+          "scale": 2,
+          "isConcurrencyToken": false,
+          "isShadowProperty": false,
+          "valueGenerated": "Never",
+          "propertyNames": [
+            "UnitPrice"
+          ]
+        }
+      ],
+      "primaryKey": {
+        "name": "PK_OrderLines",
+        "columns": [
+          "OrderId",
+          "LineNumber"
+        ]
+      },
+      "indexes": [
+        {
+          "name": "IX_OrderLines_ProductId",
+          "columns": [
+            "ProductId"
+          ],
+          "includedColumns": [],
+          "isUnique": false,
+          "isDescending": []
+        }
+      ],
+      "foreignKeys": [
+        {
+          "name": "FK_OrderLines_Orders_OrderId",
+          "columns": [
+            "OrderId"
+          ],
+          "principalTable": {
+            "name": "Orders"
+          },
+          "principalColumns": [
+            "Id"
+          ],
+          "deleteBehavior": "Cascade",
+          "isRequired": true,
+          "isUnique": false,
+          "navigationName": "Order",
+          "inverseNavigationName": "Lines"
+        },
+        {
+          "name": "FK_OrderLines_Products_ProductId",
+          "columns": [
+            "ProductId"
+          ],
+          "principalTable": {
+            "name": "Products"
+          },
+          "principalColumns": [
+            "Id"
+          ],
+          "deleteBehavior": "Restrict",
+          "isRequired": true,
+          "isUnique": false,
+          "navigationName": "Product",
+          "inverseNavigationName": "OrderLines"
+        }
+      ],
+      "checkConstraints": []
+    },
+    {
+      "name": {
+        "name": "Orders"
+      },
+      "entityClrNames": [
+        "Order"
+      ],
+      "isView": false,
+      "isJoinTable": false,
+      "isExcludedFromMigrations": false,
+      "columns": [
+        {
+          "name": "Id",
+          "ordinal": 1,
+          "storeType": "INTEGER",
+          "clrType": "System.Int32",
+          "isNullable": false,
+          "isPrimaryKey": true,
+          "isForeignKey": false,
+          "isIdentity": true,
+          "isComputed": false,
+          "isConcurrencyToken": false,
+          "isShadowProperty": false,
+          "valueGenerated": "OnAdd",
+          "propertyNames": [
+            "Id"
+          ]
+        },
+        {
+          "name": "CustomerId",
+          "ordinal": 2,
+          "storeType": "INTEGER",
+          "clrType": "System.Int32",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "isForeignKey": true,
+          "isIdentity": false,
+          "isComputed": false,
+          "isConcurrencyToken": false,
+          "isShadowProperty": false,
+          "valueGenerated": "Never",
+          "propertyNames": [
+            "CustomerId"
+          ]
+        },
+        {
+          "name": "Number",
+          "ordinal": 3,
+          "storeType": "TEXT",
+          "clrType": "System.String",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "isForeignKey": false,
+          "isIdentity": false,
+          "isComputed": false,
+          "maxLength": 32,
+          "isConcurrencyToken": false,
+          "isShadowProperty": false,
+          "valueGenerated": "Never",
+          "propertyNames": [
+            "Number"
+          ]
+        },
+        {
+          "name": "PlacedAt",
+          "ordinal": 4,
+          "storeType": "TEXT",
+          "clrType": "System.DateTimeOffset",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "isForeignKey": false,
+          "isIdentity": false,
+          "isComputed": false,
+          "isConcurrencyToken": false,
+          "isShadowProperty": false,
+          "valueGenerated": "Never",
+          "propertyNames": [
+            "PlacedAt"
+          ]
+        }
+      ],
+      "primaryKey": {
+        "name": "PK_Orders",
+        "columns": [
+          "Id"
+        ]
+      },
+      "indexes": [
+        {
+          "name": "IX_Orders_Customer_PlacedAt",
+          "columns": [
+            "CustomerId",
+            "PlacedAt"
+          ],
+          "includedColumns": [],
+          "isUnique": false,
+          "isDescending": []
+        },
+        {
+          "name": "UX_Orders_Number",
+          "columns": [
+            "Number"
+          ],
+          "includedColumns": [],
+          "isUnique": true,
+          "isDescending": []
+        }
+      ],
+      "foreignKeys": [
+        {
+          "name": "FK_Orders_Customers_CustomerId",
+          "columns": [
+            "CustomerId"
+          ],
+          "principalTable": {
+            "name": "Customers"
+          },
+          "principalColumns": [
+            "Id"
+          ],
+          "deleteBehavior": "Restrict",
+          "isRequired": true,
+          "isUnique": false,
+          "navigationName": "Customer",
+          "inverseNavigationName": "Orders"
+        }
+      ],
+      "checkConstraints": []
+    },
+    {
+      "name": {
+        "name": "OrderSummaries"
+      },
+      "entityClrNames": [
+        "OrderSummary"
+      ],
+      "isView": true,
+      "isJoinTable": false,
+      "isExcludedFromMigrations": false,
+      "columns": [
+        {
+          "name": "CustomerEmail",
+          "ordinal": 1,
+          "storeType": "TEXT",
+          "clrType": "System.String",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "isForeignKey": false,
+          "isIdentity": false,
+          "isComputed": false,
+          "isConcurrencyToken": false,
+          "isShadowProperty": false,
+          "valueGenerated": "Never",
+          "propertyNames": [
+            "CustomerEmail"
+          ]
+        },
+        {
+          "name": "Number",
+          "ordinal": 2,
+          "storeType": "TEXT",
+          "clrType": "System.String",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "isForeignKey": false,
+          "isIdentity": false,
+          "isComputed": false,
+          "isConcurrencyToken": false,
+          "isShadowProperty": false,
+          "valueGenerated": "Never",
+          "propertyNames": [
+            "Number"
+          ]
+        },
+        {
+          "name": "OrderId",
+          "ordinal": 3,
+          "storeType": "INTEGER",
+          "clrType": "System.Int32",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "isForeignKey": false,
+          "isIdentity": false,
+          "isComputed": false,
+          "isConcurrencyToken": false,
+          "isShadowProperty": false,
+          "valueGenerated": "Never",
+          "propertyNames": [
+            "OrderId"
+          ]
+        },
+        {
+          "name": "Total",
+          "ordinal": 4,
+          "storeType": "TEXT",
+          "clrType": "System.Decimal",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "isForeignKey": false,
+          "isIdentity": false,
+          "isComputed": false,
+          "isConcurrencyToken": false,
+          "isShadowProperty": false,
+          "valueGenerated": "Never",
+          "propertyNames": [
+            "Total"
+          ]
+        }
+      ],
+      "indexes": [],
+      "foreignKeys": [],
+      "checkConstraints": []
+    },
+    {
+      "name": {
+        "name": "Payments"
+      },
+      "entityClrNames": [
+        "BankTransfer",
+        "CardPayment",
+        "Payment"
+      ],
+      "isView": false,
+      "isJoinTable": false,
+      "discriminatorColumn": "PaymentType",
+      "isExcludedFromMigrations": false,
+      "columns": [
+        {
+          "name": "Id",
+          "ordinal": 1,
+          "storeType": "INTEGER",
+          "clrType": "System.Int32",
+          "isNullable": false,
+          "isPrimaryKey": true,
+          "isForeignKey": false,
+          "isIdentity": true,
+          "isComputed": false,
+          "isConcurrencyToken": false,
+          "isShadowProperty": false,
+          "valueGenerated": "OnAdd",
+          "propertyNames": [
+            "Id"
+          ]
+        },
+        {
+          "name": "Amount",
+          "ordinal": 2,
+          "storeType": "TEXT",
+          "clrType": "System.Decimal",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "isForeignKey": false,
+          "isIdentity": false,
+          "isComputed": false,
+          "precision": 18,
+          "scale": 2,
+          "isConcurrencyToken": false,
+          "isShadowProperty": false,
+          "valueGenerated": "Never",
+          "propertyNames": [
+            "Amount"
+          ]
+        },
+        {
+          "name": "CardLast4",
+          "ordinal": 3,
+          "storeType": "TEXT",
+          "clrType": "System.String",
+          "isNullable": true,
+          "isPrimaryKey": false,
+          "isForeignKey": false,
+          "isIdentity": false,
+          "isComputed": false,
+          "maxLength": 4,
+          "isConcurrencyToken": false,
+          "isShadowProperty": false,
+          "valueGenerated": "Never",
+          "propertyNames": [
+            "CardLast4"
+          ]
+        },
+        {
+          "name": "Iban",
+          "ordinal": 4,
+          "storeType": "TEXT",
+          "clrType": "System.String",
+          "isNullable": true,
+          "isPrimaryKey": false,
+          "isForeignKey": false,
+          "isIdentity": false,
+          "isComputed": false,
+          "maxLength": 34,
+          "isConcurrencyToken": false,
+          "isShadowProperty": false,
+          "valueGenerated": "Never",
+          "propertyNames": [
+            "Iban"
+          ]
+        },
+        {
+          "name": "OrderId",
+          "ordinal": 5,
+          "storeType": "INTEGER",
+          "clrType": "System.Int32",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "isForeignKey": true,
+          "isIdentity": false,
+          "isComputed": false,
+          "isConcurrencyToken": false,
+          "isShadowProperty": false,
+          "valueGenerated": "Never",
+          "propertyNames": [
+            "OrderId"
+          ]
+        },
+        {
+          "name": "PaymentType",
+          "ordinal": 6,
+          "storeType": "TEXT",
+          "clrType": "System.String",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "isForeignKey": false,
+          "isIdentity": false,
+          "isComputed": false,
+          "maxLength": 8,
+          "isConcurrencyToken": false,
+          "isShadowProperty": true,
+          "valueGenerated": "Never",
+          "propertyNames": [
+            "PaymentType"
+          ]
+        }
+      ],
+      "primaryKey": {
+        "name": "PK_Payments",
+        "columns": [
+          "Id"
+        ]
+      },
+      "indexes": [
+        {
+          "name": "IX_Payments_OrderId",
+          "columns": [
+            "OrderId"
+          ],
+          "includedColumns": [],
+          "isUnique": false,
+          "isDescending": []
+        }
+      ],
+      "foreignKeys": [
+        {
+          "name": "FK_Payments_Orders_OrderId",
+          "columns": [
+            "OrderId"
+          ],
+          "principalTable": {
+            "name": "Orders"
+          },
+          "principalColumns": [
+            "Id"
+          ],
+          "deleteBehavior": "Cascade",
+          "isRequired": true,
+          "isUnique": false,
+          "navigationName": "Order",
+          "inverseNavigationName": "Payments"
+        }
+      ],
+      "checkConstraints": []
+    },
+    {
+      "name": {
+        "name": "Products"
+      },
+      "entityClrNames": [
+        "Product"
+      ],
+      "isView": false,
+      "isJoinTable": false,
+      "isExcludedFromMigrations": false,
+      "columns": [
+        {
+          "name": "Id",
+          "ordinal": 1,
+          "storeType": "INTEGER",
+          "clrType": "System.Int32",
+          "isNullable": false,
+          "isPrimaryKey": true,
+          "isForeignKey": false,
+          "isIdentity": true,
+          "isComputed": false,
+          "isConcurrencyToken": false,
+          "isShadowProperty": false,
+          "valueGenerated": "OnAdd",
+          "propertyNames": [
+            "Id"
+          ]
+        },
+        {
+          "name": "CategoryId",
+          "ordinal": 2,
+          "storeType": "INTEGER",
+          "clrType": "System.Int32",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "isForeignKey": true,
+          "isIdentity": false,
+          "isComputed": false,
+          "isConcurrencyToken": false,
+          "isShadowProperty": false,
+          "valueGenerated": "Never",
+          "propertyNames": [
+            "CategoryId"
+          ]
+        },
+        {
+          "name": "Name",
+          "ordinal": 3,
+          "storeType": "TEXT",
+          "clrType": "System.String",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "isForeignKey": false,
+          "isIdentity": false,
+          "isComputed": false,
+          "maxLength": 300,
+          "isConcurrencyToken": false,
+          "isShadowProperty": false,
+          "valueGenerated": "Never",
+          "propertyNames": [
+            "Name"
+          ],
+          "comment": "Obchodn\u00ED n\u00E1zev produktu"
+        },
+        {
+          "name": "Price",
+          "ordinal": 4,
+          "storeType": "TEXT",
+          "clrType": "System.Decimal",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "isForeignKey": false,
+          "isIdentity": false,
+          "isComputed": false,
+          "precision": 18,
+          "scale": 2,
+          "isConcurrencyToken": false,
+          "isShadowProperty": false,
+          "valueGenerated": "Never",
+          "propertyNames": [
+            "Price"
+          ]
+        },
+        {
+          "name": "Sku",
+          "ordinal": 5,
+          "storeType": "TEXT",
+          "clrType": "System.String",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "isForeignKey": false,
+          "isIdentity": false,
+          "isComputed": false,
+          "maxLength": 64,
+          "isConcurrencyToken": false,
+          "isShadowProperty": false,
+          "valueGenerated": "Never",
+          "propertyNames": [
+            "Sku"
+          ]
+        },
+        {
+          "name": "Version",
+          "ordinal": 6,
+          "storeType": "INTEGER",
+          "clrType": "System.Int32",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "isForeignKey": false,
+          "isIdentity": false,
+          "isComputed": false,
+          "isConcurrencyToken": true,
+          "isShadowProperty": false,
+          "valueGenerated": "Never",
+          "propertyNames": [
+            "Version"
+          ]
+        }
+      ],
+      "primaryKey": {
+        "name": "PK_Products",
+        "columns": [
+          "Id"
+        ]
+      },
+      "indexes": [
+        {
+          "name": "IX_Products_Category_Name",
+          "columns": [
+            "CategoryId",
+            "Name"
+          ],
+          "includedColumns": [],
+          "isUnique": false,
+          "isDescending": []
+        },
+        {
+          "name": "UX_Products_Sku",
+          "columns": [
+            "Sku"
+          ],
+          "includedColumns": [],
+          "isUnique": true,
+          "isDescending": []
+        }
+      ],
+      "foreignKeys": [
+        {
+          "name": "FK_Products_Categories_CategoryId",
+          "columns": [
+            "CategoryId"
+          ],
+          "principalTable": {
+            "name": "Categories"
+          },
+          "principalColumns": [
+            "Id"
+          ],
+          "deleteBehavior": "Restrict",
+          "isRequired": true,
+          "isUnique": false,
+          "navigationName": "Category",
+          "inverseNavigationName": "Products"
+        }
+      ],
+      "checkConstraints": [
+        {
+          "name": "CK_Products_Price",
+          "sql": "\u0022Price\u0022 \u003E= 0"
+        }
+      ]
+    },
+    {
+      "name": {
+        "name": "ProductTags"
+      },
+      "entityClrNames": [
+        "ProductTag"
+      ],
+      "isView": false,
+      "isJoinTable": true,
+      "isExcludedFromMigrations": false,
+      "columns": [
+        {
+          "name": "ProductsId",
+          "ordinal": 1,
+          "storeType": "INTEGER",
+          "clrType": "System.Int32",
+          "isNullable": false,
+          "isPrimaryKey": true,
+          "isForeignKey": true,
+          "isIdentity": false,
+          "isComputed": false,
+          "isConcurrencyToken": false,
+          "isShadowProperty": false,
+          "valueGenerated": "Never",
+          "propertyNames": [
+            "ProductsId"
+          ]
+        },
+        {
+          "name": "TagsId",
+          "ordinal": 2,
+          "storeType": "INTEGER",
+          "clrType": "System.Int32",
+          "isNullable": false,
+          "isPrimaryKey": true,
+          "isForeignKey": true,
+          "isIdentity": false,
+          "isComputed": false,
+          "isConcurrencyToken": false,
+          "isShadowProperty": false,
+          "valueGenerated": "Never",
+          "propertyNames": [
+            "TagsId"
+          ]
+        }
+      ],
+      "primaryKey": {
+        "name": "PK_ProductTags",
+        "columns": [
+          "ProductsId",
+          "TagsId"
+        ]
+      },
+      "indexes": [
+        {
+          "name": "IX_ProductTags_TagsId",
+          "columns": [
+            "TagsId"
+          ],
+          "includedColumns": [],
+          "isUnique": false,
+          "isDescending": []
+        }
+      ],
+      "foreignKeys": [
+        {
+          "name": "FK_ProductTags_Products_ProductsId",
+          "columns": [
+            "ProductsId"
+          ],
+          "principalTable": {
+            "name": "Products"
+          },
+          "principalColumns": [
+            "Id"
+          ],
+          "deleteBehavior": "Cascade",
+          "isRequired": true,
+          "isUnique": false
+        },
+        {
+          "name": "FK_ProductTags_Tags_TagsId",
+          "columns": [
+            "TagsId"
+          ],
+          "principalTable": {
+            "name": "Tags"
+          },
+          "principalColumns": [
+            "Id"
+          ],
+          "deleteBehavior": "Cascade",
+          "isRequired": true,
+          "isUnique": false
+        }
+      ],
+      "checkConstraints": []
+    },
+    {
+      "name": {
+        "name": "Tags"
+      },
+      "entityClrNames": [
+        "Tag"
+      ],
+      "isView": false,
+      "isJoinTable": false,
+      "isExcludedFromMigrations": false,
+      "columns": [
+        {
+          "name": "Id",
+          "ordinal": 1,
+          "storeType": "INTEGER",
+          "clrType": "System.Int32",
+          "isNullable": false,
+          "isPrimaryKey": true,
+          "isForeignKey": false,
+          "isIdentity": true,
+          "isComputed": false,
+          "isConcurrencyToken": false,
+          "isShadowProperty": false,
+          "valueGenerated": "OnAdd",
+          "propertyNames": [
+            "Id"
+          ]
+        },
+        {
+          "name": "Name",
+          "ordinal": 2,
+          "storeType": "TEXT",
+          "clrType": "System.String",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "isForeignKey": false,
+          "isIdentity": false,
+          "isComputed": false,
+          "maxLength": 60,
+          "isConcurrencyToken": false,
+          "isShadowProperty": false,
+          "valueGenerated": "Never",
+          "propertyNames": [
+            "Name"
+          ]
+        }
+      ],
+      "primaryKey": {
+        "name": "PK_Tags",
+        "columns": [
+          "Id"
+        ]
+      },
+      "indexes": [
+        {
+          "name": "UX_Tags_Name",
+          "columns": [
+            "Name"
+          ],
+          "includedColumns": [],
+          "isUnique": true,
+          "isDescending": []
+        }
+      ],
+      "foreignKeys": [],
+      "checkConstraints": []
+    }
+  ],
+  "relationships": [
+    {
+      "id": "fk:Categories|FK_Categories_Categories_ParentCategoryId",
+      "from": {
+        "name": "Categories"
+      },
+      "to": {
+        "name": "Categories"
+      },
+      "cardinality": "OneToMany",
+      "foreignKeyName": "FK_Categories_Categories_ParentCategoryId",
+      "deleteBehavior": "Restrict",
+      "isRequired": false,
+      "isIdentifying": false,
+      "isSelfReference": true,
+      "fromColumns": [
+        "ParentCategoryId"
+      ],
+      "toColumns": [
+        "Id"
+      ],
+      "fromNavigation": "ParentCategory",
+      "toNavigation": "Children"
+    },
+    {
+      "id": "fk:CustomerProfiles|FK_CustomerProfiles_Customers_CustomerId",
+      "from": {
+        "name": "CustomerProfiles"
+      },
+      "to": {
+        "name": "Customers"
+      },
+      "cardinality": "OneToOne",
+      "foreignKeyName": "FK_CustomerProfiles_Customers_CustomerId",
+      "deleteBehavior": "Cascade",
+      "isRequired": true,
+      "isIdentifying": true,
+      "isSelfReference": false,
+      "fromColumns": [
+        "CustomerId"
+      ],
+      "toColumns": [
+        "Id"
+      ],
+      "fromNavigation": "Customer",
+      "toNavigation": "Profile"
+    },
+    {
+      "id": "fk:OrderLines|FK_OrderLines_Orders_OrderId",
+      "from": {
+        "name": "OrderLines"
+      },
+      "to": {
+        "name": "Orders"
+      },
+      "cardinality": "OneToMany",
+      "foreignKeyName": "FK_OrderLines_Orders_OrderId",
+      "deleteBehavior": "Cascade",
+      "isRequired": true,
+      "isIdentifying": true,
+      "isSelfReference": false,
+      "fromColumns": [
+        "OrderId"
+      ],
+      "toColumns": [
+        "Id"
+      ],
+      "fromNavigation": "Order",
+      "toNavigation": "Lines"
+    },
+    {
+      "id": "fk:OrderLines|FK_OrderLines_Products_ProductId",
+      "from": {
+        "name": "OrderLines"
+      },
+      "to": {
+        "name": "Products"
+      },
+      "cardinality": "OneToMany",
+      "foreignKeyName": "FK_OrderLines_Products_ProductId",
+      "deleteBehavior": "Restrict",
+      "isRequired": true,
+      "isIdentifying": false,
+      "isSelfReference": false,
+      "fromColumns": [
+        "ProductId"
+      ],
+      "toColumns": [
+        "Id"
+      ],
+      "fromNavigation": "Product",
+      "toNavigation": "OrderLines"
+    },
+    {
+      "id": "fk:Orders|FK_Orders_Customers_CustomerId",
+      "from": {
+        "name": "Orders"
+      },
+      "to": {
+        "name": "Customers"
+      },
+      "cardinality": "OneToMany",
+      "foreignKeyName": "FK_Orders_Customers_CustomerId",
+      "deleteBehavior": "Restrict",
+      "isRequired": true,
+      "isIdentifying": false,
+      "isSelfReference": false,
+      "fromColumns": [
+        "CustomerId"
+      ],
+      "toColumns": [
+        "Id"
+      ],
+      "fromNavigation": "Customer",
+      "toNavigation": "Orders"
+    },
+    {
+      "id": "fk:Payments|FK_Payments_Orders_OrderId",
+      "from": {
+        "name": "Payments"
+      },
+      "to": {
+        "name": "Orders"
+      },
+      "cardinality": "OneToMany",
+      "foreignKeyName": "FK_Payments_Orders_OrderId",
+      "deleteBehavior": "Cascade",
+      "isRequired": true,
+      "isIdentifying": false,
+      "isSelfReference": false,
+      "fromColumns": [
+        "OrderId"
+      ],
+      "toColumns": [
+        "Id"
+      ],
+      "fromNavigation": "Order",
+      "toNavigation": "Payments"
+    },
+    {
+      "id": "fk:Products|FK_Products_Categories_CategoryId",
+      "from": {
+        "name": "Products"
+      },
+      "to": {
+        "name": "Categories"
+      },
+      "cardinality": "OneToMany",
+      "foreignKeyName": "FK_Products_Categories_CategoryId",
+      "deleteBehavior": "Restrict",
+      "isRequired": true,
+      "isIdentifying": false,
+      "isSelfReference": false,
+      "fromColumns": [
+        "CategoryId"
+      ],
+      "toColumns": [
+        "Id"
+      ],
+      "fromNavigation": "Category",
+      "toNavigation": "Products"
+    },
+    {
+      "id": "m2m:Products\u003C-\u003ETags|ProductTags",
+      "from": {
+        "name": "Products"
+      },
+      "to": {
+        "name": "Tags"
+      },
+      "cardinality": "ManyToMany",
+      "viaJoinTable": {
+        "name": "ProductTags"
+      },
+      "deleteBehavior": "Cascade",
+      "isRequired": true,
+      "isIdentifying": false,
+      "isSelfReference": false,
+      "fromColumns": [],
+      "toColumns": [],
+      "fromNavigation": "Tags",
+      "toNavigation": "Products"
+    }
+  ],
+  "migrations": [],
+  "warnings": []
+}

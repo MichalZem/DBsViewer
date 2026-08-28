@@ -14,6 +14,13 @@ public static class Build
     {
         columns ??= [];
 
+        // Příznaky na sloupcích musí sedět s klíči, jinak by testy pracovaly se stavem,
+        // jaký žádný skutečný zdroj schématu nevrátí.
+        var keyColumns = new HashSet<string>(primaryKey ?? [], StringComparer.OrdinalIgnoreCase);
+        var foreignKeyColumns = new HashSet<string>(
+            (foreignKeys ?? []).SelectMany(static f => f.Columns),
+            StringComparer.OrdinalIgnoreCase);
+
         return new DbTable
         {
             Name = new DbObjectName(null, name),
@@ -26,6 +33,8 @@ public static class Build
                     Ordinal = i + 1,
                     StoreType = "int",
                     IsNullable = nullable is not null && i < nullable.Length && nullable[i],
+                    IsPrimaryKey = keyColumns.Contains(c),
+                    IsForeignKey = foreignKeyColumns.Contains(c),
                 }),
             ],
             PrimaryKey = primaryKey is null ? null : new DbPrimaryKey { Columns = primaryKey },

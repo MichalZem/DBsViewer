@@ -5,190 +5,177 @@ using DbsViewer.EfCore;
 using DbsViewer.SampleShop;
 using DbsViewer.Sqlite;
 using DbsViewer.SqlServer;
+using DbsViewer.Ui.Model;
 
 namespace DbsViewer.Dump;
 
 /// <summary>
-/// Ověřovací nástroj: načte schéma z EF modelu nebo z živé databáze, vypíše ho
-/// a volitelně porovná obojí.
+/// Konzolový nástroj: výpis schématu, porovnání s EF modelem a export dokumentace.
 /// </summary>
 public static class Program
 {
-    private const string Usage = """
-        DbsViewer.Dump — výpis databázového schématu
-
-        Zdroj (bez zadání se použije ukázkový EF model nad SQLite):
-          --ef                       ukázkový EF model
-          --sqlserver <conn>         živá SQL Server databáze
-          --sqlite <conn|cesta>      živá SQLite databáze
-          --diff <conn>              porovná ukázkový EF model proti databázi
-          --merged <conn>            sloučí ukázkový EF model s databází
-
-        Volby:
-          --json <soubor>            uloží výsledek jako JSON
-          --rows                     zjistí odhad počtu řádků
-          --hide <vzor>[,<vzor>]     skryje tabulky (podporuje *)
-          --schemas <a>[,<b>]        načte jen uvedená schémata
-        """;
-
+    /// <summary>
+    /// Vstupní bod. Jen nastaví kódování a předá řízení dál — testovat se dá
+    /// <see cref="RunAsync"/>, kam jde podstrčit vlastní výstupy.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage(
+        Justification = "Vstupní bod procesu; veškerá logika je v RunAsync, které testy volají.")]
     public static async Task<int> Main(string[] args)
     {
         Console.OutputEncoding = Encoding.UTF8;
 
-        if (args.Contains("--help") || args.Contains("-h"))
+        return await RunAsync(args, Console.Out, Console.Error).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Spuštění se zadanými výstupy. Testy sem podstrčí vlastní, aby šlo ověřit,
+    /// co nástroj skutečně vypíše.
+    /// </summary>
+    public static async Task<int> RunAsync(string[] args, TextWriter output, TextWriter error)
+    {
+        ArgumentNullException.ThrowIfNull(args);
+        ArgumentNullException.ThrowIfNull(output);
+        ArgumentNullException.ThrowIfNull(error);
+
+        var options = CommandLine.Parse(args);
+
+        if (options.Action == DumpAction.Help)
         {
-            Console.WriteLine(Usage);
+            output.WriteLine(CommandLine.Usage);
             return 0;
+        }
+
+        if (options.Error is { } chyba)
+        {
+            error.WriteLine($"Chyba: {chyba}");
+            return 1;
         }
 
         try
         {
-            return await RunAsync(args).ConfigureAwait(false);
+            return await ExecuteAsync(options, output).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"Chyba: {ex.Message}");
+            error.WriteLine($"Chyba: {ex.Message}");
             return 1;
         }
     }
 
-    private static async Task<int> RunAsync(string[] args)
+    private static async Task<int> ExecuteAsync(DumpOptions options, TextWriter output)
     {
-        var options = new SchemaReadOptions
+        if (options.Action is DumpAction.Diff or DumpAction.Merged)
         {
-            IncludeRowCounts = args.Contains("--rows"),
-            IncludeMigrations = true,
-            HideTables = SplitList(GetOption(args, "--hide")),
-            IncludeSchemas = SplitList(GetOption(args, "--schemas")),
-        };
+            var (model, database) = await ReadBothAsync(options).ConfigureAwait(false);
 
-        if (GetOption(args, "--diff") is { } diffConnection)
-        {
-            return await RunDiffAsync(diffConnection, options, GetOption(args, "--json")).ConfigureAwait(false);
+            if (options.Action == DumpAction.Diff)
+            {
+                var diff = SchemaComparer.Compare(model, database);
+
+                output.WriteLine(SchemaTextWriter.RenderDiff(diff, model, database));
+                await WriteJsonAsync(options.JsonPath, diff, output).ConfigureAwait(false);
+
+                // Nenulový kód umožňuje použít nástroj jako kontrolu v CI.
+                return diff.ErrorCount > 0 ? 2 : 0;
+            }
+
+            var merged = SchemaMerger.Merge(model, database);
+            await WriteResultAsync(merged, options, output).ConfigureAwait(false);
+            return 0;
         }
 
-        if (GetOption(args, "--merged") is { } mergedConnection)
-        {
-            return await RunMergedAsync(mergedConnection, options, GetOption(args, "--json")).ConfigureAwait(false);
-        }
-
-        var schema = await ReadSingleAsync(args, options).ConfigureAwait(false);
-        Console.WriteLine(SchemaTextWriter.Render(schema));
-
-        await WriteJsonAsync(GetOption(args, "--json"), schema).ConfigureAwait(false);
+        var schema = await ReadAsync(options).ConfigureAwait(false);
+        await WriteResultAsync(schema, options, output).ConfigureAwait(false);
         return 0;
     }
 
-    private static async Task<DatabaseSchema> ReadSingleAsync(string[] args, SchemaReadOptions options)
+    private static async Task WriteResultAsync(
+        DatabaseSchema schema,
+        DumpOptions options,
+        TextWriter output)
     {
-        if (GetOption(args, "--sqlserver") is { } sqlServer)
-        {
-            return await new SqlServerSchemaSource(sqlServer).ReadAsync(options).ConfigureAwait(false);
-        }
+        output.WriteLine(SchemaTextWriter.Render(schema));
 
-        if (GetOption(args, "--sqlite") is { } sqlite)
-        {
-            return await new SqliteSchemaSource(AsConnectionString(sqlite)).ReadAsync(options)
-                .ConfigureAwait(false);
-        }
-
-        await using var context = ShopContextFactory.CreateSqlite();
-        return await new EfCoreModelSchemaSource(context)
-            .ReadAsync(options with { IncludeMigrations = false })
-            .ConfigureAwait(false);
+        await WriteJsonAsync(options.JsonPath, schema, output).ConfigureAwait(false);
+        await WriteExportAsync(options, schema, output).ConfigureAwait(false);
     }
 
-    private static async Task<int> RunDiffAsync(
-        string connectionString,
-        SchemaReadOptions options,
-        string? jsonPath)
+    private static async Task<DatabaseSchema> ReadAsync(DumpOptions options)
     {
-        var (model, database) = await ReadBothAsync(connectionString, options).ConfigureAwait(false);
-        var diff = SchemaComparer.Compare(model, database);
+        var read = options.ToReadOptions();
 
-        Console.WriteLine(SchemaTextWriter.RenderDiff(diff, model, database));
-
-        if (jsonPath is not null)
+        switch (options.Source)
         {
-            var json = JsonSerializer.Serialize(diff, DbsViewerJson.Readable);
-            await File.WriteAllTextAsync(jsonPath, json, Encoding.UTF8).ConfigureAwait(false);
-            Console.WriteLine($"JSON zapsán do {Path.GetFullPath(jsonPath)}");
+            case DumpSource.SqlServer:
+                return await new SqlServerSchemaSource(options.Connection!)
+                    .ReadAsync(read)
+                    .ConfigureAwait(false);
+
+            case DumpSource.Sqlite:
+                return await new SqliteSchemaSource(
+                        CommandLine.AsSqliteConnectionString(options.Connection!))
+                    .ReadAsync(read)
+                    .ConfigureAwait(false);
+
+            default:
+                await using (var context = ShopContextFactory.CreateSqlite())
+                {
+                    return await new EfCoreModelSchemaSource(context)
+                        .ReadAsync(read with { IncludeMigrations = false })
+                        .ConfigureAwait(false);
+                }
         }
-
-        // Nenulový návratový kód umožňuje použít nástroj jako kontrolu v CI.
-        return diff.ErrorCount > 0 ? 2 : 0;
-    }
-
-    private static async Task<int> RunMergedAsync(
-        string connectionString,
-        SchemaReadOptions options,
-        string? jsonPath)
-    {
-        var (model, database) = await ReadBothAsync(connectionString, options).ConfigureAwait(false);
-        var merged = SchemaMerger.Merge(model, database);
-
-        Console.WriteLine(SchemaTextWriter.Render(merged));
-        await WriteJsonAsync(jsonPath, merged).ConfigureAwait(false);
-        return 0;
     }
 
     private static async Task<(DatabaseSchema Model, DatabaseSchema Database)> ReadBothAsync(
-        string connectionString,
-        SchemaReadOptions options)
+        DumpOptions options)
     {
-        // SQL Server connection string vždy obsahuje Server= nebo Data Source= s instancí;
-        // cokoli jiného se bere jako cesta k souboru SQLite.
-        var isSqlite = !connectionString.Contains("Server=", StringComparison.OrdinalIgnoreCase)
-            && !connectionString.Contains("Initial Catalog", StringComparison.OrdinalIgnoreCase);
-
-        var sqliteConnectionString = AsConnectionString(connectionString);
+        var read = options.ToReadOptions();
+        var connection = options.Connection!;
+        var isSqlite = options.Source == DumpSource.Sqlite;
+        var sqliteConnection = CommandLine.AsSqliteConnectionString(connection);
 
         await using var context = isSqlite
-            ? ShopContextFactory.CreateSqliteRaw(sqliteConnectionString)
-            : ShopContextFactory.CreateSqlServer(connectionString);
+            ? ShopContextFactory.CreateSqliteRaw(sqliteConnection)
+            : ShopContextFactory.CreateSqlServer(connection);
 
-        var model = await new EfCoreModelSchemaSource(context).ReadAsync(options).ConfigureAwait(false);
+        var model = await new EfCoreModelSchemaSource(context).ReadAsync(read).ConfigureAwait(false);
 
         ISchemaSource live = isSqlite
-            ? new SqliteSchemaSource(sqliteConnectionString)
-            : new SqlServerSchemaSource(connectionString);
+            ? new SqliteSchemaSource(sqliteConnection)
+            : new SqlServerSchemaSource(connection);
 
-        var database = await live.ReadAsync(options).ConfigureAwait(false);
-
-        return (model, database);
+        return (model, await live.ReadAsync(read).ConfigureAwait(false));
     }
 
-    private static async Task WriteJsonAsync(string? path, DatabaseSchema schema)
+    private static async Task WriteJsonAsync<T>(string? path, T value, TextWriter output)
     {
         if (path is null)
         {
             return;
         }
 
-        var json = JsonSerializer.Serialize(schema, DbsViewerJson.Readable);
+        var json = JsonSerializer.Serialize(value, DbsViewerJson.Readable);
+
         await File.WriteAllTextAsync(path, json, Encoding.UTF8).ConfigureAwait(false);
-        Console.WriteLine($"JSON zapsán do {Path.GetFullPath(path)} ({json.Length:N0} znaků)");
+        output.WriteLine($"JSON zapsán do {Path.GetFullPath(path)} ({json.Length:N0} znaků)");
     }
 
-    /// <summary>Holá cesta k souboru se doplní na connection string.</summary>
-    private static string AsConnectionString(string value) =>
-        value.Contains('=', StringComparison.Ordinal) ? value : $"Data Source={value}";
-
-    private static IReadOnlyList<string> SplitList(string? value) =>
-        string.IsNullOrWhiteSpace(value)
-            ? []
-            : [.. value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)];
-
-    private static string? GetOption(string[] args, string name)
+    private static async Task WriteExportAsync(
+        DumpOptions options,
+        DatabaseSchema schema,
+        TextWriter output)
     {
-        for (var i = 0; i < args.Length - 1; i++)
+        if (options.ExportPath is not { } path)
         {
-            if (string.Equals(args[i], name, StringComparison.OrdinalIgnoreCase))
-            {
-                return args[i + 1];
-            }
+            return;
         }
 
-        return null;
+        // Formát byl ověřený při rozboru argumentů.
+        var format = CommandLine.ParseFormat(options.ExportFormat)!.Value;
+        var content = SchemaExporter.Export(schema, format);
+
+        await File.WriteAllTextAsync(path, content, Encoding.UTF8).ConfigureAwait(false);
+        output.WriteLine($"Export ({format}) zapsán do {Path.GetFullPath(path)}");
     }
 }

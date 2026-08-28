@@ -1,0 +1,76 @@
+@*
+    Náhled řádků tabulky. Načítá se až na vyžádání — data se nikdy nestahují jen proto,
+    že uživatel otevřel detail tabulky.
+*@
+
+@if (Error is { } chyba)
+{
+    <p class="chyba">@chyba</p>
+}
+else if (Preview is null)
+{
+    <div class="nahled-vyzva">
+        <p>Náhled zobrazí prvních několik řádků tabulky. Data se načtou až po kliknutí.</p>
+        <button class="hlavni" @onclick="OnLoad">Načíst data</button>
+    </div>
+}
+else if (Preview.Rows.Count == 0)
+{
+    <p class="prazdno">Tabulka je prázdná.</p>
+}
+else
+{
+    @if (Preview.MaskedColumns.Count > 0)
+    {
+        <p class="poznamka-maskovani">
+            Zamaskované sloupce: @string.Join(", ", Preview.MaskedColumns)
+        </p>
+    }
+
+    <div class="mrizka-obal">
+        <table class="mrizka data">
+            <thead>
+                <tr>
+                    @foreach (var column in Preview.Columns)
+                    {
+                        <th class="@(IsMasked(column) ? "maskovany" : "")">@column</th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in Preview.Rows)
+                {
+                    <tr>
+                        @foreach (var value in row)
+                        {
+                            <td class="@(value is null ? "nullova" : "")">@(value ?? "NULL")</td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <p class="poznamka">
+        @Preview.Rows.Count řádků@(Preview.IsTruncated ? $" (omezeno na {Preview.Limit})" : "")
+        <button class="odkaz" @onclick="OnLoad">načíst znovu</button>
+    </p>
+}
+
+@code {
+    [Parameter]
+    public DbTable? Table { get; set; }
+
+    [Parameter]
+    public RowPreview? Preview { get; set; }
+
+    [Parameter]
+    public string? Error { get; set; }
+
+    [Parameter]
+    public EventCallback OnLoad { get; set; }
+
+    private bool IsMasked(string column) =>
+        Preview is not null
+        && Preview.MaskedColumns.Contains(column, StringComparer.OrdinalIgnoreCase);
+}

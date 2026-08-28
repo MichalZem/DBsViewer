@@ -1,0 +1,387 @@
+@inject DbsViewerClient Client
+@inject IJSRuntime Js
+@implements IDisposable
+
+@*
+    Hlavní obrazovka. Stav je vytažený do ViewerState, aby se dal testovat bez vykreslování;
+    tahle komponenta jen zprostředkovává volání serveru a překreslování.
+*@
+
+<div class="dbsviewer">
+
+    <header class="lista">
+        <h1>@State.Meta.Title</h1>
+
+        <nav class="pohledy">
+            <button class="@Active(ViewerPane.Browser)" @onclick="() => SetPane(ViewerPane.Browser)">
+                Tabulky
+            </button>
+            <button class="@Active(ViewerPane.Diagram)" @onclick="() => SetPane(ViewerPane.Diagram)">
+                Diagram
+            </button>
+            @if (State.Meta.CanDiff)
+            {
+                <button class="@Active(ViewerPane.Diff)" @onclick="ShowDiffAsync">
+                    Rozdíly@(DiffBadge())
+                </button>
+            }
+        </nav>
+
+        <div class="nastroje">
+            @if (State.Meta.Views.Count > 1)
+            {
+                <select value="@State.Source" @onchange="OnSourceChangedAsync" title="Zdroj schématu">
+                    @foreach (var view in State.Meta.Views)
+                    {
+                        <option value="@view">@SourceLabel(view)</option>
+                    }
+                </select>
+            }
+
+            <select value="@(State.Group ?? "")" @onchange="OnGroupChanged" title="Skupina tabulek"
+                    hidden="@(State.Meta.Groups.Count == 0)">
+                <option value="">Všechny skupiny</option>
+                @foreach (var group in State.Meta.Groups.Keys)
+                {
+                    <option value="@group">@group</option>
+                }
+            </select>
+
+            @if (Schemas.Count > 1)
+            {
+                <select value="@(State.SchemaName ?? "")" @onchange="OnSchemaChanged" title="Schéma">
+                    <option value="">Všechna schémata</option>
+                    @foreach (var schema in Schemas)
+                    {
+                        <option value="@schema">@schema</option>
+                    }
+                </select>
+            }
+
+            <div class="export">
+                <button @onclick="ToggleExport" title="Export schématu">Export ▾</button>
+                @if (_exportOtevreny)
+                {
+                    <ul class="export-nabidka">
+                        @foreach (var format in Enum.GetValues<ExportFormat>())
+                        {
+                            <li>
+                                <button @onclick="() => ExportAsync(format)">@format.ToString()</button>
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+
+            <button @onclick="RefreshAsync" title="Načíst schéma znovu">Obnovit</button>
+        </div>
+    </header>
+
+    @if (State.Error is { } chyba)
+    {
+        <p class="chyba lista-chyba">@chyba</p>
+    }
+
+    @if (State.IsLoading)
+    {
+        <p class="nacita">Načítám schéma…</p>
+    }
+    else
+    {
+        <div class="obsah @(State.Pane == ViewerPane.Diagram ? "sirokych" : "")">
+
+            @if (State.Pane == ViewerPane.Diff)
+            {
+                <DiffPrehled Diff="State.Diff" OnSelect="SelectAsync" />
+            }
+            else
+            {
+                <aside class="seznam">
+                    <input type="search"
+                           placeholder="Hledat tabulku nebo sloupec…"
+                           value="@State.Search"
+                           @oninput="OnSearchChanged" />
+
+                    <p class="pocet">@FilteredTables.Count z @State.Schema.Tables.Count tabulek</p>
+
+                    <ul>
+                        @foreach (var table in FilteredTables)
+                        {
+                            <li>
+                                <button class="@(table.Name == State.SelectedTable ? "vybrana" : "") @SeverityClass(table.Name)"
+                                        @onclick="() => SelectAsync(table.Name)">
+                                    <span class="jmeno">@table.Name.Name</span>
+                                    @if (table.Name.Schema is { } schema)
+                                    {
+                                        <span class="schema">@schema</span>
+                                    }
+                                    <span class="pocet-sloupcu">@table.Columns.Count</span>
+                                </button>
+                            </li>
+                        }
+                    </ul>
+                </aside>
+
+                <main class="hlavni-panel">
+                    @if (State.Pane == ViewerPane.Diagram)
+                    {
+                        <div class="diagram-nastroje">
+                            <label>
+                                <input type="checkbox"
+                                       checked="@State.FocusEnabled"
+                                       @onchange="OnFocusToggled" />
+                                Focus na vybranou tabulku
+                            </label>
+
+                            <label class="hops">
+                                Vzdálenost @State.FocusHops
+                                <input type="range" min="0" max="3" step="1"
+                                       value="@State.FocusHops"
+                                       disabled="@(!State.FocusEnabled)"
+                                       @onchange="OnHopsChanged" />
+                            </label>
+
+                            <span class="pocet">
+                                @DiagramTables.Count tabulek, @Layout.Edges.Count vazeb
+                            </span>
+                        </div>
+
+                        <ErDiagram Layout="Layout"
+                                   SelectedTable="State.SelectedTable"
+                                   Expanded="State.ExpandedNodes"
+                                   SeverityOf="State.SeverityOf"
+                                   OnSelect="SelectAsync"
+                                   OnToggleExpand="ToggleExpand" />
+                    }
+                    else
+                    {
+                        <TableDetail Table="State.SelectedDetail()"
+                                     ActiveTab="State.Tab"
+                                     Incoming="Incoming"
+                                     Findings="Findings"
+                                     Highlighted="Highlighted"
+                                     CanPreviewData="State.Meta.CanPreviewData"
+                                     Preview="_preview"
+                                     PreviewError="@_previewChyba"
+                                     OnTabChange="OnTabChanged"
+                                     OnSelect="SelectAsync"
+                                     OnLoadRows="LoadRowsAsync" />
+                    }
+                </main>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private readonly CancellationTokenSource _cancellation = new();
+
+    private RowPreview? _preview;
+    private string? _previewChyba;
+    private bool _exportOtevreny;
+
+    /// <summary>Stav prohlížečky. Vystavený kvůli testům, které ho nastaví přímo.</summary>
+    [Parameter]
+    public ViewerState State { get; set; } = new();
+
+    private IReadOnlyList<DbTable> FilteredTables => State.FilteredTables();
+
+    private IReadOnlyList<DbTable> DiagramTables => State.DiagramTables();
+
+    private IReadOnlyList<string> Schemas => SchemaFilter.Schemas(State.Schema.Tables);
+
+    private DiagramLayoutResult Layout =>
+        DiagramLayout.Compute(DiagramTables, State.DiagramRelationships(), State.ExpandedNodes);
+
+    private IReadOnlyList<DbRelationship> Incoming =>
+        State.SelectedTable is { } table ? State.Graph.IncomingTo(table) : [];
+
+    private IReadOnlyList<DiffFinding> Findings =>
+        State.SelectedTable is { } table ? State.FindingsFor(table) : [];
+
+    private IReadOnlySet<string> Highlighted =>
+        State.SelectedDetail() is { } table
+            ? SchemaFilter.MatchingColumns(table, State.Search)
+            : new HashSet<string>();
+
+    protected override async Task OnInitializedAsync() => await LoadAsync(refresh: false);
+
+    /// <summary>Načte metadata i schéma. Chyba skončí hláškou v UI, ne výjimkou.</summary>
+    internal async Task LoadAsync(bool refresh)
+    {
+        State.IsLoading = true;
+        State.Error = null;
+
+        try
+        {
+            State.Meta = await Client.GetMetaAsync(_cancellation.Token);
+
+            if (State.Meta.Views.Count > 0 && !State.Meta.Views.Contains(State.Source))
+            {
+                State.Source = State.Meta.Views[^1];
+            }
+
+            State.Schema = await Client.GetSchemaAsync(State.Source, refresh, _cancellation.Token);
+            _preview = null;
+            _previewChyba = null;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            State.Error = Describe(ex);
+        }
+        finally
+        {
+            State.IsLoading = false;
+        }
+    }
+
+    private async Task RefreshAsync()
+    {
+        try
+        {
+            await Client.RefreshAsync(_cancellation.Token);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            State.Error = Describe(ex);
+            return;
+        }
+
+        await LoadAsync(refresh: true);
+    }
+
+    private async Task ShowDiffAsync()
+    {
+        State.Pane = ViewerPane.Diff;
+
+        if (State.Diff is not null)
+        {
+            return;
+        }
+
+        try
+        {
+            State.Diff = await Client.GetDiffAsync(false, _cancellation.Token);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            State.Error = Describe(ex);
+        }
+    }
+
+    internal async Task LoadRowsAsync()
+    {
+        if (State.SelectedTable is not { } table)
+        {
+            return;
+        }
+
+        _previewChyba = null;
+
+        try
+        {
+            _preview = await Client.GetRowsAsync(table, null, _cancellation.Token);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _previewChyba = Describe(ex);
+        }
+    }
+
+    private async Task SelectAsync(DbObjectName table)
+    {
+        State.Select(table);
+        _preview = null;
+        _previewChyba = null;
+
+        if (State.Pane == ViewerPane.Diff)
+        {
+            State.Pane = ViewerPane.Browser;
+        }
+
+        await Task.CompletedTask;
+    }
+
+    private void SetPane(ViewerPane pane) => State.Pane = pane;
+
+    private void ToggleExpand(DbObjectName table) => State.ToggleExpanded(table);
+
+    private void OnTabChanged(DetailTab tab) => State.Tab = tab;
+
+    private void OnSearchChanged(ChangeEventArgs e) => State.Search = e.Value?.ToString() ?? "";
+
+    private void OnGroupChanged(ChangeEventArgs e) => State.Group = Empty(e.Value?.ToString());
+
+    private void OnSchemaChanged(ChangeEventArgs e) => State.SchemaName = Empty(e.Value?.ToString());
+
+    private void OnFocusToggled(ChangeEventArgs e) => State.FocusEnabled = e.Value is true;
+
+    private void OnHopsChanged(ChangeEventArgs e) =>
+        State.FocusHops = int.TryParse(e.Value?.ToString(), out var hops) ? hops : State.FocusHops;
+
+    private async Task OnSourceChangedAsync(ChangeEventArgs e)
+    {
+        State.Source = e.Value?.ToString() ?? State.Source;
+        State.Diff = null;
+        await LoadAsync(refresh: false);
+    }
+
+    private void ToggleExport() => _exportOtevreny = !_exportOtevreny;
+
+    /// <summary>
+    /// Vyexportuje schéma a nabídne ke stažení. Soubor sestaví klient, takže se nic
+    /// neposílá zpět na server.
+    /// </summary>
+    internal async Task ExportAsync(ExportFormat format)
+    {
+        _exportOtevreny = false;
+
+        var content = SchemaExporter.Export(State.Schema, format);
+        var fileName = $"schema.{SchemaExporter.FileExtension(format)}";
+
+        try
+        {
+            await Js.InvokeVoidAsync("dbsviewer.download", _cancellation.Token, fileName, content);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            State.Error = $"Stažení souboru se nepovedlo: {ex.Message}";
+        }
+    }
+
+    private string Active(ViewerPane pane) => State.Pane == pane ? "aktivni" : "";
+
+    private string SeverityClass(DbObjectName table) => State.SeverityOf(table) switch
+    {
+        DiffSeverity.Error => "nalez-chyba",
+        DiffSeverity.Warning => "nalez-varovani",
+        _ => "",
+    };
+
+    private string DiffBadge() =>
+        State.Diff is { } diff && !diff.IsClean ? $" ({diff.ErrorCount + diff.WarningCount})" : "";
+
+    internal static string SourceLabel(string view) => view switch
+    {
+        "ef" => "EF model",
+        "live" => "Databáze",
+        _ => "Sloučeno",
+    };
+
+    /// <summary>Prázdná volba v rozbalovacím seznamu znamená „bez filtru".</summary>
+    internal static string? Empty(string? value) => string.IsNullOrEmpty(value) ? null : value;
+
+    /// <summary>Výjimka na text pro uživatele. Interní detaily se do UI nedostanou.</summary>
+    internal static string Describe(Exception exception) => exception switch
+    {
+        DbsViewerClientException known => known.Message,
+        HttpRequestException => "Server neodpovídá. Zkontroluj, jestli aplikace běží.",
+        _ => "Schéma se nepodařilo načíst.",
+    };
+
+    public void Dispose()
+    {
+        _cancellation.Cancel();
+        _cancellation.Dispose();
+    }
+}

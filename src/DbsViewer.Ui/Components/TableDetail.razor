@@ -1,0 +1,369 @@
+@*
+    Detail jedné tabulky. Záložka „Odkazuje sem" je inverzní pohled na cizí klíče —
+    odpovídá na otázku „co se rozbije, když tuhle tabulku změním", a v běžných
+    nástrojích chybí, přitom je při zásahu do schématu nejužitečnější.
+*@
+
+@if (Table is null)
+{
+    <p class="prazdno">Vyber tabulku ze seznamu vlevo.</p>
+}
+else
+{
+    <header class="detail-hlavicka">
+        <h2>@Table.Qualified</h2>
+
+        <div class="odznaky">
+            @if (Table.IsView)
+            {
+                <span class="odznak">pohled</span>
+            }
+            @if (Table.IsJoinTable)
+            {
+                <span class="odznak">vazební N:M</span>
+            }
+            @foreach (var entity in Table.EntityClrNames)
+            {
+                <span class="odznak entita">@entity</span>
+            }
+            @if (Table.DiscriminatorColumn is { } discriminator)
+            {
+                <span class="odznak" title="Dědičnost TPH">TPH: @discriminator</span>
+            }
+            @if (Table.RowCountEstimate is { } rows)
+            {
+                <span class="odznak" title="Odhad ze statistik">~@rows.ToString("N0") řádků</span>
+            }
+        </div>
+
+        @if (Table.Comment is { } comment)
+        {
+            <p class="komentar">@comment</p>
+        }
+    </header>
+
+    @if (Findings.Count > 0)
+    {
+        <ul class="nalezy">
+            @foreach (var finding in Findings)
+            {
+                <li class="@(finding.Severity == DiffSeverity.Error ? "chyba" : "varovani")">
+                    <strong>@(finding.Object ?? "tabulka")</strong> — @finding.Message
+                    @if (finding.ModelValue is not null || finding.DatabaseValue is not null)
+                    {
+                        <span class="hodnoty">
+                            model: @(finding.ModelValue ?? "—") · databáze: @(finding.DatabaseValue ?? "—")
+                        </span>
+                    }
+                </li>
+            }
+        </ul>
+    }
+
+    <nav class="zalozky">
+        @foreach (var tab in Tabs)
+        {
+            <button class="@(tab == ActiveTab ? "aktivni" : "")"
+                    disabled="@(tab == DetailTab.Data && !CanPreviewData)"
+                    @onclick="() => OnTabChange.InvokeAsync(tab)">
+                @TabLabel(tab)@TabCount(tab)
+            </button>
+        }
+    </nav>
+
+    <div class="zalozka-obsah">
+        @switch (ActiveTab)
+        {
+            case DetailTab.Columns:
+                <table class="mrizka">
+                    <thead>
+                        <tr>
+                            <th>Sloupec</th>
+                            <th>Typ</th>
+                            <th>Null</th>
+                            <th>Klíč</th>
+                            <th>CLR typ</th>
+                            <th>Poznámka</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var column in Table.Columns)
+                        {
+                            <tr class="@(Highlighted.Contains(column.Name) ? "nalezeno" : "")">
+                                <td class="jmeno">@column.Name</td>
+                                <td class="mono">@column.StoreType</td>
+                                <td>@(column.IsNullable ? "ano" : "")</td>
+                                <td class="klic">@KeyMark(column)</td>
+                                <td class="mono">@ShortClrType(column.ClrType)</td>
+                                <td class="poznamka">@ColumnNotes(column)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+                break;
+
+            case DetailTab.Indexes:
+                @if (Table.Indexes.Count == 0)
+                {
+                    <p class="prazdno">Tabulka nemá žádné indexy.</p>
+                }
+                else
+                {
+                    <table class="mrizka">
+                        <thead>
+                            <tr>
+                                <th>Index</th>
+                                <th>Sloupce</th>
+                                <th>Unikátní</th>
+                                <th>Poznámka</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var index in Table.Indexes)
+                            {
+                                <tr>
+                                    <td class="jmeno">@index.Name</td>
+                                    <td class="mono">@string.Join(", ", index.Columns)</td>
+                                    <td>@(index.IsUnique ? "ano" : "")</td>
+                                    <td class="poznamka">@IndexNotes(index)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+                break;
+
+            case DetailTab.ForeignKeys:
+                @if (Table.ForeignKeys.Count == 0)
+                {
+                    <p class="prazdno">Tabulka nemá žádné cizí klíče.</p>
+                }
+                else
+                {
+                    <table class="mrizka">
+                        <thead>
+                            <tr>
+                                <th>Klíč</th>
+                                <th>Sloupce</th>
+                                <th>Cíl</th>
+                                <th>Při smazání</th>
+                                <th>Navigace</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var foreignKey in Table.ForeignKeys)
+                            {
+                                <tr>
+                                    <td class="jmeno">@foreignKey.Name</td>
+                                    <td class="mono">@string.Join(", ", foreignKey.Columns)</td>
+                                    <td>
+                                        <button class="odkaz"
+                                                @onclick="() => OnSelect.InvokeAsync(foreignKey.PrincipalTable)">
+                                            @foreignKey.PrincipalTable.Qualified
+                                        </button>
+                                    </td>
+                                    <td>@foreignKey.DeleteBehavior</td>
+                                    <td class="mono">@foreignKey.NavigationName</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+                break;
+
+            case DetailTab.ReferencedBy:
+                @if (Incoming.Count == 0)
+                {
+                    <p class="prazdno">Na tuhle tabulku se nic neodkazuje.</p>
+                }
+                else
+                {
+                    <table class="mrizka">
+                        <thead>
+                            <tr>
+                                <th>Tabulka</th>
+                                <th>Sloupce</th>
+                                <th>Vztah</th>
+                                <th>Při smazání</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var relationship in Incoming)
+                            {
+                                <tr>
+                                    <td>
+                                        <button class="odkaz"
+                                                @onclick="() => OnSelect.InvokeAsync(relationship.From)">
+                                            @relationship.From.Qualified
+                                        </button>
+                                    </td>
+                                    <td class="mono">@string.Join(", ", relationship.FromColumns)</td>
+                                    <td>@ErDiagram.CardinalityLabel(relationship.Cardinality)</td>
+                                    <td>@relationship.DeleteBehavior</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+                break;
+
+            default:
+                <DataNahled Table="Table" Preview="Preview" Error="@PreviewError" OnLoad="OnLoadRows" />
+                break;
+        }
+    </div>
+}
+
+@code {
+    private static readonly DetailTab[] Tabs =
+    [
+        DetailTab.Columns,
+        DetailTab.Indexes,
+        DetailTab.ForeignKeys,
+        DetailTab.ReferencedBy,
+        DetailTab.Data,
+    ];
+
+    [Parameter]
+    public DbTable? Table { get; set; }
+
+    [Parameter]
+    public DetailTab ActiveTab { get; set; } = DetailTab.Columns;
+
+    /// <summary>Vazby, které do tabulky vedou zvenčí.</summary>
+    [Parameter]
+    public IReadOnlyList<DbRelationship> Incoming { get; set; } = [];
+
+    /// <summary>Nálezy diffu pro tuhle tabulku.</summary>
+    [Parameter]
+    public IReadOnlyList<DiffFinding> Findings { get; set; } = [];
+
+    /// <summary>Sloupce zvýrazněné podle hledaného textu.</summary>
+    [Parameter]
+    public IReadOnlySet<string> Highlighted { get; set; } = new HashSet<string>();
+
+    [Parameter]
+    public bool CanPreviewData { get; set; }
+
+    [Parameter]
+    public RowPreview? Preview { get; set; }
+
+    [Parameter]
+    public string? PreviewError { get; set; }
+
+    [Parameter]
+    public EventCallback<DetailTab> OnTabChange { get; set; }
+
+    [Parameter]
+    public EventCallback<DbObjectName> OnSelect { get; set; }
+
+    [Parameter]
+    public EventCallback OnLoadRows { get; set; }
+
+    internal static string TabLabel(DetailTab tab) => tab switch
+    {
+        DetailTab.Columns => "Sloupce",
+        DetailTab.Indexes => "Indexy",
+        DetailTab.ForeignKeys => "Cizí klíče",
+        DetailTab.ReferencedBy => "Odkazuje sem",
+        _ => "Data",
+    };
+
+    private string TabCount(DetailTab tab)
+    {
+        var count = tab switch
+        {
+            DetailTab.Columns => Table?.Columns.Count ?? 0,
+            DetailTab.Indexes => Table?.Indexes.Count ?? 0,
+            DetailTab.ForeignKeys => Table?.ForeignKeys.Count ?? 0,
+            DetailTab.ReferencedBy => Incoming.Count,
+            _ => -1,
+        };
+
+        return count >= 0 ? $" ({count})" : "";
+    }
+
+    internal static string KeyMark(DbColumn column) => column switch
+    {
+        { IsPrimaryKey: true, IsForeignKey: true } => "PK, FK",
+        { IsPrimaryKey: true } => "PK",
+        { IsForeignKey: true } => "FK",
+        _ => "",
+    };
+
+    /// <summary>Z plného CLR jména stačí poslední část — namespace by jen zabíral místo.</summary>
+    internal static string ShortClrType(string? clrType)
+    {
+        if (string.IsNullOrEmpty(clrType))
+        {
+            return "";
+        }
+
+        var lastDot = clrType.LastIndexOf('.');
+        return lastDot >= 0 ? clrType[(lastDot + 1)..] : clrType;
+    }
+
+    internal static string ColumnNotes(DbColumn column)
+    {
+        var notes = new List<string>();
+
+        if (column.IsIdentity)
+        {
+            notes.Add("identity");
+        }
+
+        if (column.IsComputed)
+        {
+            notes.Add(column.ComputedSql is { } sql ? $"computed: {sql}" : "computed");
+        }
+
+        if (column.DefaultValueSql is { } defaultSql)
+        {
+            notes.Add($"default: {defaultSql}");
+        }
+
+        if (column.IsConcurrencyToken)
+        {
+            notes.Add("concurrency");
+        }
+
+        if (column.Collation is { } collation)
+        {
+            notes.Add(collation);
+        }
+
+        if (column.Comment is { } comment)
+        {
+            notes.Add(comment);
+        }
+
+        return string.Join(", ", notes);
+    }
+
+    internal static string IndexNotes(DbIndex index)
+    {
+        var notes = new List<string>();
+
+        if (index.IncludedColumns.Count > 0)
+        {
+            notes.Add($"INCLUDE ({string.Join(", ", index.IncludedColumns)})");
+        }
+
+        if (index.FilterSql is { } filter)
+        {
+            notes.Add($"WHERE {filter}");
+        }
+
+        if (index.IsClustered == true)
+        {
+            notes.Add("clustered");
+        }
+
+        if (index.IsDescending.Any(static d => d))
+        {
+            notes.Add("sestupně");
+        }
+
+        return string.Join(", ", notes);
+    }
+}

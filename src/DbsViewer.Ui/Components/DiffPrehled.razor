@@ -1,0 +1,90 @@
+@*
+    Nálezy porovnání EF modelu s databází. Seskupené podle závažnosti, protože
+    „neaplikovaná migrace" a „index navíc" jsou dvě velmi různé zprávy.
+*@
+
+@if (Diff is null)
+{
+    <p class="nacita">Načítám porovnání…</p>
+}
+else if (Diff.Findings.Count == 0)
+{
+    <div class="diff-cisty">
+        <p class="ok">✓ Model a databáze se shodují.</p>
+    </div>
+}
+else
+{
+    <div class="diff">
+        <header class="diff-souhrn">
+            <span class="pocet chyba">@Diff.ErrorCount chyb</span>
+            <span class="pocet varovani">@Diff.WarningCount varování</span>
+        </header>
+
+        @foreach (var group in Diff.Findings.GroupBy(static f => f.Severity))
+        {
+            <section class="@SeverityClass(group.Key)">
+                <h3>@SeverityLabel(group.Key)</h3>
+
+                <table class="mrizka">
+                    <thead>
+                        <tr>
+                            <th>Objekt</th>
+                            <th>Nález</th>
+                            <th>Model</th>
+                            <th>Databáze</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var finding in group)
+                        {
+                            <tr>
+                                <td class="jmeno">
+                                    @if (finding.Table is { } table)
+                                    {
+                                        <button class="odkaz" @onclick="() => OnSelect.InvokeAsync(table)">
+                                            @table.Qualified
+                                        </button>
+                                        @if (finding.Object is { } objekt)
+                                        {
+                                            <span class="podobjekt">.@objekt</span>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <span>@(finding.Object ?? "schéma")</span>
+                                    }
+                                </td>
+                                <td>@finding.Message</td>
+                                <td class="mono">@(finding.ModelValue ?? "—")</td>
+                                <td class="mono">@(finding.DatabaseValue ?? "—")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </section>
+        }
+    </div>
+}
+
+@code {
+    [Parameter]
+    public SchemaDiff? Diff { get; set; }
+
+    [Parameter]
+    public EventCallback<DbObjectName> OnSelect { get; set; }
+
+    internal static string SeverityLabel(DiffSeverity severity) => severity switch
+    {
+        DiffSeverity.Error => "Chyby",
+        DiffSeverity.Warning => "Varování",
+        _ => "Informace",
+    };
+
+    internal static string SeverityClass(DiffSeverity severity) => severity switch
+    {
+        DiffSeverity.Error => "chyba",
+        DiffSeverity.Warning => "varovani",
+        _ => "info",
+    };
+}

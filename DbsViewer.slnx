@@ -10,12 +10,15 @@
     <Project Path="src/DbsViewer.Server/DbsViewer.Server.csproj" />
     <Project Path="src/DbsViewer.Sqlite/DbsViewer.Sqlite.csproj" />
     <Project Path="src/DbsViewer.SqlServer/DbsViewer.SqlServer.csproj" />
+    <Project Path="src/DbsViewer.Ui/DbsViewer.Ui.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/DbsViewer.EfCore.Tests/DbsViewer.EfCore.Tests.csproj" />
     <Project Path="tests/DbsViewer.Relational.Tests/DbsViewer.Relational.Tests.csproj" />
     <Project Path="tests/DbsViewer.Server.Tests/DbsViewer.Server.Tests.csproj" />
     <Project Path="tests/DbsViewer.TestKit/DbsViewer.TestKit.csproj" />
+    <Project Path="tests/DbsViewer.Tool.Tests/DbsViewer.Tool.Tests.csproj" />
+    <Project Path="tests/DbsViewer.Ui.Tests/DbsViewer.Ui.Tests.csproj" />
   </Folder>
   <Folder Name="/tools/">
     <Project Path="tools/DbsViewer.Dump/DbsViewer.Dump.csproj" />

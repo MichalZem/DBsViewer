@@ -37,6 +37,18 @@
     <ProjectReference Include="..\DbsViewer.TestKit\DbsViewer.TestKit.csproj" />
   </ItemGroup>
 
+  <!--
+    Náhrada UI pro testy servírování souborů. Skutečné UI se do testovací sestavy
+    nevkládá (trvalo by to a nic navíc by neověřilo), ale cesty a typy obsahu
+    otestovat jde jen proti nějakým souborům.
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="FakeUi/index.html" LogicalName="DbsViewer.Server.ui.index.html" />
+    <EmbeddedResource Include="FakeUi/dbsviewer.css" LogicalName="DbsViewer.Server.ui.dbsviewer.css" />
+    <EmbeddedResource Include="FakeUi/blazor.webassembly.js"
+                      LogicalName="DbsViewer.Server.ui._framework.blazor.webassembly.js" />
+  </ItemGroup>
+
   <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>

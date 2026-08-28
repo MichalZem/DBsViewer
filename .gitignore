@@ -430,7 +430,7 @@ FodyWeavers.xsd
 
 ## --- DbsViewer ---
 
-# Výstup měření pokrytí (cobertura, lcov, json)
+# Výstup buildu: pokrytí, balíčky, publikované UI
 artifacts/
 
 # Nástroje agentů

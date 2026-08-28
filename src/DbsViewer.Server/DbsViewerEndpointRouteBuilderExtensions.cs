@@ -49,6 +49,10 @@ public static class DbsViewerEndpointRouteBuilderExtensions
 
         MapApi(group.MapGroup("/api"));
 
+        // UI se mapuje jako poslední, protože jeho catch-all cesta by jinak
+        // přebila endpointy API.
+        UiHosting.MapUi(group, options, options.UiAssembly);
+
         return group;
     }
 

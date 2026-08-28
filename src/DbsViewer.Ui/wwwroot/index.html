@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="cs">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Schéma databáze</title>
+
+    <!--
+        Základ cesty doplní server podle nakonfigurovaného prefixu. Bez toho by se
+        prohlížečka na jiné cestě než v kořeni nenačetla.
+    -->
+    <base href="/dbschema/" />
+
+    <link rel="stylesheet" href="dbsviewer.css" />
+    <link rel="icon" href="data:," />
+</head>
+
+<body>
+    <div id="app">
+        <div class="zavadec">Načítám prohlížečku schématu…</div>
+    </div>
+
+    <div id="blazor-error-ui">
+        Došlo k neočekávané chybě.
+        <a href="." class="reload">Obnovit</a>
+        <span class="dismiss">🗙</span>
+    </div>
+
+    <script src="dbsviewer.js"></script>
+    <script src="_framework/blazor.webassembly.js"></script>
+</body>
+
+</html>

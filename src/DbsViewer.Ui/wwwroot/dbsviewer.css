@@ -1,0 +1,531 @@
+/* Prohlížečka databázového schématu. Světlé i tmavé téma podle nastavení prohlížeče. */
+
+:root {
+    --pozadi: #f6f7f9;
+    --panel: #ffffff;
+    --panel-2: #eef1f5;
+    --text: #16191f;
+    --text-2: #5b6474;
+    --text-3: #8b95a5;
+    --linka: #d8dde5;
+    --akcent: #2f4fa8;
+    --akcent-svetly: #e4e9f7;
+    --chyba: #a32b2b;
+    --chyba-svetla: #fbeaea;
+    --varovani: #8a6100;
+    --varovani-svetla: #fbf3e0;
+    --ok: #2c6e49;
+    --kaskada: #a32b2b;
+    --setnull: #8a6100;
+    --restrict: #5b6474;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --pozadi: #0f1216;
+        --panel: #171b22;
+        --panel-2: #1e242e;
+        --text: #e6eaf0;
+        --text-2: #a3adbd;
+        --text-3: #78828f;
+        --linka: #2a323d;
+        --akcent: #8b9bf0;
+        --akcent-svetly: #1b2138;
+        --chyba: #e58585;
+        --chyba-svetla: #2a1717;
+        --varovani: #d3a94a;
+        --varovani-svetla: #2a2214;
+        --ok: #6bc191;
+        --kaskada: #e58585;
+        --setnull: #d3a94a;
+        --restrict: #78828f;
+    }
+}
+
+* { box-sizing: border-box; }
+
+html, body { height: 100%; margin: 0; }
+
+body {
+    background: var(--pozadi);
+    color: var(--text);
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+#app { height: 100%; }
+
+.zavadec {
+    display: grid;
+    place-items: center;
+    height: 100vh;
+    color: var(--text-2);
+}
+
+/* ---------- rozvržení ---------- */
+
+.dbsviewer {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+.lista {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 10px 16px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--linka);
+    flex-wrap: wrap;
+}
+
+.lista h1 {
+    font-size: 15px;
+    font-weight: 600;
+    margin: 0;
+    white-space: nowrap;
+}
+
+.pohledy { display: flex; gap: 2px; }
+
+.pohledy button {
+    padding: 6px 14px;
+    border: 1px solid var(--linka);
+    background: var(--panel);
+    color: var(--text-2);
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.pohledy button:first-child { border-radius: 4px 0 0 4px; }
+.pohledy button:last-child { border-radius: 0 4px 4px 0; }
+
+.pohledy button.aktivni {
+    background: var(--akcent-svetly);
+    color: var(--akcent);
+    border-color: var(--akcent);
+    font-weight: 600;
+}
+
+.nastroje {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-left: auto;
+}
+
+.nastroje select,
+.nastroje button {
+    padding: 5px 10px;
+    border: 1px solid var(--linka);
+    border-radius: 4px;
+    background: var(--panel);
+    color: var(--text);
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.export { position: relative; }
+
+.export-nabidka {
+    position: absolute;
+    right: 0;
+    top: 100%;
+    margin: 4px 0 0;
+    padding: 4px;
+    list-style: none;
+    background: var(--panel);
+    border: 1px solid var(--linka);
+    border-radius: 4px;
+    box-shadow: 0 4px 14px rgb(0 0 0 / 12%);
+    z-index: 20;
+    min-width: 140px;
+}
+
+.export-nabidka button {
+    display: block;
+    width: 100%;
+    padding: 6px 10px;
+    border: 0;
+    background: none;
+    color: var(--text);
+    text-align: left;
+    cursor: pointer;
+}
+
+.export-nabidka button:hover { background: var(--panel-2); }
+
+.obsah {
+    display: grid;
+    grid-template-columns: 280px minmax(0, 1fr);
+    flex: 1;
+    min-height: 0;
+}
+
+.obsah.sirokych { grid-template-columns: 220px minmax(0, 1fr); }
+
+/* ---------- seznam tabulek ---------- */
+
+.seznam {
+    background: var(--panel);
+    border-right: 1px solid var(--linka);
+    overflow-y: auto;
+    padding: 10px;
+}
+
+.seznam input[type="search"] {
+    width: 100%;
+    padding: 7px 10px;
+    border: 1px solid var(--linka);
+    border-radius: 4px;
+    background: var(--pozadi);
+    color: var(--text);
+    font-size: 13px;
+}
+
+.seznam .pocet {
+    margin: 8px 2px;
+    font-size: 12px;
+    color: var(--text-3);
+}
+
+.seznam ul { list-style: none; margin: 0; padding: 0; }
+
+.seznam li button {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    width: 100%;
+    padding: 6px 8px;
+    border: 0;
+    border-left: 3px solid transparent;
+    background: none;
+    color: var(--text);
+    text-align: left;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.seznam li button:hover { background: var(--panel-2); }
+
+.seznam li button.vybrana {
+    background: var(--akcent-svetly);
+    border-left-color: var(--akcent);
+    font-weight: 600;
+}
+
+.seznam li button.nalez-chyba { border-left-color: var(--chyba); }
+.seznam li button.nalez-varovani { border-left-color: var(--varovani); }
+
+.seznam .schema { color: var(--text-3); font-size: 11px; }
+.seznam .pocet-sloupcu { margin-left: auto; color: var(--text-3); font-size: 11px; }
+
+/* ---------- hlavní panel ---------- */
+
+.hlavni-panel {
+    overflow: auto;
+    padding: 16px 20px;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.detail-hlavicka h2 { margin: 0 0 8px; font-size: 20px; font-weight: 600; }
+
+.odznaky { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+
+.odznak {
+    padding: 2px 8px;
+    border: 1px solid var(--linka);
+    border-radius: 10px;
+    background: var(--panel-2);
+    font-size: 11px;
+    color: var(--text-2);
+}
+
+.odznak.entita { color: var(--akcent); border-color: var(--akcent); }
+
+.komentar { color: var(--text-2); margin: 0 0 12px; }
+
+.zalozky {
+    display: flex;
+    gap: 2px;
+    border-bottom: 1px solid var(--linka);
+    margin-bottom: 12px;
+}
+
+.zalozky button {
+    padding: 8px 14px;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    background: none;
+    color: var(--text-2);
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.zalozky button.aktivni {
+    color: var(--akcent);
+    border-bottom-color: var(--akcent);
+    font-weight: 600;
+}
+
+.zalozky button:disabled { color: var(--text-3); cursor: not-allowed; }
+
+/* ---------- tabulky s daty ---------- */
+
+.mrizka-obal { overflow-x: auto; }
+
+.mrizka {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.mrizka th,
+.mrizka td {
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--linka);
+    text-align: left;
+    vertical-align: top;
+}
+
+.mrizka th {
+    background: var(--panel-2);
+    color: var(--text-3);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.mrizka .jmeno { font-weight: 600; }
+.mrizka .klic { color: var(--akcent); font-size: 11px; white-space: nowrap; }
+.mrizka .poznamka { color: var(--text-2); font-size: 12px; }
+.mrizka tr.nalezeno { background: var(--akcent-svetly); }
+.mrizka .nullova { color: var(--text-3); font-style: italic; }
+.mrizka th.maskovany { color: var(--varovani); }
+
+.mono {
+    font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+    font-size: 12px;
+}
+
+button.odkaz {
+    border: 0;
+    background: none;
+    color: var(--akcent);
+    cursor: pointer;
+    padding: 0;
+    font-size: inherit;
+    text-decoration: underline;
+}
+
+/* ---------- diagram ---------- */
+
+.diagram-nastroje {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--linka);
+    margin-bottom: 10px;
+    font-size: 13px;
+    flex-wrap: wrap;
+}
+
+.diagram-nastroje .hops { display: flex; align-items: center; gap: 8px; }
+.diagram-nastroje .pocet { margin-left: auto; color: var(--text-3); font-size: 12px; }
+
+.diagram-plocha {
+    position: relative;
+    flex: 1;
+    min-height: 400px;
+    background: var(--panel);
+    border: 1px solid var(--linka);
+    border-radius: 4px;
+    overflow: hidden;
+    cursor: grab;
+    touch-action: none;
+}
+
+.diagram-plocha:active { cursor: grabbing; }
+
+.diagram { display: block; width: 100%; height: 100%; }
+
+.diagram marker path { fill: var(--restrict); }
+
+.hrana polyline { stroke: var(--restrict); stroke-width: 1.5; }
+.hrana.kaskada polyline { stroke: var(--kaskada); }
+.hrana.setnull polyline { stroke: var(--setnull); }
+.hrana.zvyraznena polyline { stroke-width: 2.5; }
+
+.kardinalita {
+    font-size: 10px;
+    fill: var(--text-3);
+    text-anchor: middle;
+}
+
+.uzel {
+    height: 100%;
+    background: var(--panel);
+    border: 1px solid var(--linka);
+    border-radius: 4px;
+    overflow: hidden;
+    cursor: pointer;
+    font-size: 11px;
+}
+
+.uzel.vybrany { border-color: var(--akcent); box-shadow: 0 0 0 2px var(--akcent-svetly); }
+.uzel.nalez-chyba { border-color: var(--chyba); }
+.uzel.nalez-varovani { border-color: var(--varovani); }
+
+.uzel-hlavicka {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 8px;
+    background: var(--panel-2);
+    border-bottom: 1px solid var(--linka);
+}
+
+.uzel-jmeno { font-weight: 600; font-size: 12px; }
+
+.uzel-hlavicka .odznak { padding: 0 5px; font-size: 9px; }
+
+.uzel-prepinac {
+    margin-left: auto;
+    width: 18px;
+    height: 18px;
+    border: 1px solid var(--linka);
+    border-radius: 3px;
+    background: var(--panel);
+    color: var(--text-2);
+    cursor: pointer;
+    line-height: 1;
+    padding: 0;
+}
+
+.uzel-sloupce { padding: 2px 0; }
+
+.uzel-sloupec {
+    display: flex;
+    gap: 6px;
+    padding: 1px 8px;
+    line-height: 18px;
+    white-space: nowrap;
+}
+
+.uzel-sloupec .klic { color: var(--akcent); width: 20px; font-size: 9px; }
+.uzel-sloupec .jmeno { overflow: hidden; text-overflow: ellipsis; }
+.uzel-sloupec .typ { margin-left: auto; color: var(--text-3); font-size: 10px; }
+.uzel-sloupec.pk .jmeno { font-weight: 600; }
+
+.diagram-ovladani {
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px;
+    background: var(--panel);
+    border: 1px solid var(--linka);
+    border-radius: 4px;
+}
+
+.diagram-ovladani button {
+    width: 26px;
+    height: 26px;
+    border: 1px solid var(--linka);
+    border-radius: 3px;
+    background: var(--panel);
+    color: var(--text);
+    cursor: pointer;
+    padding: 0;
+}
+
+.zoom-hodnota { font-size: 11px; color: var(--text-3); padding: 0 4px; }
+
+/* ---------- diff ---------- */
+
+.diff { padding: 16px 20px; overflow: auto; grid-column: 1 / -1; }
+
+.diff-souhrn { display: flex; gap: 16px; margin-bottom: 16px; }
+.diff-souhrn .pocet { font-weight: 600; }
+.diff-souhrn .chyba { color: var(--chyba); }
+.diff-souhrn .varovani { color: var(--varovani); }
+
+.diff section { margin-bottom: 24px; }
+.diff h3 { font-size: 14px; margin: 0 0 8px; }
+.diff section.chyba h3 { color: var(--chyba); }
+.diff section.varovani h3 { color: var(--varovani); }
+
+.diff .podobjekt { color: var(--text-2); }
+
+.diff-cisty { padding: 40px; text-align: center; grid-column: 1 / -1; }
+.diff-cisty .ok { color: var(--ok); font-size: 16px; }
+
+.nalezy { list-style: none; margin: 0 0 14px; padding: 0; }
+
+.nalezy li {
+    padding: 8px 12px;
+    border-left: 3px solid;
+    margin-bottom: 4px;
+    font-size: 13px;
+}
+
+.nalezy li.chyba { background: var(--chyba-svetla); border-color: var(--chyba); }
+.nalezy li.varovani { background: var(--varovani-svetla); border-color: var(--varovani); }
+.nalezy .hodnoty { display: block; color: var(--text-2); font-size: 12px; margin-top: 2px; }
+
+/* ---------- stavy ---------- */
+
+.prazdno, .nacita { color: var(--text-3); padding: 20px 0; }
+
+.chyba { color: var(--chyba); }
+
+.lista-chyba {
+    margin: 0;
+    padding: 10px 16px;
+    background: var(--chyba-svetla);
+    border-bottom: 1px solid var(--chyba);
+}
+
+.nahled-vyzva { padding: 20px 0; }
+.nahled-vyzva p { color: var(--text-2); }
+
+button.hlavni {
+    padding: 7px 16px;
+    border: 1px solid var(--akcent);
+    border-radius: 4px;
+    background: var(--akcent);
+    color: #fff;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.poznamka, .poznamka-maskovani {
+    color: var(--text-3);
+    font-size: 12px;
+    margin: 8px 0;
+}
+
+.poznamka-maskovani { color: var(--varovani); }
+
+#blazor-error-ui {
+    display: none;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 12px 16px;
+    background: var(--varovani-svetla);
+    border-top: 1px solid var(--varovani);
+    z-index: 1000;
+}
+
+#blazor-error-ui .dismiss { float: right; cursor: pointer; }

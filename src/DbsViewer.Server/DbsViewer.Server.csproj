@@ -24,4 +24,30 @@
     <InternalsVisibleTo Include="DbsViewer.Server.Tests" />
   </ItemGroup>
 
+  <!--
+    Blazor WASM UI se publikuje zvlášť a jeho wwwroot se vloží do této assembly
+    jako embedded resources. Hostitelská aplikace tak nemusí o Blazoru vědět (ADR-0004).
+
+    Publish UI trvá desítky sekund, takže se pouští jen v Release a při balení —
+    vývojová smyčka nad serverem tím netrpí. Vynutit jde přes -p:EmbedDbsViewerUi=true.
+  -->
+  <PropertyGroup>
+    <EmbedDbsViewerUi Condition="'$(EmbedDbsViewerUi)' == '' AND '$(Configuration)' == 'Release'">true</EmbedDbsViewerUi>
+    <EmbedDbsViewerUi Condition="'$(EmbedDbsViewerUi)' == ''">false</EmbedDbsViewerUi>
+    <DbsViewerUiPublishDir>$(MSBuildThisFileDirectory)../../artifacts/ui</DbsViewerUiPublishDir>
+  </PropertyGroup>
+
+  <Target Name="PublishDbsViewerUi"
+          BeforeTargets="BeforeBuild"
+          Condition="'$(EmbedDbsViewerUi)' == 'true' AND '$(DesignTimeBuild)' != 'true'">
+    <Exec Command="dotnet publish &quot;$(MSBuildThisFileDirectory)../DbsViewer.Ui/DbsViewer.Ui.csproj&quot; -c Release -o &quot;$(DbsViewerUiPublishDir)&quot; --nologo -v quiet"
+          StandardOutputImportance="low" />
+
+    <ItemGroup>
+      <DbsViewerUiFile Include="$(DbsViewerUiPublishDir)/wwwroot/**/*" />
+      <EmbeddedResource Include="@(DbsViewerUiFile)"
+                        LogicalName="DbsViewer.Server.ui.$([System.String]::Copy('%(RecursiveDir)%(Filename)%(Extension)').Replace('\','.').Replace('/','.'))" />
+    </ItemGroup>
+  </Target>
+
 </Project>

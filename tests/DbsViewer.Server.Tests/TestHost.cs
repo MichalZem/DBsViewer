@@ -37,7 +37,8 @@ public sealed class DbsViewerApp : IAsyncDisposable
         Action<DbsViewerOptions>? configure = null,
         string environment = "Development",
         bool createDatabase = true,
-        Action<string>? mutateDatabase = null)
+        Action<string>? mutateDatabase = null,
+        bool useFakeUi = false)
     {
         var connection = new SqliteConnection($"Data Source=DbsViewerServer_{Guid.NewGuid():N};Mode=Memory;Cache=Shared");
         await connection.OpenAsync();
@@ -81,7 +82,16 @@ public sealed class DbsViewerApp : IAsyncDisposable
                     .AddPolicy("Nikdo", static policy => policy.RequireAssertion(static _ => false));
 
                 services.AddDbContext<ShopContext>(options => options.UseSqlite(connection));
-                services.AddDbsViewer<ShopContext>(configure);
+                services.AddDbsViewer<ShopContext>(options =>
+                {
+                    if (useFakeUi)
+                    {
+                        // Skutečné UI v testovací sestavě není; tohle podstrčí jeho náhradu.
+                        options.UiAssembly = typeof(DbsViewerApp).Assembly;
+                    }
+
+                    configure?.Invoke(options);
+                });
             });
 
             web.Configure(app =>

@@ -67,16 +67,18 @@ src/
   DbsViewer.Sqlite         Živá introspekce nad sqlite_master a PRAGMA
   DbsViewer.Analysis       Slučování a porovnání schémat (diff engine).
   DbsViewer.Server         AddDbsViewer / MapDbsViewer, HTTP API, cache, autorizace, náhled dat
-  DbsViewer.Ui             (plánováno) Blazor WASM, embedovaný do DbsViewer.Server
+  DbsViewer.Ui             Blazor WASM prohlížečka. Publish se embeduje do Serveru.
 samples/
   DbsViewer.SampleShop     Ukázkový model pro testy a ověření
 tools/
-  DbsViewer.Dump           Konzolový výpis schématu, diff a sloučený pohled
+  DbsViewer.Dump           dotnet tool `dbsview` — výpis, diff a export dokumentace
 tests/
   DbsViewer.TestKit        Pomůcky sdílené testy. Neměří se pokrytí.
   DbsViewer.EfCore.Tests   Testy Abstractions a EfCore
   DbsViewer.Relational.Tests  Testy Relational, SqlServer, Sqlite a Analysis
   DbsViewer.Server.Tests   Testy Serveru proti běžící aplikaci
+  DbsViewer.Ui.Tests       Testy UI, komponenty přes bUnit
+  DbsViewer.Tool.Tests     Testy nástroje včetně zápisu souborů
 docs/adr/                  Architektonická rozhodnutí
 ```
 
@@ -108,12 +110,18 @@ dotnet run --project tools/DbsViewer.Dump -- --help
 cd tests/DbsViewer.EfCore.Tests && dotnet test
 cd tests/DbsViewer.Relational.Tests && dotnet test
 cd tests/DbsViewer.Server.Tests && dotnet test
+cd tests/DbsViewer.Ui.Tests && dotnet test
+cd tests/DbsViewer.Tool.Tests && dotnet test
 
 # zabalení do NuGet balíčků (výstup do artifacts/packages/)
 for p in Abstractions EfCore Relational SqlServer Sqlite Analysis Server; do
   dotnet pack src/DbsViewer.$p -c Release -o artifacts/packages
 done
+dotnet pack tools/DbsViewer.Dump -c Release -o artifacts/packages
 ```
+
+**Blazor UI se do serverového balíčku vkládá jen v Release.** V Debugu by publish UI
+zdržoval každý build; vynutit jde přes `-p:EmbedDbsViewerUi=true`.
 
 Report pokrytí končí v `artifacts/coverage/` ve formátech cobertura, lcov a json.
 
@@ -141,6 +149,13 @@ se v casingu běžně liší; od toho je `DbObjectName`.
 **Bezpečnostní defaulty jsou restriktivní** a mimo Development komponenta bez autorizace
 nenastartuje. Viz [ADR-0006](docs/adr/0006-bezpecnostni-defaulty.md).
 
+**UI nepoužívá JavaScript na nic kromě stahování souboru.** Diagram i jeho layout jsou
+v C#, protože JS interop se v testech komponent nedá spustit.
+Viz [ADR-0012](docs/adr/0012-vlastni-layout-diagramu.md).
+
+**Stav UI žije mimo komponentu** v `ViewerState`, aby se dal testovat bez vykreslování.
+Viz [ADR-0013](docs/adr/0013-stav-mimo-komponentu.md).
+
 **Objekty se mezi zdroji párují podle struktury, ne podle jména.** SQLite jména cizích klíčů
 nevystavuje a skládají se podle konvence, která se s EF nemusí trefit.
 Viz [ADR-0011](docs/adr/0011-parovani-podle-sloupcu.md).
@@ -157,22 +172,21 @@ Viz [ADR-0011](docs/adr/0011-parovani-podle-sloupcu.md).
   Jeden test drží jednu vlastnost, aby při rozbití bylo hned vidět co.
 - Sekvence v testech se porovnávají přes `Seq.Equal`, ne `Assert.Equal` —
   to má nejednoznačné přetížení mezi `ReadOnlySpan<T>` a `IEnumerable<T>`.
+- V Razoru se **string parametr komponenty musí předávat s `@`** (`Error="@Chyba"`).
+  Bez něj se hodnota vezme jako literál a chyba je tichá.
+- CSS třídy a texty v UI jsou česky, stejně jako zbytek projektu.
 
 ---
 
 ## Stav a další kroky
 
-Hotové jsou **etapy 01 až 03**: datový model, čtení z EF modelu, živá introspekce obou
-providerů, slučování, diff engine, HTTP API s autorizací, cache a náhledem dat. 542 testů.
+**Všech sedm etap je hotových.** Datový model, čtení z EF modelu, živá introspekce obou
+providerů, slučování, diff engine, HTTP API s autorizací a cache, Blazor WASM prohlížečka
+s ER diagramem a focus modem, náhled dat, export a `dotnet tool`. **833 testů**, 100 %
+pokrytí řádků a metod ve všech pěti sadách.
 
-Ověřeno end-to-end: balíček se dá zabalit, nainstalovat do čerstvé Web API aplikace
-a dvěma řádky zapojit. Postup instalace je v [README](README.md).
+Ověřeno end-to-end: balíčky se zabalí, nainstalují do čerstvé Web API aplikace, dvěma
+řádky zapojí a prohlížečka se všemi 47 soubory UI se servíruje z embedded resources.
 
-Zbývá:
-
-| # | Etapa |
-|---|---|
-| 04 | Blazor WASM UI bez diagramu, embedding do balíčku |
-| 05 | ER diagram — SVG renderer, elkjs layout, focus mode, export |
-| 06 | Diff a náhled dat v UI |
-| 07 | Publikování na nuget.org, `dotnet tool`, statický snapshot do `docs/` |
+Zbývá jediné: **publikování na nuget.org.** Do té doby se balíčky sestavují ze zdrojů —
+postup je v [README](README.md).

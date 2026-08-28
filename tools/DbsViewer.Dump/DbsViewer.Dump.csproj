@@ -2,8 +2,14 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <IsPackable>false</IsPackable>
     <RootNamespace>DbsViewer.Dump</RootNamespace>
+
+    <!-- Nástroj se instaluje globálně: dotnet tool install -g DbsViewer.Tool -->
+    <IsPackable>true</IsPackable>
+    <PackAsTool>true</PackAsTool>
+    <PackageId>DbsViewer.Tool</PackageId>
+    <ToolCommandName>dbsview</ToolCommandName>
+    <Description>Konzolový nástroj DbsVieweru: výpis schématu databáze, porovnání s EF modelem a export dokumentace.</Description>
   </PropertyGroup>
 
   <ItemGroup>
@@ -11,7 +17,12 @@
     <ProjectReference Include="..\..\src\DbsViewer.SqlServer\DbsViewer.SqlServer.csproj" />
     <ProjectReference Include="..\..\src\DbsViewer.Sqlite\DbsViewer.Sqlite.csproj" />
     <ProjectReference Include="..\..\src\DbsViewer.Analysis\DbsViewer.Analysis.csproj" />
+    <ProjectReference Include="..\..\src\DbsViewer.Ui\DbsViewer.Ui.csproj" />
     <ProjectReference Include="..\..\samples\DbsViewer.SampleShop\DbsViewer.SampleShop.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="DbsViewer.Tool.Tests" />
   </ItemGroup>
 
 </Project>

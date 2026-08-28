@@ -72,6 +72,13 @@ public sealed class DbsViewerOptions
     public DataPreviewOptions DataPreview { get; } = new();
 
     /// <summary>
+    /// Sestava se soubory UI. Ve výchozím stavu je to <c>DbsViewer.Server</c> se
+    /// zabudovaným Blazor UI; jde ji vyměnit za vlastní, když chceš prohlížečku
+    /// s jiným frontendem.
+    /// </summary>
+    public System.Reflection.Assembly? UiAssembly { get; set; }
+
+    /// <summary>
     /// Vyžaduje splnění autorizační policy. Bez ní je prohlížečka dostupná jen
     /// v Development a jinde odmítne nastartovat.
     /// </summary>

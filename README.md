@@ -9,8 +9,9 @@ builder.Services.AddDbsViewer<AppDbContext>();   // 1
 app.MapDbsViewer();                              // 2 → /dbschema
 ```
 
-> **Stav:** HTTP API je hotové a funkční. Grafické UI a ER diagram zatím ne — komponenta
-> teď vrací JSON. Přehled etap je [na konci](#etapy).
+> **Stav:** hotové a použitelné. Prohlížečka má grafické UI s ER diagramem, HTTP API,
+> detekci rozdílů i náhled dat. Zbývá publikování na nuget.org — do té doby se balíčky
+> sestavují ze zdrojů, viz [instalace](#instalace-do-vlastní-aplikace).
 
 ---
 
@@ -106,7 +107,16 @@ automaticky.
 
 ### Krok 5: ověř
 
-Spusť aplikaci a otevři:
+Spusť aplikaci a otevři v prohlížeči:
+
+```
+http://localhost:<port>/dbschema
+```
+
+Uvidíš prohlížečku: vlevo seznam tabulek s hledáním, vpravo detail se záložkami,
+nahoře přepínač na ER diagram a na rozdíly.
+
+Když chceš ověřit jen API:
 
 ```
 http://localhost:<port>/dbschema/api/meta
@@ -132,12 +142,42 @@ je prohlížečka dostupná **jen v Development**. Viz [Bezpečnost](#bezpečnos
 
 ---
 
+## Co uvidíš
+
+**Prohlížeč tabulek.** Vlevo seznam s hledáním, které prochází názvy tabulek **i sloupců** —
+sloupec je často to jediné, co člověk zná. Vpravo detail se záložkami *Sloupce, Indexy,
+Cizí klíče, Odkazuje sem, Data*.
+
+Záložka **Odkazuje sem** je inverzní pohled na cizí klíče a odpovídá na otázku „co se
+rozbije, když tuhle tabulku změním". V běžných nástrojích chybí, přitom je při zásahu
+do schématu nejužitečnější.
+
+**ER diagram.** Tabulky jako uzly, vazby jako hrany s popiskem kardinality. Kaskády mají
+vlastní barvu — je to to, co člověk v cizím schématu hledá nejčastěji. Nepovinné vazby
+jsou přerušované, vazba N:M je jedna hrana místo dvou přes vazební tabulku.
+
+**Focus mode** je zapnutý ve výchozím stavu a je to jediný způsob, jak udělat diagram
+se stovkou tabulek čitelný: vyber tabulku a posuvníkem urči, jak daleko od ní se má
+kreslit. Nula ukáže jen ji, tři už zachytí širší okolí.
+
+Uzly se dají rozbalit na všechny sloupce, plocha se posouvá tažením a přibližuje kolečkem.
+
+**Rozdíly.** Nálezy porovnání modelu s databází, seskupené podle závažnosti. Tabulka
+s nálezem se zvýrazní i v seznamu a v diagramu, takže je vidět, kde je problém.
+
+**Export.** Schéma jde stáhnout jako Mermaid, DBML nebo Markdown dokumentaci —
+souborem, který se dá commitnout do repozitáře.
+
+---
+
 ## HTTP API
 
+UI všechno volá přes tohle API, takže se dá použít i samostatně.
 Všechny cesty jsou relativní k `RoutePrefix` (výchozí `/dbschema`).
 
 | Metoda | Cesta | Vrací |
 |---|---|---|
+| `GET` | `/` | Grafická prohlížečka (Blazor WebAssembly). |
 | `GET` | `/api/meta` | Co je v této konfiguraci k dispozici. Volej jako první. |
 | `GET` | `/api/schema` | Celé schéma. Parametr `source=ef\|live\|merged`, `refresh=true` obejde cache. |
 | `GET` | `/api/schema/diff` | Rozdíly mezi EF modelem a databází. |
@@ -355,23 +395,40 @@ dat drž v konfiguraci prostředí, ne v kódu, aby se nedalo zapnout omylem př
 
 ## Bez aplikace: nástroj z příkazové řádky
 
-Schéma jde vypsat i bez zapojení do aplikace:
+Schéma jde vypsat i bez zapojení do aplikace. Nástroj se instaluje jako `dotnet tool`:
+
+```bash
+dotnet pack tools/DbsViewer.Dump -c Release -o artifacts/packages
+dotnet tool install -g DbsViewer.Tool --version 0.1.0-alpha --add-source ./artifacts/packages
+```
+
+Potom:
 
 ```bash
 # ukázkový model z repozitáře
-dotnet run --project tools/DbsViewer.Dump
+dbsview
 
 # živá databáze
-dotnet run --project tools/DbsViewer.Dump -- --sqlite ./app.db --rows
-dotnet run --project tools/DbsViewer.Dump -- --sqlserver "Server=.;Database=Eshop;Trusted_Connection=True"
+dbsview --sqlite ./app.db --rows
+dbsview --sqlserver "Server=.;Database=Eshop;Trusted_Connection=True"
 
 # drift mezi EF modelem a databází
-dotnet run --project tools/DbsViewer.Dump -- --diff ./app.db
+dbsview --diff ./app.db
+
+# dokumentace schématu do repozitáře
+dbsview --sqlite ./app.db --export docs/schema.md --format markdown
+dbsview --sqlite ./app.db --export docs/schema.mmd --format mermaid
 
 # JSON na disk
-dotnet run --project tools/DbsViewer.Dump -- --json schema.json
+dbsview --json schema.json
 
 # nápověda
+dbsview --help
+```
+
+Bez instalace jde spustit i přímo ze zdrojů:
+
+```bash
 dotnet run --project tools/DbsViewer.Dump -- --help
 ```
 
@@ -399,7 +456,14 @@ Tabulek   : 10, vztahů: 8
   N:M  Tags ← Products via ProductTags  onDelete=Cascade
 ```
 
-Režim `--diff` vrací **kód 2**, když najde chybu, takže se dá použít jako kontrola v CI.
+Režim `--diff` vrací **kód 2**, když najde chybu, takže se dá použít jako kontrola v CI:
+
+```yaml
+- name: Kontrola driftu databáze
+  run: dbsview --diff "${{ secrets.CONNECTION_STRING }}"
+```
+
+Ukázka vygenerované dokumentace je v [`docs/schema-ukazka.md`](docs/schema-ukazka.md).
 
 ---
 
@@ -412,6 +476,8 @@ Režim `--diff` vrací **kód 2**, když najde chybu, takže se dá použít jak
 - **Detekci driftu** — neaplikovaná migrace, ručně přidaný index, sloupec navíc,
   `DeleteBehavior`, které se chová jinak než model tvrdí
 - **Odolnost** — načtení schématu nikdy nespadne, dílčí selhání skončí ve `warnings`
+- **Grafické UI** — prohlížeč tabulek, ER diagram s focus modem, přehled rozdílů,
+  náhled dat, export do Mermaid, DBML a Markdownu
 
 Zdroje dat:
 
@@ -430,7 +496,12 @@ dotnet build
 cd tests/DbsViewer.EfCore.Tests && dotnet test
 cd tests/DbsViewer.Relational.Tests && dotnet test
 cd tests/DbsViewer.Server.Tests && dotnet test
+cd tests/DbsViewer.Ui.Tests && dotnet test
+cd tests/DbsViewer.Tool.Tests && dotnet test
 ```
+
+Blazor UI se do serverového balíčku vkládá jen v `Release` — v `Debug` by publish UI
+zdržoval každý build. Vynutit jde přes `-p:EmbedDbsViewerUi=true`.
 
 Testy vynucují **100% pokrytí řádků a metod** — build selže, když pokrytí klesne.
 Odůvodnění v [ADR-0005](docs/adr/0005-stoprocentni-pokryti.md). Report končí
@@ -449,9 +520,10 @@ Pravidla pro práci na projektu v [`CLAUDE.md`](CLAUDE.md).
 | `src/DbsViewer.SqlServer` | Introspekce SQL Serveru nad `sys.*` |
 | `src/DbsViewer.Sqlite` | Introspekce SQLite nad `PRAGMA` |
 | `src/DbsViewer.Analysis` | Slučování a porovnání schémat |
-| `src/DbsViewer.Server` | `AddDbsViewer`, `MapDbsViewer`, HTTP API — **tohle se instaluje** |
+| `src/DbsViewer.Server` | `AddDbsViewer`, `MapDbsViewer`, HTTP API, hosting UI — **tohle se instaluje** |
+| `src/DbsViewer.Ui` | Blazor WASM prohlížečka, embedovaná do serverového balíčku |
 | `samples/DbsViewer.SampleShop` | Ukázkový model pro testy |
-| `tools/DbsViewer.Dump` | Výpis schématu, diff a sloučený pohled |
+| `tools/DbsViewer.Dump` | `dotnet tool dbsview` — výpis schématu, diff a export |
 | `tests/*` | Testy s vynuceným pokrytím |
 
 ### Etapy
@@ -461,10 +533,11 @@ Pravidla pro práci na projektu v [`CLAUDE.md`](CLAUDE.md).
 | 01 | Datový model, čtení z EF modelu | ✅ hotovo |
 | 02 | Živá introspekce, slučování, diff engine | ✅ hotovo |
 | 03 | `AddDbsViewer` / `MapDbsViewer`, HTTP API, autorizace, náhled dat | ✅ hotovo |
-| 04 | Blazor WASM UI bez diagramu | ⬜ |
-| 05 | ER diagram, focus mode, export | ⬜ |
-| 06 | Diff a náhled dat v UI | ⬜ |
-| 07 | Publikování na nuget.org, `dotnet tool` | ⬜ |
+| 04 | Blazor WASM UI, embedding do balíčku | ✅ hotovo |
+| 05 | ER diagram, focus mode, export | ✅ hotovo |
+| 06 | Diff a náhled dat v UI | ✅ hotovo |
+| 07 | `dotnet tool`, statický snapshot | ✅ hotovo |
+| — | Publikování na nuget.org | ⬜ |
 
 ## Licence
 
