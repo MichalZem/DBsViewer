@@ -56,27 +56,41 @@ public static class QueryRunner
 }
 
 /// <summary>
-/// Držení otevřeného připojení po dobu operace. Zavře ho jen tehdy, když ho samo otevřelo —
-/// cizí připojení patří volajícímu.
+/// Životní cyklus připojení po dobu jedné operace.
 /// </summary>
+/// <remarks>
+/// Platí dvě nezávislá pravidla: <b>zavírá ten, kdo otevřel</b> — i u cizího připojení,
+/// které by jinak zůstalo viset otevřené; a <b>uvolňuje ten, kdo vytvořil</b> — cizí
+/// připojení patří volajícímu a nikdy se neuvolňuje.
+/// </remarks>
 public sealed class ConnectionScope : IAsyncDisposable
 {
     private readonly DbConnection _connection;
     private readonly bool _closeOnDispose;
+    private readonly bool _ownsConnection;
 
-    private ConnectionScope(DbConnection connection, bool closeOnDispose)
+    private ConnectionScope(DbConnection connection, bool closeOnDispose, bool ownsConnection)
     {
         _connection = connection;
         _closeOnDispose = closeOnDispose;
+        _ownsConnection = ownsConnection;
     }
 
     /// <summary>Otevře připojení, pokud otevřené není.</summary>
+    /// <param name="connection">Připojení, se kterým se bude pracovat.</param>
+    /// <param name="ownsConnection">
+    /// <c>true</c>, když připojení vytvořil volající a má se na konci uvolnit.
+    /// </param>
+    /// <param name="cancellationToken">Zrušení operace.</param>
     public static async Task<ConnectionScope> OpenAsync(
         DbConnection connection,
+        bool ownsConnection = false,
         CancellationToken cancellationToken = default)
     {
-        var openedHere = await QueryRunner.EnsureOpenAsync(connection, cancellationToken).ConfigureAwait(false);
-        return new ConnectionScope(connection, openedHere);
+        var openedHere = await QueryRunner.EnsureOpenAsync(connection, cancellationToken)
+            .ConfigureAwait(false);
+
+        return new ConnectionScope(connection, openedHere, ownsConnection);
     }
 
     public async ValueTask DisposeAsync()
@@ -84,6 +98,11 @@ public sealed class ConnectionScope : IAsyncDisposable
         if (_closeOnDispose)
         {
             await _connection.CloseAsync().ConfigureAwait(false);
+        }
+
+        if (_ownsConnection)
+        {
+            await _connection.DisposeAsync().ConfigureAwait(false);
         }
     }
 }

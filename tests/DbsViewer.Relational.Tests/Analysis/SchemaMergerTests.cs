@@ -336,6 +336,26 @@ public class SchemaMergerTests
     }
 
     [Fact]
+    public void Dva_cizi_klice_nad_stejnymi_sloupci_slouceni_neshodi()
+    {
+        // Tentýž sloupec smí mít dva cizí klíče na různé tabulky.
+        var keys = new[]
+        {
+            Build.ForeignKey("FK_1", ["X"], "A"),
+            Build.ForeignKey("FK_2", ["X"], "B"),
+        };
+
+        var merged = SchemaMerger
+            .Merge(Model(WithForeignKeys("T", keys)), Database(WithForeignKeys("T", keys)))
+            .Tables.Single().ForeignKeys;
+
+        // Oba klíče musí přežít — jsou to dvě různé vazby, ne duplicita.
+        Assert.Equal(2, merged.Count);
+        Assert.Contains(merged, f => f.PrincipalTable.Name == "A");
+        Assert.Contains(merged, f => f.PrincipalTable.Name == "B");
+    }
+
+    [Fact]
     public void Dva_cizi_klice_na_stejnou_tabulku_zustanou_oba()
     {
         var shipping = Build.ForeignKey("FK_Ship", ["ShippingAddressId"], "Addresses");

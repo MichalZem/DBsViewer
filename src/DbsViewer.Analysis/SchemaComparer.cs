@@ -320,13 +320,17 @@ public static class SchemaComparer
     {
         // Páruje se podle sloupců, ne podle jména: SQLite jména cizích klíčů vůbec
         // nevystavuje a skládají se podle konvence, která se s EF nemusí trefit.
-        // Sloupce naopak vazbu určují jednoznačně.
-        var databaseKeys = database.ForeignKeys.ToDictionary(ForeignKeyIdentity, StringComparer.Ordinal);
-        var matched = new HashSet<string>(StringComparer.Ordinal);
+        //
+        // Nad stejnými sloupci ale může být víc klíčů — tentýž sloupec smí odkazovat
+        // na dvě různé tabulky. Proto seznam kandidátů, ne slovník: první shodu
+        // spotřebujeme a další klíč se spáruje s tou zbylou.
+        var databaseKeys = new List<DbForeignKey>(database.ForeignKeys);
 
         foreach (var modelKey in model.ForeignKeys)
         {
-            if (!databaseKeys.TryGetValue(ForeignKeyIdentity(modelKey), out var databaseKey))
+            var databaseKey = TakeMatching(databaseKeys, modelKey);
+
+            if (databaseKey is null)
             {
                 findings.Add(new DiffFinding
                 {
@@ -339,8 +343,6 @@ public static class SchemaComparer
                 });
                 continue;
             }
-
-            matched.Add(ForeignKeyIdentity(databaseKey));
 
             if (modelKey.PrincipalTable != databaseKey.PrincipalTable)
             {
@@ -371,13 +373,9 @@ public static class SchemaComparer
             }
         }
 
-        foreach (var databaseKey in database.ForeignKeys)
+        // Co v seznamu zbylo, model nemá.
+        foreach (var databaseKey in databaseKeys)
         {
-            if (matched.Contains(ForeignKeyIdentity(databaseKey)))
-            {
-                continue;
-            }
-
             findings.Add(new DiffFinding
             {
                 Kind = DiffKind.ForeignKeyMissingInModel,
@@ -518,6 +516,34 @@ public static class SchemaComparer
 
         static bool IsNoOp(DbDeleteBehavior behavior) =>
             behavior is DbDeleteBehavior.Restrict or DbDeleteBehavior.NoAction;
+    }
+
+    /// <summary>
+    /// Vybere ze seznamu klíč odpovídající zadanému a odebere ho, aby se nespároval
+    /// podruhé. Přednost má shoda včetně cílové tabulky — teprve když žádná není,
+    /// bere se shoda jen podle sloupců, protože to je nejspíš přesměrovaná vazba.
+    /// </summary>
+    private static DbForeignKey? TakeMatching(List<DbForeignKey> candidates, DbForeignKey wanted)
+    {
+        var identity = ForeignKeyIdentity(wanted);
+
+        var index = candidates.FindIndex(c =>
+            ForeignKeyIdentity(c) == identity && c.PrincipalTable == wanted.PrincipalTable);
+
+        if (index < 0)
+        {
+            index = candidates.FindIndex(c => ForeignKeyIdentity(c) == identity);
+        }
+
+        if (index < 0)
+        {
+            return null;
+        }
+
+        var found = candidates[index];
+        candidates.RemoveAt(index);
+
+        return found;
     }
 
     /// <summary>

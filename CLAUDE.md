@@ -146,6 +146,12 @@ a `IMigrationsReader`.
 **Jména objektů se porovnávají bez ohledu na velikost písmen.** EF model a živá databáze
 se v casingu běžně liší; od toho je `DbObjectName`.
 
+**Nic se nepáruje slovníkem tam, kde klíč nemusí být unikátní.** Tentýž sloupec smí mít
+dva cizí klíče na různé tabulky, takže `ToDictionary` by shodilo diff u legálního schématu.
+
+**Připojení zavírá ten, kdo ho otevřel; uvolňuje ten, kdo ho vytvořil.** Obojí řeší
+`ConnectionScope` — cizí připojení se zavře, ale neuvolní.
+
 **Bezpečnostní defaulty jsou restriktivní** a mimo Development komponenta bez autorizace
 nenastartuje. Viz [ADR-0006](docs/adr/0006-bezpecnostni-defaulty.md).
 
@@ -174,6 +180,10 @@ Viz [ADR-0011](docs/adr/0011-parovani-podle-sloupcu.md).
   to má nejednoznačné přetížení mezi `ReadOnlySpan<T>` a `IEnumerable<T>`.
 - V Razoru se **string parametr komponenty musí předávat s `@`** (`Error="@Chyba"`).
   Bez něj se hodnota vezme jako literál a chyba je tichá.
+- V testech komponent se nad `FindAll` **nepoužívá indexer, ale `ElementAt`** — novější
+  AngleSharp změnil binární podpis, na který je bUnit zkompilovaný.
+- Testovací databáze v paměti musí mít **unikátní jméno** (GUID). xUnit spouští třídy
+  paralelně a dvě databáze stejného jména si přepisují obsah.
 - CSS třídy a texty v UI jsou česky, stejně jako zbytek projektu.
 
 ---

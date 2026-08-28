@@ -75,7 +75,7 @@ public class ViewerTests : TestContext
     {
         var component = Render();
 
-        component.FindAll(".seznam li button")[1].Click();
+        component.FindAll(".seznam li button").ElementAt(1).Click();
 
         Assert.Contains("CustomerId", component.Markup, StringComparison.Ordinal);
         Assert.Single(component.FindAll(".seznam li button.vybrana"));
@@ -96,7 +96,7 @@ public class ViewerTests : TestContext
     {
         var component = Render();
 
-        component.FindAll(".pohledy button")[1].Click();
+        component.FindAll(".pohledy button").ElementAt(1).Click();
 
         Assert.NotEmpty(component.FindAll(".uzel"));
         Assert.Contains("Focus na vybranou tabulku", component.Markup, StringComparison.Ordinal);
@@ -106,8 +106,8 @@ public class ViewerTests : TestContext
     public void Focus_v_diagramu_jde_vypnout()
     {
         var component = Render();
-        component.FindAll(".pohledy button")[1].Click();
-        component.FindAll(".seznam li button")[1].Click();
+        component.FindAll(".pohledy button").ElementAt(1).Click();
+        component.FindAll(".seznam li button").ElementAt(1).Click();
 
         var sFocusem = component.FindAll(".uzel").Count;
 
@@ -120,8 +120,8 @@ public class ViewerTests : TestContext
     public void Vzdalenost_focusu_jde_menit()
     {
         var component = Render();
-        component.FindAll(".pohledy button")[1].Click();
-        component.FindAll(".seznam li button")[1].Click();
+        component.FindAll(".pohledy button").ElementAt(1).Click();
+        component.FindAll(".seznam li button").ElementAt(1).Click();
 
         component.Find("input[type=range]").Change("0");
 
@@ -133,7 +133,7 @@ public class ViewerTests : TestContext
     public void Neplatna_vzdalenost_se_ignoruje()
     {
         var component = Render();
-        component.FindAll(".pohledy button")[1].Click();
+        component.FindAll(".pohledy button").ElementAt(1).Click();
 
         component.Find("input[type=range]").Change("nesmysl");
 
@@ -144,9 +144,9 @@ public class ViewerTests : TestContext
     public void Rozbaleni_uzlu_v_diagramu_funguje()
     {
         var component = Render();
-        component.FindAll(".pohledy button")[1].Click();
+        component.FindAll(".pohledy button").ElementAt(1).Click();
 
-        component.FindAll(".uzel-prepinac")[0].Click();
+        component.FindAll(".uzel-prepinac").ElementAt(0).Click();
 
         Assert.Contains("−", component.Markup, StringComparison.Ordinal);
     }
@@ -158,14 +158,14 @@ public class ViewerTests : TestContext
 
         Assert.Equal(0, _server.DiffCalls);
 
-        component.FindAll(".pohledy button")[2].Click();
+        component.FindAll(".pohledy button").ElementAt(2).Click();
 
         Assert.Equal(1, _server.DiffCalls);
         Assert.Contains("1 chyb", component.Markup, StringComparison.Ordinal);
 
         // Podruhé se už nenačítají.
-        component.FindAll(".pohledy button")[0].Click();
-        component.FindAll(".pohledy button")[2].Click();
+        component.FindAll(".pohledy button").ElementAt(0).Click();
+        component.FindAll(".pohledy button").ElementAt(2).Click();
         Assert.Equal(1, _server.DiffCalls);
     }
 
@@ -173,9 +173,9 @@ public class ViewerTests : TestContext
     public void Klik_v_rozdilech_prepne_na_detail()
     {
         var component = Render();
-        component.FindAll(".pohledy button")[2].Click();
+        component.FindAll(".pohledy button").ElementAt(2).Click();
 
-        component.FindAll("button.odkaz")[0].Click();
+        component.FindAll("button.odkaz").ElementAt(0).Click();
 
         Assert.NotEmpty(component.FindAll(".seznam"));
         Assert.Single(component.FindAll(".seznam li button.vybrana"));
@@ -185,8 +185,8 @@ public class ViewerTests : TestContext
     public void Nalez_diffu_zvyrazni_tabulku_v_seznamu()
     {
         var component = Render();
-        component.FindAll(".pohledy button")[2].Click();
-        component.FindAll(".pohledy button")[0].Click();
+        component.FindAll(".pohledy button").ElementAt(2).Click();
+        component.FindAll(".pohledy button").ElementAt(0).Click();
 
         Assert.Single(component.FindAll(".seznam li button.nalez-chyba"));
         Assert.Single(component.FindAll(".seznam li button.nalez-varovani"));
@@ -198,7 +198,7 @@ public class ViewerTests : TestContext
         var component = Render();
         _server.FailDiff = true;
 
-        component.FindAll(".pohledy button")[2].Click();
+        component.FindAll(".pohledy button").ElementAt(2).Click();
 
         Assert.Contains("Přístup odepřen", component.Markup, StringComparison.Ordinal);
     }
@@ -240,11 +240,11 @@ public class ViewerTests : TestContext
     {
         var component = Render();
 
-        component.FindAll(".nastroje select")[1].Change("Prodej");
+        component.FindAll(".nastroje select").ElementAt(1).Change("Prodej");
 
         Assert.Contains("1 z 4 tabulek", component.Markup, StringComparison.Ordinal);
 
-        component.FindAll(".nastroje select")[1].Change("");
+        component.FindAll(".nastroje select").ElementAt(1).Change("");
 
         Assert.Contains("4 z 4 tabulek", component.Markup, StringComparison.Ordinal);
     }
@@ -278,8 +278,8 @@ public class ViewerTests : TestContext
         _server.Meta = Vzorek.Meta(canPreview: true);
 
         var component = Render();
-        component.FindAll(".seznam li button")[1].Click();
-        component.FindAll(".zalozky button")[4].Click();
+        component.FindAll(".seznam li button").ElementAt(1).Click();
+        component.FindAll(".zalozky button").ElementAt(4).Click();
 
         Assert.Equal(0, _server.RowCalls);
 
@@ -296,8 +296,8 @@ public class ViewerTests : TestContext
         _server.FailRows = true;
 
         var component = Render();
-        component.FindAll(".seznam li button")[1].Click();
-        component.FindAll(".zalozky button")[4].Click();
+        component.FindAll(".seznam li button").ElementAt(1).Click();
+        component.FindAll(".zalozky button").ElementAt(4).Click();
         component.Find("button.hlavni").Click();
 
         Assert.Contains("Přístup odepřen", component.Markup, StringComparison.Ordinal);
@@ -309,12 +309,12 @@ public class ViewerTests : TestContext
         _server.Meta = Vzorek.Meta(canPreview: true);
 
         var component = Render();
-        component.FindAll(".seznam li button")[1].Click();
-        component.FindAll(".zalozky button")[4].Click();
+        component.FindAll(".seznam li button").ElementAt(1).Click();
+        component.FindAll(".zalozky button").ElementAt(4).Click();
         component.Find("button.hlavni").Click();
 
-        component.FindAll(".seznam li button")[0].Click();
-        component.FindAll(".zalozky button")[4].Click();
+        component.FindAll(".seznam li button").ElementAt(0).Click();
+        component.FindAll(".zalozky button").ElementAt(4).Click();
 
         Assert.Contains("Načíst data", component.Markup, StringComparison.Ordinal);
     }
@@ -327,7 +327,7 @@ public class ViewerTests : TestContext
         component.Find(".export button").Click();
         Assert.Equal(3, component.FindAll(".export-nabidka button").Count);
 
-        component.FindAll(".export-nabidka button")[0].Click();
+        component.FindAll(".export-nabidka button").ElementAt(0).Click();
 
         var volani = JSInterop.Invocations["dbsviewer.download"];
         Assert.Single(volani);
@@ -366,11 +366,11 @@ public class ViewerTests : TestContext
     }
 
     [Fact]
-    public void Nacteni_dat_bez_vybrane_tabulky_nic_nedela()
+    public async Task Nacteni_dat_bez_vybrane_tabulky_nic_nedela()
     {
         var component = Render();
 
-        component.InvokeAsync(() => component.Instance.LoadRowsAsync()).Wait();
+        await component.InvokeAsync(() => component.Instance.LoadRowsAsync());
 
         Assert.Equal(0, _server.RowCalls);
     }
@@ -401,10 +401,10 @@ public class ViewerTests : TestContext
 
         Assert.Equal(3, component.FindAll(".nastroje select").Count);
 
-        component.FindAll(".nastroje select")[2].Change("sales");
+        component.FindAll(".nastroje select").ElementAt(2).Change("sales");
         Assert.Contains("1 z 3 tabulek", component.Markup, StringComparison.Ordinal);
 
-        component.FindAll(".nastroje select")[2].Change("");
+        component.FindAll(".nastroje select").ElementAt(2).Change("");
         Assert.Contains("3 z 3 tabulek", component.Markup, StringComparison.Ordinal);
     }
 

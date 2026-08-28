@@ -73,31 +73,19 @@ public abstract class RelationalSchemaSource : ISchemaSource, IDbConnectionProvi
 
         var warnings = new List<string>();
         var connection = _connectionFactory();
-        var openedHere = false;
 
-        try
-        {
-            openedHere = await QueryRunner.EnsureOpenAsync(connection, cancellationToken).ConfigureAwait(false);
-            var raw = await ReadRawAsync(connection, options, warnings, cancellationToken).ConfigureAwait(false);
+        await using var scope = await ConnectionScope
+            .OpenAsync(connection, _ownsConnection, cancellationToken)
+            .ConfigureAwait(false);
 
-            return LiveSchemaAssembler.Build(
-                raw with { Warnings = [.. raw.Warnings, .. warnings] },
-                options,
-                Provider,
-                ProviderName,
-                DisplayName);
-        }
-        finally
-        {
-            if (openedHere && _ownsConnection)
-            {
-                await connection.CloseAsync().ConfigureAwait(false);
-            }
+        var raw = await ReadRawAsync(connection, options, warnings, cancellationToken)
+            .ConfigureAwait(false);
 
-            if (_ownsConnection)
-            {
-                await connection.DisposeAsync().ConfigureAwait(false);
-            }
-        }
+        return LiveSchemaAssembler.Build(
+            raw with { Warnings = [.. raw.Warnings, .. warnings] },
+            options,
+            Provider,
+            ProviderName,
+            DisplayName);
     }
 }

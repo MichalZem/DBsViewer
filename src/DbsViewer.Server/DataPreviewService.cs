@@ -100,7 +100,9 @@ public sealed class DataPreviewService(
 
         var maskedSet = new HashSet<string>(masked, StringComparer.OrdinalIgnoreCase);
 
-        await using var scope = await ConnectionScope.OpenAsync(connection, cancellationToken)
+        // Připojení patří zdroji schématu, takže se jen otevře a zase zavře — neuvolňuje se.
+        await using var scope = await ConnectionScope
+            .OpenAsync(connection, ownsConnection: false, cancellationToken)
             .ConfigureAwait(false);
 
         await using var command = connection.CreateCommand();

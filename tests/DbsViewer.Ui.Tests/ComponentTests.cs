@@ -87,7 +87,7 @@ public class ErDiagramTests : TestContext
             .Add(x => x.Layout, Layout())
             .Add(x => x.OnSelect, (DbObjectName t) => vybrano = t));
 
-        component.FindAll(".uzel")[0].Click();
+        component.FindAll(".uzel").ElementAt(0).Click();
 
         Assert.NotNull(vybrano);
     }
@@ -101,7 +101,7 @@ public class ErDiagramTests : TestContext
             .Add(x => x.Layout, Layout())
             .Add(x => x.OnToggleExpand, (DbObjectName t) => prepnuto = t));
 
-        component.FindAll(".uzel-prepinac")[0].Click();
+        component.FindAll(".uzel-prepinac").ElementAt(0).Click();
 
         Assert.NotNull(prepnuto);
     }
@@ -140,10 +140,10 @@ public class ErDiagramTests : TestContext
         component.Find(".diagram-plocha").Wheel(new WheelEventArgs { DeltaY = -1 });
         Assert.Contains("110 %", component.Markup, StringComparison.Ordinal);
 
-        component.FindAll(".diagram-ovladani button")[1].Click();
+        component.FindAll(".diagram-ovladani button").ElementAt(1).Click();
         Assert.Contains("91 %", component.Markup, StringComparison.Ordinal);
 
-        component.FindAll(".diagram-ovladani button")[2].Click();
+        component.FindAll(".diagram-ovladani button").ElementAt(2).Click();
         Assert.Contains("100 %", component.Markup, StringComparison.Ordinal);
     }
 
@@ -161,11 +161,11 @@ public class ErDiagramTests : TestContext
     public void Zoom_ma_meze()
     {
         var component = RenderComponent<ErDiagram>(p => p.Add(x => x.Layout, Layout()));
-        var plus = component.FindAll(".diagram-ovladani button")[0];
+        var plus = component.FindAll(".diagram-ovladani button").ElementAt(0);
 
         for (var i = 0; i < 20; i++)
         {
-            component.FindAll(".diagram-ovladani button")[0].Click();
+            component.FindAll(".diagram-ovladani button").ElementAt(0).Click();
         }
 
         Assert.Contains("300 %", component.Markup, StringComparison.Ordinal);
@@ -489,7 +489,7 @@ public class TableDetailTests : TestContext
             .Add(x => x.Table, Table())
             .Add(x => x.OnTabChange, (DetailTab t) => zvolena = t));
 
-        component.FindAll(".zalozky button")[1].Click();
+        component.FindAll(".zalozky button").ElementAt(1).Click();
 
         Assert.Equal(DetailTab.Indexes, zvolena);
     }
@@ -499,7 +499,7 @@ public class TableDetailTests : TestContext
     {
         var component = RenderComponent<TableDetail>(p => p.Add(x => x.Table, Table()));
 
-        var dataTab = component.FindAll(".zalozky button")[4];
+        var dataTab = component.FindAll(".zalozky button").ElementAt(4);
 
         Assert.True(dataTab.HasAttribute("disabled"));
     }
@@ -716,7 +716,7 @@ public class DiffPrehledTests : TestContext
             .Add(x => x.Diff, Vzorek.Diff())
             .Add(x => x.OnSelect, (DbObjectName t) => vybrano = t));
 
-        component.FindAll("button.odkaz")[0].Click();
+        component.FindAll("button.odkaz").ElementAt(0).Click();
 
         Assert.NotNull(vybrano);
     }

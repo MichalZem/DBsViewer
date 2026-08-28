@@ -33,7 +33,7 @@ public class SchemaComparerTests
         };
 
     private static DiffFinding Single(SchemaDiff diff, DiffKind kind) =>
-        Assert.Single(diff.Findings.Where(f => f.Kind == kind));
+        Assert.Single(diff.Findings, f => f.Kind == kind);
 
     // ---------- tabulky ----------
 
@@ -377,6 +377,24 @@ public class SchemaComparerTests
 
         Assert.Equal("A", finding.ModelValue);
         Assert.Equal("B", finding.DatabaseValue);
+    }
+
+    [Fact]
+    public void Dva_cizi_klice_nad_stejnymi_sloupci_diff_neshodi()
+    {
+        // Legální schéma: tentýž sloupec může mít dva cizí klíče na různé tabulky
+        // (například historická vazba, kterou nikdo neodstranil).
+        var model = Schema(WithForeignKeys("T",
+            Build.ForeignKey("FK_1", ["X"], "A"),
+            Build.ForeignKey("FK_2", ["X"], "B")));
+
+        var database = Schema(WithForeignKeys("T",
+            Build.ForeignKey("FK_1", ["X"], "A"),
+            Build.ForeignKey("FK_2", ["X"], "B")));
+
+        var diff = SchemaComparer.Compare(model, database);
+
+        Assert.NotNull(diff);
     }
 
     [Fact]

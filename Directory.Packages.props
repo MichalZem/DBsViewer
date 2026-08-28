@@ -23,6 +23,11 @@
   </ItemGroup>
 
   <ItemGroup Label="Testing">
+    <!-- bUnit táhne AngleSharp 1.2.0 se známou zranitelností (GHSA-pgww-w46g-26qg);
+         centrální pinning ho povýší i tranzitivně. Novější AngleSharp změnil binární
+         podpis IHtmlCollection.this[int], takže se v testech nesmí použít indexer
+         nad FindAll — patří tam ElementAt, které jde přes IEnumerable. -->
+    <PackageVersion Include="AngleSharp" Version="1.7.2" />
     <PackageVersion Include="bunit" Version="1.40.0" />
     <PackageVersion Include="coverlet.collector" Version="6.0.4" />
     <PackageVersion Include="coverlet.msbuild" Version="6.0.4" />

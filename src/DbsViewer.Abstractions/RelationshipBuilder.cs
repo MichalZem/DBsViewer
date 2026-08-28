@@ -84,6 +84,13 @@ public static class RelationshipBuilder
 
     private static DbRelationship? TryCollapseJoinTable(DbTable table, IReadOnlySet<DbObjectName> visible)
     {
+        // Seznam vazebních tabulek je vstup zvenčí a nemusí odpovídat jejich tvaru.
+        // Sbalit se dá jen vazba se dvěma cizími klíči; jinak se hrany vykreslí zvlášť.
+        if (table.ForeignKeys.Count != 2)
+        {
+            return null;
+        }
+
         var left = table.ForeignKeys[0].PrincipalTable;
         var right = table.ForeignKeys[1].PrincipalTable;
 

@@ -74,6 +74,46 @@ public class DiagramLayoutTests
     }
 
     [Fact]
+    public void Cyklus_nenafoukne_pocet_vrstev()
+    {
+        // Vzájemně se odkazující tabulky jsou běžné: zaměstnanec má oddělení
+        // a oddělení má vedoucího. Diagram kvůli tomu nesmí zbytnět do šířky.
+        var tables = new[]
+        {
+            Build.Table("Employees", ["Id"], ["Id"]),
+            Build.Table("Departments", ["Id"], ["Id"]),
+        };
+
+        var layers = DiagramLayout.AssignLayers(
+            tables,
+            [Rel("Employees", "Departments"), Rel("Departments", "Employees")]);
+
+        Assert.True(
+            layers.Values.Max() <= 1,
+            $"Cyklus roztáhl diagram na {layers.Values.Max() + 1} vrstev.");
+    }
+
+    [Fact]
+    public void Delsi_cyklus_take_nenafoukne_vrstvy()
+    {
+        var tables = new[]
+        {
+            Build.Table("A", ["Id"], ["Id"]),
+            Build.Table("B", ["Id"], ["Id"]),
+            Build.Table("C", ["Id"], ["Id"]),
+            Build.Table("D", ["Id"], ["Id"]),
+        };
+
+        var layers = DiagramLayout.AssignLayers(
+            tables,
+            [Rel("A", "B"), Rel("B", "C"), Rel("C", "D"), Rel("D", "A")]);
+
+        Assert.True(
+            layers.Values.Max() <= 3,
+            $"Cyklus roztáhl diagram na {layers.Values.Max() + 1} vrstev.");
+    }
+
+    [Fact]
     public void Cyklus_nezacykli_vypocet()
     {
         // Vzájemně se odkazující tabulky by rekurzi shodily přetečením zásobníku.

@@ -68,7 +68,10 @@ public sealed class SqliteLiveFixture : IDisposable
     public SqliteLiveFixture()
     {
         // Sdílené připojení drží databázi v paměti naživu po celou dobu testů.
-        Connection = new SqliteConnection("Data Source=DbsViewerTests;Mode=Memory;Cache=Shared");
+        // Jméno musí být unikátní: xUnit spouští testovací třídy paralelně a dvě
+        // databáze se stejným jménem by si navzájem přepisovaly obsah.
+        Connection = new SqliteConnection(
+            $"Data Source=DbsViewerTests_{Guid.NewGuid():N};Mode=Memory;Cache=Shared");
         Connection.Open();
 
         using var command = Connection.CreateCommand();
@@ -206,7 +209,8 @@ public class SqliteLiveTests(SqliteLiveFixture fixture) : IClassFixture<SqliteLi
         Assert.True(fixture.Table("OrderTags").IsJoinTable);
 
         var relationship = Assert.Single(
-            fixture.Schema.Relationships.Where(r => r.Cardinality == DbCardinality.ManyToMany));
+            fixture.Schema.Relationships,
+            r => r.Cardinality == DbCardinality.ManyToMany);
 
         Assert.Equal("OrderTags", relationship.ViaJoinTable!.Value.Name);
     }

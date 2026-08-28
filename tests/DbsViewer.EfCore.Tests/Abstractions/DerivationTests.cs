@@ -260,6 +260,44 @@ public class RelationshipBuilderTests
     }
 
     [Fact]
+    public void Tabulka_oznacena_jako_vazebni_bez_dvou_klicu_nespadne()
+    {
+        // Seznam vazebních tabulek je vstup zvenčí, takže nemusí odpovídat jejich tvaru.
+        // Sbalení se v takovém případě nesmí pokusit sáhnout na neexistující klíč.
+        var tables = new[]
+        {
+            Build.Table("Products", ["Id"], ["Id"]),
+            Build.Table("PodivnaVazba", ["Id"], ["Id"]),
+        };
+
+        var relationships = RelationshipBuilder.Build(
+            tables,
+            Build.Names("Products", "PodivnaVazba"),
+            Build.Names("PodivnaVazba"));
+
+        Assert.Empty(relationships);
+    }
+
+    [Fact]
+    public void Vazebni_tabulka_s_jedinym_klicem_nespadne()
+    {
+        var tables = new[]
+        {
+            Build.Table("Products", ["Id"], ["Id"]),
+            Build.Table("Vazba", ["ProductId"], ["ProductId"],
+                [Build.ForeignKey("FK", ["ProductId"], "Products")]),
+        };
+
+        var relationships = RelationshipBuilder.Build(
+            tables,
+            Build.Names("Products", "Vazba"),
+            Build.Names("Vazba"));
+
+        // Sbalit nejde, takže se vykreslí obyčejný cizí klíč.
+        Assert.Equal(DbCardinality.OneToOne, Assert.Single(relationships).Cardinality);
+    }
+
+    [Fact]
     public void Identifikator_vztahu_NM_neni_zavisly_na_poradi_stran()
     {
         var products = new DbObjectName(null, "Products");

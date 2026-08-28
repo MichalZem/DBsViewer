@@ -8,10 +8,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <FrameworkReference Include="Microsoft.AspNetCore.App" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\DbsViewer.Abstractions\DbsViewer.Abstractions.csproj" />
     <ProjectReference Include="..\DbsViewer.Analysis\DbsViewer.Analysis.csproj" />
     <ProjectReference Include="..\DbsViewer.Relational\DbsViewer.Relational.csproj" />

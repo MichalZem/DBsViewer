@@ -37,6 +37,38 @@ public class ConnectionScopeTests
     }
 
     [Fact]
+    public async Task Zdroj_zavre_cizi_pripojeni_ktere_sam_otevrel()
+    {
+        // Kdo otevřel, ten zavírá. Vlastnictví rozhoduje o uvolnění, ne o zavření —
+        // jinak by po každém čtení zůstalo viset otevřené spojení navíc.
+        var connectionString = $"Data Source=Zavreni_{Guid.NewGuid():N};Mode=Memory;Cache=Shared";
+
+        await using var keepAlive = new SqliteConnection(connectionString);
+        await keepAlive.OpenAsync();
+
+        await using var connection = new SqliteConnection(connectionString);
+        Assert.Equal(System.Data.ConnectionState.Closed, connection.State);
+
+        await new SqliteSchemaSource(connection).ReadAsync(SchemaReadOptions.Default);
+
+        Assert.Equal(System.Data.ConnectionState.Closed, connection.State);
+    }
+
+    [Fact]
+    public async Task Zdroj_nechá_otevrene_cizi_pripojeni_otevrene()
+    {
+        var connectionString = $"Data Source=Otevreni_{Guid.NewGuid():N};Mode=Memory;Cache=Shared";
+
+        await using var connection = new SqliteConnection(connectionString);
+        await connection.OpenAsync();
+
+        await new SqliteSchemaSource(connection).ReadAsync(SchemaReadOptions.Default);
+
+        // Připojení otevřel volající, takže mu zůstává.
+        Assert.Equal(System.Data.ConnectionState.Open, connection.State);
+    }
+
+    [Fact]
     public void Zdroj_pujci_sve_pripojeni()
     {
         var source = new SqliteSchemaSource("Data Source=:memory:");

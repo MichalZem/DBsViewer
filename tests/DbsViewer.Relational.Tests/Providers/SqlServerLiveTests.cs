@@ -386,7 +386,8 @@ public class SqlServerLiveTests(SqlServerLiveFixture fixture) : IClassFixture<Sq
         Assert.True(fixture.Table("dbo", "OrderTags").IsJoinTable);
 
         var relationship = Assert.Single(
-            fixture.Schema.Relationships.Where(r => r.Cardinality == DbCardinality.ManyToMany));
+            fixture.Schema.Relationships,
+            r => r.Cardinality == DbCardinality.ManyToMany);
 
         Assert.Equal("dbo.OrderTags", relationship.ViaJoinTable!.Value.Qualified);
     }

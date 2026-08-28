@@ -174,7 +174,8 @@ public class EdgeCaseSchemaTests
     {
         var schema = await ReadSqlServerAsync();
         var manyToMany = Assert.Single(
-            schema.Relationships.Where(r => r.Cardinality == DbCardinality.ManyToMany));
+            schema.Relationships,
+            r => r.Cardinality == DbCardinality.ManyToMany);
 
         Assert.Equal("PersonSkill", manyToMany.ViaJoinTable!.Value.Name);
         Assert.Equal("People", manyToMany.From.Name);

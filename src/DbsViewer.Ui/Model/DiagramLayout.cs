@@ -114,17 +114,24 @@ public static class DiagramLayout
 
     /// <summary>
     /// Přiřadí tabulky do vrstev. Tabulka je o vrstvu vpravo od všech, na které odkazuje,
-    /// takže vazby přirozeně směřují doleva. Cykly se přeruší omezením hloubky.
+    /// takže vazby přirozeně směřují doleva.
     /// </summary>
+    /// <remarks>
+    /// Cyklické vazby jsou v databázích běžné — zaměstnanec má oddělení a oddělení má
+    /// vedoucího. Kdyby se braly v úvahu všechny, vrstvy by se u cyklu donekonečna
+    /// posouvaly a diagram by zbytněl do šířky. Zpětné hrany se proto před výpočtem
+    /// odstraní; v diagramu se stejně vykreslí, jen neurčují pořadí vrstev.
+    /// </remarks>
     internal static Dictionary<DbObjectName, int> AssignLayers(
         IReadOnlyList<DbTable> tables,
         IReadOnlyList<DbRelationship> relationships)
     {
-        var layers = tables.ToDictionary(static t => t.Name, static _ => 0);
+        var layers = new Dictionary<DbObjectName, int>();
         var dependencies = new Dictionary<DbObjectName, List<DbObjectName>>();
 
         foreach (var table in tables)
         {
+            layers[table.Name] = 0;
             dependencies[table.Name] = [];
         }
 
@@ -132,14 +139,16 @@ public static class DiagramLayout
         {
             if (relationship.From != relationship.To
                 && dependencies.TryGetValue(relationship.From, out var list)
-                && layers.ContainsKey(relationship.To))
+                && layers.ContainsKey(relationship.To)
+                && !list.Contains(relationship.To))
             {
                 list.Add(relationship.To);
             }
         }
 
-        // Iterace místo rekurze: u cyklického schématu by rekurze skončila přetečením.
-        // Počet průchodů je omezený počtem tabulek, což je nejhorší možná délka řetězu.
+        RemoveBackEdges(tables, dependencies);
+
+        // Bez cyklů stačí tolik průchodů, kolik je nejdelší řetěz závislostí.
         for (var pass = 0; pass < tables.Count; pass++)
         {
             var changed = false;
@@ -167,6 +176,52 @@ public static class DiagramLayout
         }
 
         return layers;
+    }
+
+    /// <summary>
+    /// Odstraní hrany uzavírající cyklus. Prochází se do hloubky a hrana vedoucí na uzel,
+    /// který je právě na zásobníku, se zahodí — tím z grafu vznikne acyklický, ve kterém
+    /// mají vrstvy konečnou hodnotu.
+    /// </summary>
+    private static void RemoveBackEdges(
+        IReadOnlyList<DbTable> tables,
+        Dictionary<DbObjectName, List<DbObjectName>> dependencies)
+    {
+        var hotovo = new HashSet<DbObjectName>();
+        var naZasobniku = new HashSet<DbObjectName>();
+
+        foreach (var table in tables)
+        {
+            Visit(table.Name);
+        }
+
+        void Visit(DbObjectName node)
+        {
+            if (!hotovo.Add(node))
+            {
+                return;
+            }
+
+            naZasobniku.Add(node);
+
+            var sousede = dependencies[node];
+
+            for (var i = sousede.Count - 1; i >= 0; i--)
+            {
+                var next = sousede[i];
+
+                if (naZasobniku.Contains(next))
+                {
+                    // Zpětná hrana: kdyby zůstala, vrstvy by se posouvaly donekonečna.
+                    sousede.RemoveAt(i);
+                    continue;
+                }
+
+                Visit(next);
+            }
+
+            naZasobniku.Remove(node);
+        }
     }
 
     private static List<DiagramNode> PlaceNodes(
