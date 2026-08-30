@@ -582,15 +582,34 @@ commit verzi `1.2.4-alpha.0.N`, takže se dvě sestavení nikdy neperou o stejn�
 
 ### Co je potřeba nastavit
 
-V repozitáři pod *Settings → Secrets and variables → Actions*:
+Publikuje se přes **Trusted Publishing**, takže v repozitáři neleží žádný klíč
+k NuGetu. Běh si od GitHubu vyžádá podepsaný OIDC token a vymění ho na nuget.org
+za dočasný klíč platný hodinu.
 
-| Tajemství | K čemu | Povinné |
+**1. Politika na nuget.org** — přihlaš se, klikni na své jméno → *Trusted Publishing*
+a přidej politiku:
+
+| Pole | Hodnota |
+|---|---|
+| Repository Owner | `MichalZem` |
+| Repository | `DBsViewer` |
+| Workflow File | `build-a-publikace.yml` |
+| Environment | nechat prázdné |
+
+**2. Proměnná v repozitáři** — *Settings → Secrets and variables → Actions → Variables*:
+
+| Proměnná | K čemu | Povinné |
 |---|---|---|
-| `NUGET_API_KEY` | Klíč z [nuget.org](https://www.nuget.org/account/apikeys) s právem *Push* | Ano, jinak se publikace přeskočí |
-| `TEST_SQL_PASSWORD` | Heslo pro testovací SQL Server v kontejneru | Ne, má výchozí hodnotu |
+| `NUGET_USER` | Uživatelské jméno na nuget.org (**ne e-mail**) | Ano, jinak se publikace přeskočí |
 
-Bez `NUGET_API_KEY` workflow **neselže** — jen přeskočí publikaci a nechá balíčky
-v artefaktech běhu, odkud se dají stáhnout ručně.
+Případně z příkazové řádky: `gh variable set NUGET_USER --body "<jméno>"`.
+
+Volitelně ještě tajemství `TEST_SQL_PASSWORD` (heslo testovacího SQL Serveru
+v kontejneru) — bez něj se použije výchozí hodnota.
+
+Bez `NUGET_USER` workflow **neselže** — jen přeskočí publikaci a nechá balíčky
+v artefaktech běhu, odkud se dají stáhnout ručně. Stejně se zachová i ve forku,
+který na politiku nedosáhne.
 
 ### Proč běží na CI SQL Server
 

@@ -13,10 +13,37 @@
   <PropertyGroup Label="Package metadata">
     <Authors>Michal Zemek</Authors>
     <Product>DbsViewer</Product>
-    <PackageProjectUrl>https://github.com/mzemek/DbsViewer</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/mzemek/DbsViewer</RepositoryUrl>
+    <Copyright>Copyright (c) Michal Zemek</Copyright>
+    <PackageProjectUrl>https://github.com/MichalZem/DBsViewer</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/MichalZem/DBsViewer</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <PackageTags>ef-core;database;schema;er-diagram;documentation;blazor</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>ikona.png</PackageIcon>
+  </PropertyGroup>
+
+  <!--
+    Na stránce balíčku se ukazuje zvláštní README, ne to hlavní: v hlavním jsou
+    relativní odkazy do repozitáře (docs/adr/…), které by na nuget.org vedly nikam.
+  -->
+  <ItemGroup Condition="'$(IsPackable)' != 'false'">
+    <None Include="$(MSBuildThisFileDirectory)docs/README-balicek.md" Pack="true" PackagePath="README.md" Visible="false" />
+    <None Include="$(MSBuildThisFileDirectory)docs/ikona.png" Pack="true" PackagePath="ikona.png" Visible="false" />
+  </ItemGroup>
+
+  <!--
+    SourceLink je od .NET 8 součástí SDK, takže stačí zapnout. Díky němu se dá
+    v laděné aplikaci vkročit do zdrojů balíčku. Symboly jdou na nuget.org zvlášť
+    jako .snupkg, aby samotný balíček nenabobtnal.
+  -->
+  <PropertyGroup Label="Ladění a reprodukovatelnost">
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
   </PropertyGroup>
 
   <!--

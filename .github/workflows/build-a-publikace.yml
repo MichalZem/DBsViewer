@@ -116,6 +116,9 @@ jobs:
 
     permissions:
       contents: write
+      # Bez id-token: write nemůže běh požádat GitHub o OIDC token,
+      # a bez něj nejde vyměnit dočasný klíč k NuGetu.
+      id-token: write
 
     steps:
       - uses: actions/checkout@v5
@@ -150,24 +153,37 @@ jobs:
         uses: actions/upload-artifact@v5
         with:
           name: balicky-${{ steps.verze.outputs.verze }}
-          path: artifacts/packages/*.nupkg
+          path: artifacts/packages/*
           retention-days: 30
 
+      # Publikuje se přes Trusted Publishing: běh si vymění podepsaný OIDC token
+      # od GitHubu za dočasný klíč platný hodinu. Nikde tedy neleží trvalý klíč,
+      # který by šlo ukrást nebo který by bylo nutné obměňovat.
+      #
+      # Odpovídající politika na nuget.org (Account → Trusted Publishing):
+      #   Repository Owner: MichalZem
+      #   Repository:       DBsViewer
+      #   Workflow File:    build-a-publikace.yml
+      #   Environment:      (prázdné)
+      - name: Přihlášení k NuGetu
+        id: nuget-login
+        # Fork proměnnou nemá, takže by krok selhal — raději se přeskočí
+        # a balíčky zůstanou v artefaktech běhu.
+        if: vars.NUGET_USER != ''
+        uses: NuGet/login@v1
+        with:
+          user: ${{ vars.NUGET_USER }}
+
       - name: Publikace na NuGet
-        # Bez klíče se krok přeskočí, aby fork nebo čerstvě naklonovaný
-        # repozitář neselhal na chybějícím tajemství.
-        env:
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        # Klíč platí hodinu, proto se o něj žádá až těsně před pushem.
+        # Symboly (.snupkg) se posílají samy, protože leží vedle balíčků.
         run: |
-          if [ -z "$NUGET_API_KEY" ]; then
-            echo "::warning::Tajemství NUGET_API_KEY není nastavené, publikace se přeskočila. Balíčky jsou v artefaktech běhu."
+          if [ -z "${{ vars.NUGET_USER }}" ]; then
+            echo "::warning::Proměnná NUGET_USER není nastavená, publikace se přeskočila. Balíčky jsou v artefaktech běhu."
             exit 0
           fi
 
-          dotnet nuget push "artifacts/packages/*.nupkg" \
-            --source https://api.nuget.org/v3/index.json \
-            --api-key "$NUGET_API_KEY" \
-            --skip-duplicate
+          dotnet nuget push "artifacts/packages/*.nupkg" --source https://api.nuget.org/v3/index.json --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" --skip-duplicate
 
       - name: Vydání na GitHubu
         # Jen u tagů — z každého commitu na main by vznikala záplava vydání.

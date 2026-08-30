@@ -219,5 +219,6 @@ Ověřeno end-to-end: balíčky se zabalí, nainstalují do čerstvé Web API ap
 řádky zapojí a prohlížečka se všemi 47 soubory UI se servíruje z embedded resources.
 
 Publikaci obstarává GitHub Actions: push na `main` vydá předběžnou verzi, tag `v*`
-stabilní. Zbývá jen nastavit tajemství `NUGET_API_KEY` v repozitáři — do té doby
-workflow balíčky sestaví a nechá v artefaktech, ale nepublikuje.
+stabilní. Publikuje se přes **Trusted Publishing** (OIDC), takže v repozitáři neleží
+žádný klíč — jen proměnná `NUGET_USER` se jménem účtu na nuget.org. Bez ní workflow
+balíčky sestaví a nechá v artefaktech, ale nepublikuje.
