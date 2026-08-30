@@ -259,7 +259,9 @@ public class ProgramTests : IDisposable
 
         Assert.Equal(0, code);
         Assert.Contains("Blogs", output, StringComparison.Ordinal);
-        Assert.Contains("řádků", output, StringComparison.Ordinal);
+
+        // Tabulka má dva řádky, takže i tvar slova musí odpovídat.
+        Assert.Contains("2 řádky", output, StringComparison.Ordinal);
     }
 
     [Fact]

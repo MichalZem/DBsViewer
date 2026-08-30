@@ -32,9 +32,73 @@ public class CestinaTests
     public void Radky_se_sklonuji(long pocet, string expected) =>
         Assert.Equal(expected, Cestina.Radky(pocet));
 
+    [Theory]
+    [InlineData(0, "0")]
+    [InlineData(7, "7")]
+    [InlineData(999, "999")]
+    [InlineData(1000, "1 000")]
+    [InlineData(12345, "12 345")]
+    [InlineData(1234567, "1 234 567")]
+    [InlineData(-4200, "-4 200")]
+    public void Cislo_ma_nedelitelnou_mezeru_po_tisicich(long hodnota, string expected) =>
+        Assert.Equal(expected, Cestina.Cislo(hodnota));
+
     [Fact]
-    public void Velka_cisla_maji_oddelovac_tisicu() =>
-        Assert.Equal("1 234 567 řádků", Cestina.Radky(1234567).Replace('\u00a0', ' '));
+    public void Formatovani_neobsahuje_kulturni_oddelovace()
+    {
+        // Kdyby se použil formát „N0“, výsledek by měl čárku v en-US a tečku v de-DE.
+        // Přesně na tom selhalo první sestavení na CI, kde běží invariantní kultura.
+        var vysledek = Cestina.Cislo(1234567);
+
+        Assert.DoesNotContain(',', vysledek);
+        Assert.DoesNotContain('.', vysledek);
+        Assert.Equal(2, vysledek.Count(z => z == ' '));
+    }
+
+    [Fact]
+    public void Formatovani_nezavisi_na_kulture_stroje()
+    {
+        // V invariantním režimu žádné jiné kultury neexistují, takže není co přepínat.
+        if (!KulturyJsouKDispozici())
+        {
+            return;
+        }
+
+        var puvodni = System.Globalization.CultureInfo.CurrentCulture;
+
+        try
+        {
+            foreach (var kultura in new[] { "en-US", "cs-CZ", "de-DE" })
+            {
+                System.Globalization.CultureInfo.CurrentCulture =
+                    System.Globalization.CultureInfo.GetCultureInfo(kultura);
+
+                Assert.Equal("1 234 567 řádků", Cestina.Radky(1234567));
+            }
+        }
+        finally
+        {
+            System.Globalization.CultureInfo.CurrentCulture = puvodni;
+        }
+    }
+
+    /// <summary>
+    /// Běží runtime s plnými daty o kulturách? V invariantním režimu <c>GetCultureInfo</c>
+    /// pro cizí jméno vyhodí výjimku, takže se to nedá zjistit jinak než pokusem.
+    /// </summary>
+    private static bool KulturyJsouKDispozici()
+    {
+        try
+        {
+            return !System.Globalization.CultureInfo.GetCultureInfo("en-US").Name.Equals(
+                System.Globalization.CultureInfo.InvariantCulture.Name,
+                StringComparison.Ordinal);
+        }
+        catch (System.Globalization.CultureNotFoundException)
+        {
+            return false;
+        }
+    }
 
     [Theory]
     [InlineData(0, "0 chyb")]

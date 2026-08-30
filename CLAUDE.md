@@ -196,6 +196,9 @@ Viz [ADR-0011](docs/adr/0011-parovani-podle-sloupcu.md).
 - CSS třídy a texty v UI jsou česky, stejně jako zbytek projektu.
 - Počty v UI se **skloňují** přes `Cestina` — „1 tabulka“, ne „1 tabulek“.
   Výjimka je vazba po předložce (`2 z 5 tabulek`), kde je vždy genitiv plurálu.
+- **Formátování čísel se nesmí opřít o kulturu stroje.** WebAssembly běží invariantně,
+  server může mít jakoukoli a CI zase jinou — `{x:N0}` proto dá pokaždé jiný výsledek.
+  Od toho je `Cestina.Cislo`.
 
 ---
 

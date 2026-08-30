@@ -158,7 +158,8 @@ public static class Program
         var json = JsonSerializer.Serialize(value, DbsViewerJson.Readable);
 
         await File.WriteAllTextAsync(path, json, Encoding.UTF8).ConfigureAwait(false);
-        output.WriteLine($"JSON zapsán do {Path.GetFullPath(path)} ({json.Length:N0} znaků)");
+        output.WriteLine(
+            $"JSON zapsán do {Path.GetFullPath(path)} ({Ui.Model.Cestina.Cislo(json.Length)} znaků)");
     }
 
     private static async Task WriteExportAsync(

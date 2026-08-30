@@ -14,6 +14,7 @@ env:
   DOTNET_NOLOGO: true
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
+  SQL_HESLO: ${{ secrets.TEST_SQL_PASSWORD || 'DbsViewer_CI_2026' }}
 
 jobs:
   test:
@@ -27,40 +28,38 @@ jobs:
         image: mcr.microsoft.com/mssql/server:2022-latest
         env:
           ACCEPT_EULA: 'Y'
-          MSSQL_SA_PASSWORD: ${{ secrets.TEST_SQL_PASSWORD || 'DbsViewer_CI_2026!' }}
+          MSSQL_SA_PASSWORD: ${{ secrets.TEST_SQL_PASSWORD || 'DbsViewer_CI_2026' }}
           MSSQL_PID: Developer
         ports:
           - 1433:1433
 
-    env:
-      DBSVIEWER_TEST_SQLSERVER: >-
-        Server=localhost,1433;Database=master;User Id=sa;
-        Password=${{ secrets.TEST_SQL_PASSWORD || 'DbsViewer_CI_2026!' }};
-        TrustServerCertificate=True;Connect Timeout=30
-
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           # MinVer odvozuje verzi z git tagů, takže potřebuje celou historii.
           fetch-depth: 0
 
       - name: Instalace .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '10.0.x'
 
       - name: Čekání na SQL Server
         run: |
-          for pokus in $(seq 1 60); do
-            if (echo > /dev/tcp/localhost/1433) 2>/dev/null; then
-              echo "SQL Server přijímá spojení po $pokus s."
-              # Port je otevřený dřív, než server dokončí start.
-              sleep 15
+          # Otevřený port ještě neznamená, že server přijímá dotazy — čeká se
+          # na skutečnou odpověď na SELECT.
+          for pokus in $(seq 1 90); do
+            if docker exec "$(docker ps --filter ancestor=mcr.microsoft.com/mssql/server:2022-latest --format '{{.ID}}' | head -1)" \
+                 /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$SQL_HESLO" -C -Q "SELECT 1" >/dev/null 2>&1; then
+              echo "SQL Server odpovídá po ${pokus} s."
               exit 0
             fi
             sleep 1
           done
-          echo "SQL Server nenaběhl do 60 s."
+
+          echo "::error::SQL Server nenaběhl do 90 s. Bez něj neprojde práh pokrytí."
+          docker ps -a
+          docker logs "$(docker ps -aq --filter ancestor=mcr.microsoft.com/mssql/server:2022-latest | head -1)" | tail -40
           exit 1
 
       - name: Obnovení balíčků
@@ -70,20 +69,28 @@ jobs:
         run: dotnet build --configuration Release --no-restore
 
       - name: Testy včetně vynuceného pokrytí
+        env:
+          DBSVIEWER_TEST_SQLSERVER: Server=localhost,1433;Database=master;User Id=sa;Password=${{ secrets.TEST_SQL_PASSWORD || 'DbsViewer_CI_2026' }};TrustServerCertificate=True;Connect Timeout=30
         run: |
           selhalo=0
+
           for projekt in EfCore Relational Server Ui Tool; do
             echo "::group::DbsViewer.$projekt.Tests"
+
             if ! dotnet test "tests/DbsViewer.$projekt.Tests/DbsViewer.$projekt.Tests.csproj" \
-                 --configuration Release --no-build --logger "trx;LogFileName=$projekt.trx"; then
+                 --configuration Release --no-build \
+                 --logger "trx;LogFileName=$projekt.trx"; then
               selhalo=1
+              echo "::error::Testy DbsViewer.$projekt.Tests selhaly."
             fi
+
             echo "::endgroup::"
           done
+
           exit $selhalo
 
       - name: Výsledky testů
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: always()
         with:
           name: vysledky-testu
@@ -91,6 +98,7 @@ jobs:
             **/TestResults/*.trx
             artifacts/coverage/**
           retention-days: 14
+          if-no-files-found: ignore
 
   publikace:
     name: Vydání na NuGet
@@ -104,12 +112,12 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
       - name: Instalace .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '10.0.x'
 
@@ -128,7 +136,7 @@ jobs:
           echo "Vydávaná verze: $verze"
 
       - name: Balíčky jako artefakt
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: balicky-${{ steps.verze.outputs.verze }}
           path: artifacts/packages/*.nupkg
@@ -137,21 +145,18 @@ jobs:
       - name: Publikace na NuGet
         # Bez klíče se krok přeskočí, aby fork nebo čerstvě naklonovaný
         # repozitář neselhal na chybějícím tajemství.
-        if: env.NUGET_API_KEY != ''
         env:
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
         run: |
+          if [ -z "$NUGET_API_KEY" ]; then
+            echo "::warning::Tajemství NUGET_API_KEY není nastavené, publikace se přeskočila. Balíčky jsou v artefaktech běhu."
+            exit 0
+          fi
+
           dotnet nuget push "artifacts/packages/*.nupkg" \
             --source https://api.nuget.org/v3/index.json \
             --api-key "$NUGET_API_KEY" \
             --skip-duplicate
-
-      - name: Upozornění na chybějící klíč
-        if: env.NUGET_API_KEY == ''
-        env:
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
-        run: |
-          echo "::warning::Tajemství NUGET_API_KEY není nastavené, publikace se přeskočila. Balíčky jsou v artefaktech."
 
       - name: Vydání na GitHubu
         # Jen u tagů — z každého commitu na main by vznikala záplava vydání.

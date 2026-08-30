@@ -106,7 +106,7 @@ public static class SchemaTextWriter
 
         if (table.RowCountEstimate is { } rows)
         {
-            flags.Add($"~{rows:N0} řádků");
+            flags.Add($"~{Ui.Model.Cestina.Radky(rows)}");
         }
 
         output.AppendLine($"■ {table.Qualified}{(flags.Count > 0 ? $"   [{string.Join(" · ", flags)}]" : "")}");

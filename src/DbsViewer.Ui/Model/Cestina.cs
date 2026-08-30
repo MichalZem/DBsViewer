@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace DbsViewer.Ui.Model;
 
 /// <summary>
@@ -17,7 +19,32 @@ public static class Cestina
 
     /// <summary>Totéž pro dlouhá čísla, například odhad počtu řádků.</summary>
     public static string Pocet(long pocet, string jedna, string dveAzCtyri, string petAVice) =>
-        $"{pocet:N0} {Tvar(pocet, jedna, dveAzCtyri, petAVice)}";
+        $"{Cislo(pocet)} {Tvar(pocet, jedna, dveAzCtyri, petAVice)}";
+
+    /// <summary>
+    /// Číslo s mezerou po tisících. Nepoužívá se kultura stroje: WebAssembly běží
+    /// s invariantní kulturou a server může mít jakoukoli, takže by se výsledek lišil
+    /// podle toho, kde se kód spustí.
+    /// </summary>
+    public static string Cislo(long hodnota)
+    {
+        var zaporne = hodnota < 0;
+        var cislice = Math.Abs(hodnota).ToString(CultureInfo.InvariantCulture);
+        var buffer = new System.Text.StringBuilder(cislice.Length + (cislice.Length / 3) + 1);
+
+        for (var i = 0; i < cislice.Length; i++)
+        {
+            // Mezera odděluje trojice zprava, takže první skupina může být kratší.
+            if (i > 0 && (cislice.Length - i) % 3 == 0)
+            {
+                buffer.Append('\u00a0');
+            }
+
+            buffer.Append(cislice[i]);
+        }
+
+        return zaporne ? "-" + buffer : buffer.ToString();
+    }
 
     /// <summary>Vybere správný tvar slova bez připojeného čísla.</summary>
     public static string Tvar(long pocet, string jedna, string dveAzCtyri, string petAVice)
