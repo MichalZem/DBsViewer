@@ -39,3 +39,16 @@ do projektu a nic nekonfigurovat".
 - `DbsViewer.Abstractions` musí zůstat bez závislostí a trimmovatelné, aby ho šlo
   použít na obou stranách. Proto je tam JSON source generator.
 - Layout diagramu je jediné místo s JS interopem (elkjs). Zbytek se kreslí přímo v Blazoru.
+- **UI se publikuje samostatným příkazem, ne z MSBuild targetu.** Před balením musí
+  proběhnout `dotnet publish src/DbsViewer.Ui -c Release -o artifacts/ui`; build serveru
+  jen vezme, co tam najde, a bez toho rovnou selže.
+
+  Nabízí se to zautomatizovat targetem, a první verze to tak měla. Jenže `DbsViewer.Ui`
+  je zároveň v řešení kvůli testům, takže se stavěl dvakrát současně — jednou jako projekt,
+  podruhé z targetu — a oba běhy si sahaly na stejné mezisoubory. Padalo to na
+  `IOException` v `GenerateDepsFile` a `GenerateBlazorBootExtensionJson`. Na dvoujádrovém
+  stroji to prošlo, na CI ne. Izolace přes `BaseOutputPath` selhala na `NETSDK1047`
+  (chybějící cíl pro `browser-wasm`), MSBuild task místo `Exec` na tomtéž souběhu.
+
+  Samostatný krok stojí jeden řádek navíc v návodu a v CI, ale nezávisí na tom, kolik
+  má stroj jader. Kdyby se to někdo chystal vrátit do targetu: tohle je ten důvod.

@@ -65,6 +65,12 @@ jobs:
       - name: Obnovení balíčků
         run: dotnet restore
 
+      - name: Publikace Blazor UI
+        # Musí být hotové dřív než hlavní build, protože DbsViewer.Server jeho výstup
+        # vkládá do assembly. Kdyby se UI stavělo až během buildu, běželo by souběžně
+        # samo se sebou (je i v řešení kvůli testům) a build padal na zamčených souborech.
+        run: dotnet publish src/DbsViewer.Ui -c Release -o artifacts/ui --no-restore
+
       - name: Kompilace
         run: dotnet build --configuration Release --no-restore
 
@@ -120,6 +126,11 @@ jobs:
         uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '10.0.x'
+
+      - name: Publikace Blazor UI
+        # Serverový balíček bez UI by se sestavil a tiše neuměl zobrazit stránku,
+        # proto build bez tohoto kroku rovnou selže.
+        run: dotnet publish src/DbsViewer.Ui -c Release -o artifacts/ui
 
       - name: Sestavení balíčků
         # Blazor UI se do serverového balíčku vkládá jen v Release.

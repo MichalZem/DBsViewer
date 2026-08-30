@@ -115,14 +115,20 @@ cd tests/DbsViewer.Ui.Tests && dotnet test
 cd tests/DbsViewer.Tool.Tests && dotnet test
 
 # zabalení do NuGet balíčků (výstup do artifacts/packages/)
+# Publikace UI musí předcházet — serverový balíček ho vkládá do assembly.
+dotnet publish src/DbsViewer.Ui -c Release -o artifacts/ui
 for p in Abstractions EfCore Relational SqlServer Sqlite Analysis Server; do
   dotnet pack src/DbsViewer.$p -c Release -o artifacts/packages
 done
 dotnet pack tools/DbsViewer.Dump -c Release -o artifacts/packages
 ```
 
-**Blazor UI se do serverového balíčku vkládá jen v Release.** V Debugu by publish UI
-zdržoval každý build; vynutit jde přes `-p:EmbedDbsViewerUi=true`.
+**Blazor UI se do serverového balíčku vkládá jen v Release** a **publikuje se zvlášť**,
+příkazem `dotnet publish src/DbsViewer.Ui -c Release -o artifacts/ui`. Nespouštěj ho
+z MSBuild targetu — `DbsViewer.Ui` je i v řešení, takže by se stavěl dvakrát současně
+a build by padal na zamčených mezisouborech. Když publikované UI chybí, build selže
+s návodem, takže balíček bez UI nemůže vzniknout. V Debugu se embedding přeskakuje;
+vynutit jde přes `-p:EmbedDbsViewerUi=true`.
 
 **Verzi neurčuje soubor, ale git tag.** `Directory.Build.props` proto žádný `<Version>`
 nemá — obstarává to MinVer. Tag `v1.2.3` vydá `1.2.3`, commit za ním `1.2.4-alpha.0.N`.

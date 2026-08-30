@@ -33,11 +33,26 @@
     <DbsViewerUiPublishDir>$(MSBuildThisFileDirectory)../../artifacts/ui</DbsViewerUiPublishDir>
   </PropertyGroup>
 
-  <Target Name="PublishDbsViewerUi"
+  <!--
+    Soubory UI se do assembly vkládají z artifacts/ui/wwwroot. Publikuje se samostatným
+    příkazem, ne z tohoto buildu:
+
+        dotnet publish src/DbsViewer.Ui -c Release -o artifacts/ui
+
+    Dřív to obstarával target, jenže ten stavěl DbsViewer.Ui souběžně s hlavním buildem
+    a oba běhy si šlapaly na mezisouborech — na CI, kde je jader víc, build padal na
+    IOException. Samostatný krok je pomalejší na napsání, ale nikdy nezávisí na tom,
+    kolik má stroj jader.
+
+    Cíl musí běžet v BeforeBuild, ne v BeforeCompile: seznam zdrojů se uzavírá
+    v PrepareResources, takže později přidaný EmbeddedResource se tiše zahodí
+    a vznikne balíček bez UI.
+  -->
+  <Target Name="EmbedDbsViewerUi"
           BeforeTargets="BeforeBuild"
           Condition="'$(EmbedDbsViewerUi)' == 'true' AND '$(DesignTimeBuild)' != 'true'">
-    <Exec Command="dotnet publish &quot;$(MSBuildThisFileDirectory)../DbsViewer.Ui/DbsViewer.Ui.csproj&quot; -c Release -o &quot;$(DbsViewerUiPublishDir)&quot; --nologo -v quiet"
-          StandardOutputImportance="low" />
+    <Error Condition="!Exists('$(DbsViewerUiPublishDir)/wwwroot')"
+           Text="Chybí publikované UI v $(DbsViewerUiPublishDir)/wwwroot. Spusť: dotnet publish src/DbsViewer.Ui -c Release -o artifacts/ui" />
 
     <ItemGroup>
       <DbsViewerUiFile Include="$(DbsViewerUiPublishDir)/wwwroot/**/*" />

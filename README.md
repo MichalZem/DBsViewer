@@ -46,6 +46,10 @@ Do té doby, nebo když chceš nejnovější vývojovou verzi, si balíčky sest
 git clone https://github.com/MichalZem/DBsViewer.git
 cd DBsViewer
 
+# Blazor UI se publikuje zvlášť — serverový balíček jeho výstup vkládá do sebe.
+# Bez tohoto kroku balení rovnou selže a řekne ti to.
+dotnet publish src/DbsViewer.Ui -c Release -o artifacts/ui
+
 # vytvoří .nupkg soubory do artifacts/packages/
 for p in Abstractions EfCore Relational SqlServer Sqlite Analysis Server; do
   dotnet pack src/DbsViewer.$p -c Release -o artifacts/packages
@@ -55,6 +59,8 @@ done
 Ve Windows PowerShell:
 
 ```powershell
+dotnet publish src/DbsViewer.Ui -c Release -o artifacts/ui
+
 'Abstractions','EfCore','Relational','SqlServer','Sqlite','Analysis','Server' | ForEach-Object {
   dotnet pack "src/DbsViewer.$_" -c Release -o artifacts/packages
 }
@@ -499,6 +505,8 @@ Zdroje dat:
 ## Vývoj
 
 ```bash
+# V Debugu stačí samotný build. Release potřebuje napřed publikované UI,
+# protože serverový balíček ho vkládá do assembly.
 dotnet build
 
 cd tests/DbsViewer.EfCore.Tests && dotnet test
@@ -509,7 +517,18 @@ cd tests/DbsViewer.Tool.Tests && dotnet test
 ```
 
 Blazor UI se do serverového balíčku vkládá jen v `Release` — v `Debug` by publish UI
-zdržoval každý build. Vynutit jde přes `-p:EmbedDbsViewerUi=true`.
+zdržoval každý build. Vynutit jde přes `-p:EmbedDbsViewerUi=true`, ale pak musí být UI
+publikované do `artifacts/ui`:
+
+```bash
+dotnet publish src/DbsViewer.Ui -c Release -o artifacts/ui
+dotnet build -c Release
+```
+
+Publikuje se samostatným příkazem schválně. Dokud to obstarával MSBuild target, stavěl
+`DbsViewer.Ui` souběžně s tím, jak ho stavělo řešení (je v něm kvůli testům), a build
+padal na zamčených mezisouborech — na CI spolehlivě, na slabším stroji jen občas.
+Když publikované UI chybí, build to řekne rovnou; balíček bez UI nikdy nevznikne.
 
 Testy vynucují **100% pokrytí řádků a metod** — build selže, když pokrytí klesne.
 Odůvodnění v [ADR-0005](docs/adr/0005-stoprocentni-pokryti.md). Report končí
