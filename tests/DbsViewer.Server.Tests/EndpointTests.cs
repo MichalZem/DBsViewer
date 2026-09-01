@@ -196,7 +196,7 @@ public class EndpointTests
     {
         await using var app = await DbsViewerApp.StartAsync();
 
-        var response = await app.Client.GetAsync("/dbschema/api/tables/-/Customers/rows");
+        var response = await PostRowsAsync(app, "/dbschema/api/tables/-/Customers/rows");
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         Assert.Contains("vypnutý", await response.Content.ReadAsStringAsync(), StringComparison.Ordinal);
@@ -210,7 +210,7 @@ public class EndpointTests
             "INSERT INTO Customers (Email, DisplayName, CreatedAt) VALUES ('a@b.cz', 'Adam', '2026-01-01')");
 
         var preview = await ReadAsync<DataPreview>(
-            await app.Client.GetAsync("/dbschema/api/tables/-/Customers/rows"));
+            await PostRowsAsync(app, "/dbschema/api/tables/-/Customers/rows"));
 
         Assert.Equal("Customers", preview.Table.Name);
         Assert.Contains("Email", preview.Columns);
@@ -227,8 +227,8 @@ public class EndpointTests
             o.DataPreview.AllowedTables.Add("Orders");
         });
 
-        var allowed = await app.Client.GetAsync("/dbschema/api/tables/-/Orders/rows");
-        var denied = await app.Client.GetAsync("/dbschema/api/tables/-/Customers/rows");
+        var allowed = await PostRowsAsync(app, "/dbschema/api/tables/-/Orders/rows");
+        var denied = await PostRowsAsync(app, "/dbschema/api/tables/-/Customers/rows");
 
         Assert.Equal(HttpStatusCode.OK, allowed.StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, denied.StatusCode);
@@ -239,7 +239,7 @@ public class EndpointTests
     {
         await using var app = await DbsViewerApp.StartAsync(o => o.DataPreview.Enabled = true);
 
-        var response = await app.Client.GetAsync("/dbschema/api/tables/-/Neexistuje/rows");
+        var response = await PostRowsAsync(app, "/dbschema/api/tables/-/Neexistuje/rows");
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         Assert.Contains("ve schématu není", await response.Content.ReadAsStringAsync(), StringComparison.Ordinal);
@@ -261,11 +261,17 @@ public class EndpointTests
         }
 
         var preview = await ReadAsync<DataPreview>(
-            await app.Client.GetAsync("/dbschema/api/tables/-/Customers/rows?limit=100"));
+            await PostRowsAsync(
+                app,
+                "/dbschema/api/tables/-/Customers/rows",
+                new DataQuery { PageSize = 100 }));
 
+        // Stránka se ořízne na MaxRows, takže z pěti řádků přijdou dva a další stránka
+        // se nabídne.
         Assert.Equal(2, preview.Rows.Count);
-        Assert.Equal(2, preview.Limit);
-        Assert.True(preview.IsTruncated);
+        Assert.Equal(2, preview.PageSize);
+        Assert.Equal(5, preview.TotalRows);
+        Assert.True(preview.HasMore);
     }
 
     // ---------- obnovení ----------
@@ -398,4 +404,14 @@ public class EndpointTests
 
         Assert.Contains("autorizační policy", exception.Message, StringComparison.Ordinal);
     }
+
+    /// <summary>
+    /// Náhled dat chodí POSTem, protože hledané hodnoty jsou obsah databáze a v adrese
+    /// by skončily v historii prohlížeče i v logu serveru.
+    /// </summary>
+    private static Task<HttpResponseMessage> PostRowsAsync(
+        DbsViewerApp app,
+        string url,
+        DataQuery? query = null) =>
+        app.Client.PostAsJsonAsync(url, query ?? new DataQuery());
 }

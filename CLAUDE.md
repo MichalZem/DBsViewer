@@ -170,6 +170,15 @@ dva cizí klíče na různé tabulky, takže `ToDictionary` by shodilo diff u le
 **Bezpečnostní defaulty jsou restriktivní** a mimo Development komponenta bez autorizace
 nenastartuje. Viz [ADR-0006](docs/adr/0006-bezpecnostni-defaulty.md).
 
+**Uživatelské SQL se nepřijímá nikdy.** Náhled dat umí stránkovat, řadit a filtrovat,
+ale jména tabulek a sloupců se **ověřují proti načtenému schématu** a do dotazu jde jméno
+ze schématu, ne to z požadavku; hodnoty jdou výhradně přes `DbParameter`. Skládá to
+`DataQueryBuilder` — jediné místo, kde se SQL staví z něčeho, co přišlo zvenčí.
+
+**Stránkuje, řadí a filtruje databáze, ne prohlížečka.** Načíst tabulku celou a krájet
+ji až v UI by u milionů řádků neprošlo. Bez `ORDER BY` navíc není stránkování stabilní,
+takže se vždycky řadí — bez zvoleného sloupce podle primárního klíče.
+
 **UI nepoužívá JavaScript na nic kromě stahování souboru.** Diagram i jeho layout jsou
 v C#, protože JS interop se v testech komponent nedá spustit.
 Viz [ADR-0012](docs/adr/0012-vlastni-layout-diagramu.md).
@@ -213,7 +222,7 @@ Viz [ADR-0011](docs/adr/0011-parovani-podle-sloupcu.md).
 **Všech sedm etap je hotových.** Datový model, čtení z EF modelu, živá introspekce obou
 providerů, slučování, diff engine, HTTP API s autorizací a cache, Blazor WASM prohlížečka
 s přehledem databáze, ER diagramem a focus modem, náhled dat, export a `dotnet tool`.
-**966 testů**, 100 % pokrytí řádků a metod ve všech pěti sadách.
+**1049 testů**, 100 % pokrytí řádků a metod ve všech pěti sadách.
 
 Vydáno jako `0.1.0` na NuGetu; publikuje se přes Trusted Publishing z tagu `v*`.
 

@@ -589,39 +589,65 @@ public class TableDetailTests : TestContext
 public class DataNahledTests : TestContext
 {
     [Fact]
-    public void Bez_dat_je_vyzva_k_nacteni()
+    public void Data_se_nactou_hned_bez_tlacitka()
     {
-        var component = RenderComponent<DataNahled>();
+        // Dřív tu bylo tlačítko „Načíst data". Mřížka si o data řekne sama, jakmile
+        // je vidět — kliknutí navíc jen zdržovalo.
+        DataQuery? dotaz = null;
 
-        Assert.Contains("Načíst data", component.Markup, StringComparison.Ordinal);
-    }
+        var component = RenderComponent<DataNahled>(p => p
+            .Add(x => x.Table, Tabulka())
+            .Add(x => x.OnLoad, (DataQuery q) => dotaz = q));
 
-    [Fact]
-    public void Klik_na_nacteni_se_ohlasi()
-    {
-        var nacteno = false;
-
-        var component = RenderComponent<DataNahled>(p => p.Add(x => x.OnLoad, () => nacteno = true));
-
-        component.Find("button.hlavni").Click();
-
-        Assert.True(nacteno);
-    }
-
-    [Fact]
-    public void Chyba_se_zobrazi_misto_dat()
-    {
-        var component = RenderComponent<DataNahled>(p => p.Add(x => x.Error, "Přístup odepřen."));
-
-        Assert.Contains("Přístup odepřen.", component.Markup, StringComparison.Ordinal);
+        Assert.NotNull(dotaz);
+        Assert.Equal(0, dotaz.Page);
         Assert.Empty(component.FindAll("button.hlavni"));
+    }
+
+    [Fact]
+    public void Prepnuti_tabulky_nacte_data_znovu()
+    {
+        var dotazy = new List<DataQuery>();
+
+        var component = RenderComponent<DataNahled>(p => p
+            .Add(x => x.Table, Tabulka("Zakaznici"))
+            .Add(x => x.OnLoad, (DataQuery q) => dotazy.Add(q)));
+
+        component.SetParametersAndRender(p => p.Add(x => x.Table, Tabulka("Objednavky")));
+
+        Assert.Equal(2, dotazy.Count);
+    }
+
+    [Fact]
+    public void Stejna_tabulka_data_znovu_nenacita()
+    {
+        var dotazy = new List<DataQuery>();
+
+        var component = RenderComponent<DataNahled>(p => p
+            .Add(x => x.Table, Tabulka("Zakaznici"))
+            .Add(x => x.OnLoad, (DataQuery q) => dotazy.Add(q)));
+
+        component.SetParametersAndRender(p => p.Add(x => x.Error, null));
+
+        Assert.Single(dotazy);
+    }
+
+    [Fact]
+    public void Hlavicky_se_vykresli_ze_schematu_uz_pred_daty()
+    {
+        // Bez toho by mřížka po dorazení dat poskočila.
+        var component = RenderComponent<DataNahled>(p => p.Add(x => x.Table, Tabulka()));
+
+        Assert.Contains("Id", component.Markup, StringComparison.Ordinal);
+        Assert.Contains("Načítám data", component.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
     public void Prazdna_tabulka_ma_vysvetleni()
     {
-        var component = RenderComponent<DataNahled>(p => p.Add(
-            x => x.Preview, new RowPreview { Columns = ["Id"], Rows = [], Limit = 10 }));
+        var component = RenderComponent<DataNahled>(p => p
+            .Add(x => x.Table, Tabulka())
+            .Add(x => x.Preview, new RowPreview { Columns = ["Id"], Rows = [], PageSize = 10 }));
 
         Assert.Contains("Tabulka je prázdná", component.Markup, StringComparison.Ordinal);
     }
@@ -633,10 +659,12 @@ public class DataNahledTests : TestContext
         {
             Columns = ["Id", "Nazev"],
             Rows = [["1", null]],
-            Limit = 100,
+            PageSize = 50,
         };
 
-        var component = RenderComponent<DataNahled>(p => p.Add(x => x.Preview, preview));
+        var component = RenderComponent<DataNahled>(p => p
+            .Add(x => x.Table, Tabulka())
+            .Add(x => x.Preview, preview));
 
         Assert.Contains("NULL", component.Markup, StringComparison.Ordinal);
         Assert.Single(component.FindAll("td.nullova"));
@@ -650,30 +678,316 @@ public class DataNahledTests : TestContext
             Columns = ["Id", "Heslo"],
             MaskedColumns = ["Heslo"],
             Rows = [["1", "••••••"]],
-            Limit = 100,
+            PageSize = 50,
         };
 
-        var component = RenderComponent<DataNahled>(p => p.Add(x => x.Preview, preview));
+        var component = RenderComponent<DataNahled>(p => p
+            .Add(x => x.Table, Tabulka())
+            .Add(x => x.Preview, preview));
 
         Assert.Contains("Zamaskované sloupce: Heslo", component.Markup, StringComparison.Ordinal);
         Assert.Single(component.FindAll("th.maskovany"));
     }
 
     [Fact]
-    public void Oriznuty_vysledek_to_rekne()
+    public void Chyba_se_zobrazi_misto_dat()
     {
-        var preview = new RowPreview
-        {
-            Columns = ["Id"],
-            Rows = [["1"], ["2"]],
-            Limit = 2,
-            IsTruncated = true,
-        };
+        var component = RenderComponent<DataNahled>(p => p.Add(x => x.Error, "Přístup odepřen."));
 
-        var component = RenderComponent<DataNahled>(p => p.Add(x => x.Preview, preview));
-
-        Assert.Contains("omezeno na 2", component.Markup, StringComparison.Ordinal);
+        Assert.Contains("Přístup odepřen.", component.Markup, StringComparison.Ordinal);
+        Assert.Empty(component.FindAll("table"));
     }
+
+    // ---------- stránkování ----------
+
+    [Fact]
+    public void Celkovy_pocet_radku_se_ukaze()
+    {
+        var component = Mrizka(Stranka(0, celkem: 1234));
+
+        // Cestina.Cislo odděluje tisíce nedělitelnou mezerou, ne obyčejnou.
+        Assert.Contains("1\u00a0234 řádků", component.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Bez_celkoveho_poctu_se_ukaze_aspon_stranka()
+    {
+        var preview = Stranka(2, celkem: null) with { HasMore = true };
+        var component = Mrizka(preview);
+
+        Assert.Contains("bez celkového počtu", component.Markup, StringComparison.Ordinal);
+        Assert.Contains("Stránka 3", component.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Na_prvni_strance_je_predchozi_nedostupne()
+    {
+        var component = Mrizka(Stranka(0, celkem: 200));
+
+        var tlacitka = component.FindAll(".strankovani button");
+
+        Assert.True(tlacitka.ElementAt(0).HasAttribute("disabled"));
+        Assert.False(tlacitka.ElementAt(2).HasAttribute("disabled"));
+    }
+
+    [Fact]
+    public void Na_posledni_strance_je_dalsi_nedostupne()
+    {
+        var preview = Stranka(3, celkem: 200) with { PageCount = 4, HasMore = false };
+        var tlacitka = Mrizka(preview).FindAll(".strankovani button");
+
+        Assert.False(tlacitka.ElementAt(0).HasAttribute("disabled"));
+        Assert.True(tlacitka.ElementAt(2).HasAttribute("disabled"));
+    }
+
+    [Fact]
+    public void Klik_na_dalsi_posle_dalsi_stranku()
+    {
+        var dotazy = new List<DataQuery>();
+        var component = Mrizka(Stranka(1, celkem: 500), dotazy);
+
+        dotazy.Clear();
+        component.FindAll(".strankovani button").ElementAt(2).Click();
+
+        Assert.Equal(2, dotazy[^1].Page);
+    }
+
+    [Fact]
+    public void Klik_na_prvni_stranku_se_vrati_na_zacatek()
+    {
+        var dotazy = new List<DataQuery>();
+        var component = Mrizka(Stranka(5, celkem: 500), dotazy);
+
+        dotazy.Clear();
+        component.FindAll(".strankovani button").ElementAt(0).Click();
+
+        Assert.Equal(0, dotazy[^1].Page);
+    }
+
+    [Fact]
+    public void Klik_na_posledni_stranku_skoci_na_konec()
+    {
+        var dotazy = new List<DataQuery>();
+        var preview = Stranka(0, celkem: 500) with { PageCount = 10, HasMore = true };
+        var component = Mrizka(preview, dotazy);
+
+        dotazy.Clear();
+        component.FindAll(".strankovani button").ElementAt(3).Click();
+
+        Assert.Equal(9, dotazy[^1].Page);
+    }
+
+    [Fact]
+    public void Jedina_stranka_strankovani_nezobrazi()
+    {
+        var component = Mrizka(Stranka(0, celkem: 3));
+
+        Assert.Empty(component.FindAll(".strankovani"));
+    }
+
+    [Fact]
+    public void Velikost_stranky_jde_zmenit()
+    {
+        var dotazy = new List<DataQuery>();
+        var component = Mrizka(Stranka(2, celkem: 500), dotazy);
+
+        dotazy.Clear();
+        component.Find(".data-ovladani select").Change("100");
+
+        Assert.Equal(100, dotazy[^1].PageSize);
+
+        // Po změně velikosti se čísla stránek posunou, takže se začíná od první.
+        Assert.Equal(0, dotazy[^1].Page);
+    }
+
+    [Fact]
+    public void Nesmyslna_velikost_stranky_se_ignoruje()
+    {
+        var dotazy = new List<DataQuery>();
+        var component = Mrizka(Stranka(0, celkem: 500), dotazy);
+
+        dotazy.Clear();
+        component.Find(".data-ovladani select").Change("nesmysl");
+
+        Assert.Empty(dotazy);
+    }
+
+    // ---------- řazení ----------
+
+    [Fact]
+    public void Klik_na_hlavicku_seradi_vzestupne()
+    {
+        var dotazy = new List<DataQuery>();
+        var component = Mrizka(Stranka(0, celkem: 10), dotazy);
+
+        dotazy.Clear();
+        component.FindAll("th .razeni").ElementAt(1).Click();
+
+        Assert.Equal("Nazev", dotazy[^1].SortColumn);
+        Assert.False(dotazy[^1].SortDescending);
+    }
+
+    [Fact]
+    public void Druhy_klik_otoci_smer_a_treti_razeni_zrusi()
+    {
+        var dotazy = new List<DataQuery>();
+        var component = Mrizka(Stranka(0, celkem: 10), dotazy);
+
+        component.FindAll("th .razeni").ElementAt(1).Click();
+        component.FindAll("th .razeni").ElementAt(1).Click();
+
+        Assert.True(dotazy[^1].SortDescending);
+
+        component.FindAll("th .razeni").ElementAt(1).Click();
+
+        Assert.Null(dotazy[^1].SortColumn);
+    }
+
+    [Fact]
+    public void Razeni_podle_jineho_sloupce_zacne_vzestupne()
+    {
+        var dotazy = new List<DataQuery>();
+        var component = Mrizka(Stranka(0, celkem: 10), dotazy);
+
+        component.FindAll("th .razeni").ElementAt(1).Click();
+        component.FindAll("th .razeni").ElementAt(1).Click();
+        component.FindAll("th .razeni").ElementAt(0).Click();
+
+        Assert.Equal("Id", dotazy[^1].SortColumn);
+        Assert.False(dotazy[^1].SortDescending);
+    }
+
+    [Fact]
+    public void Razeni_se_v_hlavicce_oznaci_sipkou()
+    {
+        var component = Mrizka(Stranka(0, celkem: 10));
+
+        component.FindAll("th .razeni").ElementAt(0).Click();
+
+        Assert.Contains("▴", component.Markup, StringComparison.Ordinal);
+    }
+
+    // ---------- filtrování ----------
+
+    [Fact]
+    public void Zapsany_filtr_se_posle_serveru()
+    {
+        var dotazy = new List<DataQuery>();
+        var component = Mrizka(Stranka(3, celkem: 500), dotazy);
+
+        dotazy.Clear();
+        component.FindAll("tr.filtry input").ElementAt(1).Change("Adam");
+
+        var filtr = Assert.Single(dotazy[^1].Filters);
+
+        Assert.Equal("Nazev", filtr.Column);
+        Assert.Equal("Adam", filtr.Value);
+
+        // Po zafiltrování se čísla stránek posunou, takže se začíná od první.
+        Assert.Equal(0, dotazy[^1].Page);
+    }
+
+    [Fact]
+    public void Prazdny_filtr_se_neposila()
+    {
+        var dotazy = new List<DataQuery>();
+        var component = Mrizka(Stranka(0, celkem: 10), dotazy);
+
+        component.FindAll("tr.filtry input").ElementAt(0).Change("x");
+        component.FindAll("tr.filtry input").ElementAt(0).Change("   ");
+
+        Assert.Empty(dotazy[^1].Filters);
+    }
+
+    [Fact]
+    public void Filtry_se_daji_zrusit_najednou()
+    {
+        var dotazy = new List<DataQuery>();
+        var component = Mrizka(Stranka(0, celkem: 10), dotazy);
+
+        component.FindAll("tr.filtry input").ElementAt(0).Change("x");
+        component.FindAll("tr.filtry input").ElementAt(1).Change("y");
+
+        Assert.Equal(2, dotazy[^1].Filters.Count);
+
+        component.Find(".data-ovladani button.odkaz").Click();
+
+        Assert.Empty(dotazy[^1].Filters);
+    }
+
+    [Fact]
+    public void Aktivni_filtr_je_vizualne_odlisen()
+    {
+        var component = Mrizka(Stranka(0, celkem: 10));
+
+        component.FindAll("tr.filtry input").ElementAt(0).Change("x");
+
+        Assert.Single(component.FindAll("tr.filtry input.aktivni"));
+    }
+
+    [Fact]
+    public void Bez_shody_filtru_to_mrizka_rekne()
+    {
+        var dotazy = new List<DataQuery>();
+        var component = Mrizka(Stranka(0, celkem: 10), dotazy);
+
+        component.FindAll("tr.filtry input").ElementAt(0).Change("nikdo");
+
+        component.SetParametersAndRender(p => p.Add(
+            x => x.Preview,
+            new RowPreview { Columns = ["Id", "Nazev"], Rows = [], PageSize = 50, TotalRows = 0 }));
+
+        Assert.Contains("neodpovídá žádný řádek", component.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Prepnuti_tabulky_zahodi_filtry_i_razeni()
+    {
+        // Sloupce jsou v každé tabulce jiné, takže filtr z předchozí nedává smysl.
+        var dotazy = new List<DataQuery>();
+
+        var component = RenderComponent<DataNahled>(p => p
+            .Add(x => x.Table, Tabulka("Zakaznici"))
+            .Add(x => x.Preview, Stranka(0, celkem: 10))
+            .Add(x => x.OnLoad, (DataQuery q) => dotazy.Add(q)));
+
+        component.FindAll("tr.filtry input").ElementAt(0).Change("x");
+        component.FindAll("th .razeni").ElementAt(0).Click();
+
+        component.SetParametersAndRender(p => p.Add(x => x.Table, Tabulka("Objednavky")));
+
+        Assert.Empty(dotazy[^1].Filters);
+        Assert.Null(dotazy[^1].SortColumn);
+    }
+
+    private IRenderedComponent<DataNahled> Mrizka(
+        RowPreview preview,
+        List<DataQuery>? dotazy = null) =>
+        RenderComponent<DataNahled>(p => p
+            .Add(x => x.Table, Tabulka())
+            .Add(x => x.Preview, preview)
+            .Add(x => x.OnLoad, (DataQuery q) => dotazy?.Add(q)));
+
+    private static RowPreview Stranka(int stranka, long? celkem) => new()
+    {
+        Columns = ["Id", "Nazev"],
+        Rows = [["1", "Adam"], ["2", "Bára"]],
+        Page = stranka,
+        PageSize = 50,
+        TotalRows = celkem,
+        PageCount = celkem is { } c ? Math.Max(1, (c + 49) / 50) : null,
+        HasMore = celkem is { } total && ((stranka + 1L) * 50) < total,
+    };
+
+    private static DbTable Tabulka(string name = "Zakaznici") => new()
+    {
+        Name = new DbObjectName(null, name),
+        Columns =
+        [
+            new DbColumn { Name = "Id", Ordinal = 1, StoreType = "int", IsPrimaryKey = true },
+            new DbColumn { Name = "Nazev", Ordinal = 2, StoreType = "nvarchar" },
+        ],
+    };
 }
 
 /// <summary>Přehled rozdílů.</summary>

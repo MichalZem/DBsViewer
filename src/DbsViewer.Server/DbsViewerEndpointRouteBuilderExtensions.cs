@@ -150,20 +150,28 @@ public static class DbsViewerEndpointRouteBuilderExtensions
                 : Json(table);
         });
 
-        api.MapGet("/tables/{schema}/{name}/rows", async (
+        // Filtry chodí tělem POSTu, ne v URL: hledaná hodnota je obsah databáze
+        // a v adrese by skončila v historii prohlížeče i v logu serveru.
+        api.MapPost("/tables/{schema}/{name}/rows", async (
             DataPreviewService preview,
             HttpContext context,
             string schema,
             string name,
-            int? limit,
             CancellationToken cancellationToken) =>
         {
             var table = new DbObjectName(NormalizeSchema(schema), name);
 
             try
             {
+                // Tělo se čte vlastním nastavením, ne tím z hostitelské aplikace:
+                // enumy chodí jako text a globální JsonOptions by se sáhlo celé
+                // aplikaci, do které je komponenta zabudovaná.
+                var query = await context.Request
+                    .ReadFromJsonAsync<DataQuery>(DbsViewerJson.Compact, cancellationToken)
+                    .ConfigureAwait(false);
+
                 var result = await preview
-                    .GetAsync(table, limit, context.User.Identity?.Name, cancellationToken)
+                    .GetAsync(table, query, context.User.Identity?.Name, cancellationToken)
                     .ConfigureAwait(false);
 
                 return Json(result);

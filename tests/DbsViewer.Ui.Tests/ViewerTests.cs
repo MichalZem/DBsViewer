@@ -273,20 +273,19 @@ public class ViewerTests : TestContext
     }
 
     [Fact]
-    public void Nahled_dat_se_nacte_az_na_vyzadani()
+    public void Nahled_dat_se_nacte_hned_po_otevreni()
     {
+        // Dřív tu bylo tlačítko „Načíst data". Data si mřížka vyžádá sama, jakmile
+        // se záložka otevře.
         _server.Meta = Vzorek.Meta(canPreview: true);
 
         var component = Render();
         component.FindAll(".seznam li button").ElementAt(1).Click();
         component.FindAll(".zalozky button").ElementAt(4).Click();
 
-        Assert.Equal(0, _server.RowCalls);
-
-        component.Find("button.hlavni").Click();
-
         Assert.Equal(1, _server.RowCalls);
         Assert.Contains("a@b.cz", component.Markup, StringComparison.Ordinal);
+        Assert.Empty(component.FindAll("button.hlavni"));
     }
 
     [Fact]
@@ -298,25 +297,26 @@ public class ViewerTests : TestContext
         var component = Render();
         component.FindAll(".seznam li button").ElementAt(1).Click();
         component.FindAll(".zalozky button").ElementAt(4).Click();
-        component.Find("button.hlavni").Click();
 
         Assert.Contains("Přístup odepřen", component.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void Vyber_jine_tabulky_zahodi_nactena_data()
+    public void Vyber_jine_tabulky_nacte_jeji_data()
     {
         _server.Meta = Vzorek.Meta(canPreview: true);
 
         var component = Render();
         component.FindAll(".seznam li button").ElementAt(1).Click();
         component.FindAll(".zalozky button").ElementAt(4).Click();
-        component.Find("button.hlavni").Click();
+
+        var poPrvni = _server.RowCalls;
 
         component.FindAll(".seznam li button").ElementAt(0).Click();
         component.FindAll(".zalozky button").ElementAt(4).Click();
 
-        Assert.Contains("Načíst data", component.Markup, StringComparison.Ordinal);
+        // Data se načtou znovu, protože jde o jinou tabulku.
+        Assert.True(_server.RowCalls > poPrvni);
     }
 
     [Fact]
@@ -509,7 +509,8 @@ public class ViewerTests : TestContext
                     {
                         Columns = ["Id", "Email"],
                         Rows = [["1", "a@b.cz"]],
-                        Limit = 100,
+                        PageSize = 50,
+                        TotalRows = 1,
                     });
             }
 

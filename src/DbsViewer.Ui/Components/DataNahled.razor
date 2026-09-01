@@ -1,63 +1,166 @@
 @*
-    Náhled řádků tabulky. Načítá se až na vyžádání — data se nikdy nestahují jen proto,
-    že uživatel otevřel detail tabulky.
+    Mřížka dat tabulky. Stránkuje, řadí i filtruje databáze — do prohlížečky se přenáší
+    vždy jen jedna stránka, takže mřížka funguje stejně nad deseti řádky jako nad miliony.
 *@
 
 @if (Error is { } chyba)
 {
     <p class="chyba">@chyba</p>
 }
-else if (Preview is null)
-{
-    <div class="nahled-vyzva">
-        <p>Náhled zobrazí prvních několik řádků tabulky. Data se načtou až po kliknutí.</p>
-        <button class="hlavni" @onclick="OnLoad">Načíst data</button>
-    </div>
-}
-else if (Preview.Rows.Count == 0)
-{
-    <p class="prazdno">Tabulka je prázdná.</p>
-}
 else
 {
-    @if (Preview.MaskedColumns.Count > 0)
-    {
-        <p class="poznamka-maskovani">
-            Zamaskované sloupce: @string.Join(", ", Preview.MaskedColumns)
-        </p>
-    }
+    <div class="data-panel">
 
-    <div class="mrizka-obal">
-        <table class="mrizka data">
-            <thead>
-                <tr>
-                    @foreach (var column in Preview.Columns)
-                    {
-                        <th class="@(IsMasked(column) ? "maskovany" : "")">@column</th>
-                    }
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var row in Preview.Rows)
+        <header class="data-lista">
+            <div class="data-souhrn">
+                @if (Preview is null)
                 {
-                    <tr>
-                        @foreach (var value in row)
-                        {
-                            <td class="@(value is null ? "nullova" : "")">@(value ?? "NULL")</td>
-                        }
-                    </tr>
+                    <span class="nacita">Načítám data…</span>
                 }
-            </tbody>
-        </table>
-    </div>
+                else if (Preview.TotalRows is { } celkem)
+                {
+                    <span>@Cestina.Radky(celkem)</span>
 
-    <p class="poznamka">
-        @Cestina.Radky(Preview.Rows.Count)@(Preview.IsTruncated ? $" (omezeno na {Preview.Limit})" : "")
-        <button class="odkaz" @onclick="OnLoad">načíst znovu</button>
-    </p>
+                    @if (MaFiltr)
+                    {
+                        <span class="podminka">po filtrech</span>
+                    }
+                }
+                else
+                {
+                    <span>Stránka @(Preview.Page + 1)</span>
+                    <span class="podminka" title="Celkový počet se nepodařilo zjistit">bez celkového počtu</span>
+                }
+            </div>
+
+            <div class="data-ovladani">
+                <label>
+                    Na stránku
+                    <select value="@PageSize" @onchange="ZmenVelikost">
+                        @foreach (var velikost in Velikosti)
+                        {
+                            <option value="@velikost">@velikost</option>
+                        }
+                    </select>
+                </label>
+
+                @if (MaFiltr)
+                {
+                    <button class="odkaz" @onclick="ZrusFiltry">Zrušit filtry</button>
+                }
+
+                <button class="odkaz" @onclick="() => NactiAsync(Stranka)" title="Načíst znovu">Obnovit</button>
+            </div>
+        </header>
+
+        @if (Preview is { MaskedColumns.Count: > 0 })
+        {
+            <p class="poznamka-maskovani">
+                Zamaskované sloupce: @string.Join(", ", Preview.MaskedColumns)
+            </p>
+        }
+
+        @if (Sloupce.Count > 0)
+        {
+            <div class="mrizka-obal">
+                <table class="mrizka data">
+                    <thead>
+                        <tr class="hlavicky">
+                            @foreach (var column in Sloupce)
+                            {
+                                <th class="@(IsMasked(column) ? "maskovany" : "")">
+                                    <button class="razeni" @onclick="() => SeradAsync(column)"
+                                            title="Seřadit podle @column">
+                                        <span>@column</span>
+                                        <span class="sipka">@SmerRazeni(column)</span>
+                                    </button>
+                                </th>
+                            }
+                        </tr>
+                        <tr class="filtry">
+                            @foreach (var column in Sloupce)
+                            {
+                                <th>
+                                    <input type="search"
+                                           class="@(Filtry.ContainsKey(column) ? "aktivni" : "")"
+                                           placeholder="Filtr…"
+                                           value="@(Filtry.GetValueOrDefault(column) ?? "")"
+                                           @onchange="e => FiltrujAsync(column, e.Value?.ToString())" />
+                                </th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody class="@(Nacita ? "nacita" : "")">
+                        @foreach (var row in Radky)
+                        {
+                            <tr>
+                                @foreach (var value in row)
+                                {
+                                    <td class="@(value is null ? "nullova" : "")">@(value ?? "NULL")</td>
+                                }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            @if (Radky.Count == 0 && !Nacita)
+            {
+                <p class="prazdno">
+                    @(MaFiltr ? "Filtrům neodpovídá žádný řádek." : "Tabulka je prázdná.")
+                </p>
+            }
+        }
+
+        @if (Preview is { } nahled && (nahled.Page > 0 || nahled.HasMore))
+        {
+            <nav class="strankovani">
+                <button disabled="@(nahled.Page == 0 || Nacita)" @onclick="() => NactiAsync(0)"
+                        title="První stránka">«</button>
+                <button disabled="@(nahled.Page == 0 || Nacita)" @onclick="() => NactiAsync(nahled.Page - 1)">
+                    ‹ Předchozí
+                </button>
+
+                <span class="pozice">
+                    @if (nahled.PageCount is { } stranek)
+                    {
+                        @($"Stránka {Cestina.Cislo(nahled.Page + 1)} z {Cestina.Cislo(stranek)}")
+                    }
+                    else
+                    {
+                        @($"Stránka {Cestina.Cislo(nahled.Page + 1)}")
+                    }
+                </span>
+
+                <button disabled="@(!nahled.HasMore || Nacita)" @onclick="() => NactiAsync(nahled.Page + 1)">
+                    Další ›
+                </button>
+                <button disabled="@(nahled.PageCount is null || !nahled.HasMore || Nacita)"
+                        @onclick="() => NactiAsync((int)(nahled.PageCount!.Value - 1))"
+                        title="Poslední stránka">»</button>
+            </nav>
+        }
+    </div>
 }
 
 @code {
+    /// <summary>Nabízené velikosti stránky.</summary>
+    private static readonly int[] Velikosti = [25, 50, 100, 250];
+
+    private Dictionary<string, string> Filtry { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    private int Stranka { get; set; }
+
+    private int PageSize { get; set; } = 50;
+
+    private string? SloupecRazeni { get; set; }
+
+    private bool RaditSestupne { get; set; }
+
+    private bool Nacita { get; set; }
+
+    private DbObjectName? NactenaTabulka { get; set; }
+
     [Parameter]
     public DbTable? Table { get; set; }
 
@@ -67,8 +170,130 @@ else
     [Parameter]
     public string? Error { get; set; }
 
+    /// <summary>Načtení stránky. Komponenta si sama neví, jak volat server.</summary>
     [Parameter]
-    public EventCallback OnLoad { get; set; }
+    public EventCallback<DataQuery> OnLoad { get; set; }
+
+    private bool MaFiltr => Filtry.Count > 0;
+
+    /// <summary>
+    /// Sloupce mřížky. Dokud data nedorazila, berou se ze schématu, aby hlavičky
+    /// i filtry byly na místě hned a mřížka se pod rukama nepřeskládala.
+    /// </summary>
+    private IReadOnlyList<string> Sloupce =>
+        Preview is { Columns.Count: > 0 } nahled
+            ? nahled.Columns
+            : Table?.Columns.Select(static c => c.Name).ToList() ?? [];
+
+    private IReadOnlyList<IReadOnlyList<string?>> Radky => Preview?.Rows ?? [];
+
+    /// <summary>
+    /// Data se načtou hned při zobrazení a znovu při přepnutí na jinou tabulku.
+    /// Filtry ani řazení se přitom nepřenášejí — sloupce jsou v každé tabulce jiné.
+    /// </summary>
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Table is null || Table.Name == NactenaTabulka)
+        {
+            return;
+        }
+
+        NactenaTabulka = Table.Name;
+        Filtry.Clear();
+        SloupecRazeni = null;
+        RaditSestupne = false;
+
+        await NactiAsync(0);
+    }
+
+    private async Task NactiAsync(int stranka)
+    {
+        if (Nacita)
+        {
+            return;
+        }
+
+        Stranka = Math.Max(stranka, 0);
+        Nacita = true;
+
+        try
+        {
+            await OnLoad.InvokeAsync(Dotaz());
+        }
+        finally
+        {
+            Nacita = false;
+        }
+    }
+
+    /// <summary>Současný stav mřížky jako požadavek pro server.</summary>
+    internal DataQuery Dotaz() => new()
+    {
+        Page = Stranka,
+        PageSize = PageSize,
+        SortColumn = SloupecRazeni,
+        SortDescending = RaditSestupne,
+
+        // Do políčka se píše hledaný text, takže se z něj stane „obsahuje". Přesnou
+        // shodu ani porovnání zatím mřížka nenabízí — na to je detail tabulky.
+        Filters = [.. Filtry.Select(static f => new DataFilter(f.Key, FilterOperator.Contains, f.Value))],
+    };
+
+    /// <summary>Kliknutí na hlavičku: vzestupně, sestupně, bez řazení.</summary>
+    private async Task SeradAsync(string column)
+    {
+        if (!string.Equals(SloupecRazeni, column, StringComparison.OrdinalIgnoreCase))
+        {
+            SloupecRazeni = column;
+            RaditSestupne = false;
+        }
+        else if (!RaditSestupne)
+        {
+            RaditSestupne = true;
+        }
+        else
+        {
+            SloupecRazeni = null;
+            RaditSestupne = false;
+        }
+
+        // Po změně řazení se čísla stránek posunou, takže se začíná od první.
+        await NactiAsync(0);
+    }
+
+    private async Task FiltrujAsync(string column, string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            Filtry.Remove(column);
+        }
+        else
+        {
+            Filtry[column] = value.Trim();
+        }
+
+        await NactiAsync(0);
+    }
+
+    private async Task ZrusFiltry()
+    {
+        Filtry.Clear();
+        await NactiAsync(0);
+    }
+
+    private async Task ZmenVelikost(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var velikost))
+        {
+            PageSize = velikost;
+            await NactiAsync(0);
+        }
+    }
+
+    internal string SmerRazeni(string column) =>
+        string.Equals(SloupecRazeni, column, StringComparison.OrdinalIgnoreCase)
+            ? RaditSestupne ? "▾" : "▴"
+            : "";
 
     private bool IsMasked(string column) =>
         Preview is not null

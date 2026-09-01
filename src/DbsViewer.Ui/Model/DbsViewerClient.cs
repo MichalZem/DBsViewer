@@ -25,7 +25,60 @@ public sealed record ViewerMeta
     public int DataPreviewMaxRows { get; init; } = 100;
 }
 
-/// <summary>Náhled řádků tabulky. Odpovídá <c>/api/tables/…/rows</c>.</summary>
+/// <summary>Porovnání použité při filtrování sloupce.</summary>
+public enum FilterOperator
+{
+    /// <summary>Hodnota obsahuje zadaný text.</summary>
+    Contains,
+
+    /// <summary>Hodnota se rovná zadané.</summary>
+    Equals,
+
+    /// <summary>Hodnota začíná zadaným textem.</summary>
+    StartsWith,
+
+    /// <summary>Hodnota končí zadaným textem.</summary>
+    EndsWith,
+
+    /// <summary>Hodnota je větší než zadaná.</summary>
+    GreaterThan,
+
+    /// <summary>Hodnota je menší než zadaná.</summary>
+    LessThan,
+
+    /// <summary>Hodnota je NULL.</summary>
+    IsNull,
+
+    /// <summary>Hodnota není NULL.</summary>
+    IsNotNull,
+}
+
+/// <summary>Filtr nad jedním sloupcem.</summary>
+/// <param name="Column">Jméno sloupce.</param>
+/// <param name="Operator">Porovnání.</param>
+/// <param name="Value">Hledaná hodnota.</param>
+public sealed record DataFilter(string Column, FilterOperator Operator, string? Value);
+
+/// <summary>Požadavek na stránku dat. Odpovídá serverovému <c>DataQuery</c>.</summary>
+public sealed record DataQuery
+{
+    /// <summary>Stránka počítaná od nuly.</summary>
+    public int Page { get; init; }
+
+    /// <summary>Počet řádků na stránku.</summary>
+    public int PageSize { get; init; } = 50;
+
+    /// <summary>Sloupec, podle kterého se řadí.</summary>
+    public string? SortColumn { get; init; }
+
+    /// <summary>Řadit sestupně.</summary>
+    public bool SortDescending { get; init; }
+
+    /// <summary>Filtry nad sloupci. Spojují se přes AND.</summary>
+    public IReadOnlyList<DataFilter> Filters { get; init; } = [];
+}
+
+/// <summary>Stránka dat tabulky. Odpovídá <c>/api/tables/…/rows</c>.</summary>
 public sealed record RowPreview
 {
     public IReadOnlyList<string> Columns { get; init; } = [];
@@ -34,9 +87,20 @@ public sealed record RowPreview
 
     public IReadOnlyList<IReadOnlyList<string?>> Rows { get; init; } = [];
 
-    public int Limit { get; init; }
+    public int Page { get; init; }
 
-    public bool IsTruncated { get; init; }
+    public int PageSize { get; init; }
+
+    /// <summary>Celkem řádků po filtrech, nebo <c>null</c>, když se ho nepodařilo zjistit.</summary>
+    public long? TotalRows { get; init; }
+
+    public string? SortColumn { get; init; }
+
+    public bool SortDescending { get; init; }
+
+    public long? PageCount { get; init; }
+
+    public bool HasMore { get; init; }
 }
 
 /// <summary>
@@ -75,19 +139,27 @@ public sealed class DbsViewerClient(HttpClient http)
     public Task<SchemaDiff> GetDiffAsync(bool refresh = false, CancellationToken cancellationToken = default) =>
         GetAsync<SchemaDiff>(refresh ? "api/schema/diff?refresh=true" : "api/schema/diff", cancellationToken);
 
-    public Task<RowPreview> GetRowsAsync(
+    /// <summary>
+    /// Načte jednu stránku dat. Posílá se POSTem, protože hledané hodnoty jsou obsah
+    /// databáze a v adrese by skončily v historii prohlížeče i v logu serveru.
+    /// </summary>
+    public async Task<RowPreview> GetRowsAsync(
         DbObjectName table,
-        int? limit = null,
+        DataQuery? query = null,
         CancellationToken cancellationToken = default)
     {
         var url = $"api/tables/{SchemaSegment(table)}/{Uri.EscapeDataString(table.Name)}/rows";
 
-        if (limit is { } value)
-        {
-            url += $"?limit={value}";
-        }
+        var response = await http
+            .PostAsJsonAsync(url, query ?? new DataQuery(), Json, cancellationToken)
+            .ConfigureAwait(false);
 
-        return GetAsync<RowPreview>(url, cancellationToken);
+        EnsureSuccess(response);
+
+        return await response.Content
+            .ReadFromJsonAsync<RowPreview>(Json, cancellationToken)
+            .ConfigureAwait(false)
+            ?? new RowPreview();
     }
 
     /// <summary>Zahodí serverovou cache, aby se schéma načetlo znovu.</summary>

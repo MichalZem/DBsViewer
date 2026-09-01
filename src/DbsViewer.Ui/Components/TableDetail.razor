@@ -258,7 +258,7 @@ else
     public EventCallback<DbObjectName> OnSelect { get; set; }
 
     [Parameter]
-    public EventCallback OnLoadRows { get; set; }
+    public EventCallback<DataQuery> OnLoadRows { get; set; }
 
     internal static string TabLabel(DetailTab tab) => tab switch
     {

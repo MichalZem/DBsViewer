@@ -680,3 +680,122 @@ button.hlavni {
 
 .prehled .zbytek { margin: 6px 0 0; color: var(--text-3); font-size: 12px; }
 .prehled .ok { color: var(--ok); margin: 0; }
+
+/* ---------- mřížka dat ---------- */
+
+.data-panel { display: flex; flex-direction: column; gap: 10px; }
+
+.data-lista {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.data-souhrn {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    font-variant-numeric: tabular-nums;
+}
+
+.data-souhrn .podminka { color: var(--text-3); font-size: 12px; }
+
+.data-ovladani {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-left: auto;
+    font-size: 12px;
+    color: var(--text-2);
+}
+
+.data-ovladani label { display: flex; align-items: center; gap: 6px; }
+
+.data-ovladani select {
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--linka);
+    border-radius: 4px;
+    padding: 2px 4px;
+    font: inherit;
+}
+
+/* Hlavička drží na místě při rolování dlouhou stránkou. */
+.mrizka.data thead th {
+    position: sticky;
+    top: 0;
+    background: var(--panel);
+    z-index: 1;
+}
+
+.mrizka.data tr.filtry th { top: 28px; padding: 2px 4px; }
+
+.mrizka.data .razeni {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    width: 100%;
+    background: none;
+    border: none;
+    padding: 0;
+    color: inherit;
+    font: inherit;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+}
+
+.mrizka.data .razeni:hover { color: var(--akcent); }
+.mrizka.data .razeni .sipka { color: var(--akcent); font-size: 10px; }
+
+.mrizka.data tr.filtry input {
+    width: 100%;
+    min-width: 80px;
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--linka);
+    border-radius: 3px;
+    padding: 2px 5px;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 400;
+}
+
+.mrizka.data tr.filtry input.aktivni {
+    border-color: var(--akcent);
+    background: var(--akcent-svetly);
+}
+
+/* Během načítání data zšednou, ale nezmizí — mřížka pod rukama neposkočí. */
+.mrizka.data tbody.nacita { opacity: 0.45; transition: opacity 120ms ease; }
+
+.strankovani {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    justify-content: center;
+    padding-top: 4px;
+}
+
+.strankovani button {
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--linka);
+    border-radius: 4px;
+    padding: 3px 10px;
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.strankovani button:hover:not(:disabled) { border-color: var(--akcent); color: var(--akcent); }
+.strankovani button:disabled { opacity: 0.4; cursor: default; }
+
+.strankovani .pozice {
+    padding: 0 10px;
+    color: var(--text-2);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}

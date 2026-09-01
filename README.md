@@ -189,6 +189,19 @@ Uzly se dají rozbalit na všechny sloupce, plocha se posouvá tažením a přib
 **Rozdíly.** Nálezy porovnání modelu s databází, seskupené podle závažnosti. Tabulka
 s nálezem se zvýrazní i v seznamu a v diagramu, takže je vidět, kde je problém.
 
+**Data.** Záložka *Data* v detailu tabulky se načte sama, bez klikání. Mřížka umí
+stránkovat, řadit kliknutím na hlavičku (vzestupně → sestupně → bez řazení) a filtrovat
+políčkem pod každým sloupcem.
+
+Všechno tohle dělá **databáze**, ne prohlížečka: `LIMIT`/`OFFSET` respektive
+`OFFSET`/`FETCH`, `ORDER BY` a `WHERE` s parametry. Do paměti se nikdy nenačte víc než
+jedna stránka, takže mřížka funguje stejně nad deseti řádky jako nad miliony. Celkový
+počet se počítá `COUNT(*)`; když dotaz nedoběhne do časového limitu, stránkuje se dál,
+jen bez čísel stránek.
+
+Filtr hledá text kdekoli v hodnotě, i nad čísly a daty. Zástupné znaky `%` a `_` se
+escapují — kdo hledá „100%", hledá opravdu „100%".
+
 **Export.** Schéma jde stáhnout jako Mermaid, DBML nebo Markdown dokumentaci —
 souborem, který se dá commitnout do repozitáře.
 
@@ -206,11 +219,29 @@ Všechny cesty jsou relativní k `RoutePrefix` (výchozí `/dbschema`).
 | `GET` | `/api/schema` | Celé schéma. Parametr `source=ef\|live\|merged`, `refresh=true` obejde cache. |
 | `GET` | `/api/schema/diff` | Rozdíly mezi EF modelem a databází. |
 | `GET` | `/api/tables/{schema}/{name}` | Detail jedné tabulky. |
-| `GET` | `/api/tables/{schema}/{name}/rows` | Náhled dat. Ve výchozím stavu vrací `403`. |
+| `POST` | `/api/tables/{schema}/{name}/rows` | Stránka dat. Ve výchozím stavu vrací `403`. |
 | `POST` | `/api/refresh` | Zahodí cache. |
 
 **Prázdné schéma se v cestě zapisuje pomlčkou.** SQLite schémata nemá, takže detail tabulky
 je `/api/tables/-/Customers`. U SQL Serveru `/api/tables/dbo/Customers`.
+
+**Data chodí POSTem, ne GETem.** Hledaná hodnota je obsah databáze a v adrese by skončila
+v historii prohlížeče i v logu serveru. Tělo požadavku:
+
+```json
+{
+  "page": 0,
+  "pageSize": 50,
+  "sortColumn": "CreatedAt",
+  "sortDescending": true,
+  "filters": [
+    { "column": "Email", "operator": "Contains", "value": "@firma.cz" }
+  ]
+}
+```
+
+Operátory: `Contains`, `Equals`, `StartsWith`, `EndsWith`, `GreaterThan`, `LessThan`,
+`IsNull`, `IsNotNull`. Odpověď nese `rows`, `totalRows`, `pageCount` a `hasMore`.
 
 ### Pohledy na schéma
 
@@ -355,7 +386,8 @@ builder.Services.AddDbsViewer<AppDbContext>(options =>
 
     // Náhled dat — viz Bezpečnost
     options.DataPreview.Enabled = true;            // výchozí false
-    options.DataPreview.MaxRows = 50;              // výchozí 100, strop 1000
+    options.DataPreview.MaxRows = 50;              // strop velikosti stránky; výchozí 100, tvrdý strop 1000
+    options.DataPreview.CommandTimeoutSeconds = 15; // výchozí 30; chrání hlavně COUNT(*)
     options.DataPreview.MaskColumns.Add("Email");  // výchozí *Password*, *Secret*, *Token*
     options.DataPreview.AllowedTables.Add("Order*");
 });
@@ -501,7 +533,7 @@ Ukázka vygenerované dokumentace je v [`docs/schema-ukazka.md`](docs/schema-uka
   `DeleteBehavior`, které se chová jinak než model tvrdí
 - **Odolnost** — načtení schématu nikdy nespadne, dílčí selhání skončí ve `warnings`
 - **Grafické UI** — přehled databáze, prohlížeč tabulek, ER diagram s focus modem,
-  přehled rozdílů, náhled dat, export do Mermaid, DBML a Markdownu
+  přehled rozdílů, stránkovaná mřížka dat, export do Mermaid, DBML a Markdownu
 
 Zdroje dat:
 

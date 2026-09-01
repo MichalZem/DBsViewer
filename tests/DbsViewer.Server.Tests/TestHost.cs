@@ -122,6 +122,17 @@ public sealed class DbsViewerApp : IAsyncDisposable
         await command.ExecuteNonQueryAsync();
     }
 
+    /// <summary>Přečte jednu hodnotu — kvůli ověření, že se tabulka nezměnila.</summary>
+    public async Task<string?> ScalarAsync(string sql)
+    {
+        await using var command = _connection.CreateCommand();
+        command.CommandText = sql;
+
+        var value = await command.ExecuteScalarAsync();
+
+        return value?.ToString();
+    }
+
     public async ValueTask DisposeAsync()
     {
         Client.Dispose();

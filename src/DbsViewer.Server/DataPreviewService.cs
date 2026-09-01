@@ -1,11 +1,12 @@
 using System.Data;
+using System.Globalization;
 using System.Data.Common;
 using DbsViewer.Relational;
 using Microsoft.Extensions.Logging;
 
 namespace DbsViewer.Server;
 
-/// <summary>Výsledek náhledu dat tabulky.</summary>
+/// <summary>Výsledek náhledu dat tabulky — jedna stránka.</summary>
 public sealed record DataPreview
 {
     public required DbObjectName Table { get; init; }
@@ -19,11 +20,36 @@ public sealed record DataPreview
     /// <summary>Řádky. Hodnota <c>null</c> znamená NULL v databázi.</summary>
     public required IReadOnlyList<IReadOnlyList<string?>> Rows { get; init; }
 
-    /// <summary>Limit, který se použil.</summary>
-    public int Limit { get; init; }
+    /// <summary>Stránka počítaná od nuly.</summary>
+    public int Page { get; init; }
 
-    /// <summary>Vrátilo se přesně tolik řádků, kolik je limit — další data mohou existovat.</summary>
-    public bool IsTruncated => Rows.Count >= Limit;
+    /// <summary>Počet řádků na stránku.</summary>
+    public int PageSize { get; init; }
+
+    /// <summary>
+    /// Celkový počet řádků odpovídajících filtrům, nebo <c>null</c>, když se ho
+    /// nepodařilo zjistit.
+    /// </summary>
+    public long? TotalRows { get; init; }
+
+    /// <summary>Sloupec, podle kterého je stránka seřazená.</summary>
+    public string? SortColumn { get; init; }
+
+    /// <summary>Řazení je sestupné.</summary>
+    public bool SortDescending { get; init; }
+
+    /// <summary>Počet stránek, nebo <c>null</c>, když se počet řádků nezná.</summary>
+    public long? PageCount => TotalRows is { } total && PageSize > 0
+        ? Math.Max(1, (total + PageSize - 1) / PageSize)
+        : null;
+
+    /// <summary>
+    /// Existuje další stránka? Bez celkového počtu se pozná podle toho, že se vrátila
+    /// plná stránka.
+    /// </summary>
+    public bool HasMore => PageCount is { } stranek
+        ? Page + 1 < stranek
+        : Rows.Count >= PageSize;
 }
 
 /// <summary>
@@ -43,14 +69,14 @@ public sealed class DataPreviewService(
     IEnumerable<ISchemaSource> sources,
     ILogger<DataPreviewService> logger)
 {
-    /// <summary>Načte prvních několik řádků tabulky.</summary>
+    /// <summary>Načte jednu stránku dat tabulky.</summary>
     /// <param name="table">Tabulka, ověřuje se proti načtenému schématu.</param>
-    /// <param name="limit">Požadovaný počet řádků; ořízne se na povolené maximum.</param>
+    /// <param name="query">Stránka, řazení a filtry. Bez zadání se vezme první stránka.</param>
     /// <param name="user">Kdo se ptá — zapíše se do audit logu.</param>
     /// <param name="cancellationToken">Zrušení operace.</param>
     public async Task<DataPreview> GetAsync(
         DbObjectName table,
-        int? limit = null,
+        DataQuery? query = null,
         string? user = null,
         CancellationToken cancellationToken = default)
     {
@@ -76,21 +102,40 @@ public sealed class DataPreviewService(
             ?? throw new InvalidOperationException($"Tabulka {table} ve schématu není.");
 
         var connection = GetConnection();
-        var effectiveLimit = Math.Clamp(limit ?? options.DataPreview.MaxRows, 1, options.DataPreview.MaxRows);
+        var effective = Normalize(query ?? new DataQuery());
 
         logger.LogInformation(
-            "DbsViewer: náhled dat tabulky {Table}, limit {Limit}, uživatel {User}.",
+            "DbsViewer: náhled dat tabulky {Table}, stránka {Page} po {PageSize}, "
+            + "řazení {Sort}, filtrů {Filters}, uživatel {User}.",
             known.Qualified,
-            effectiveLimit,
+            effective.Page,
+            effective.PageSize,
+            effective.SortColumn ?? "(výchozí)",
+            effective.Filters.Count,
             user ?? "(neznámý)");
 
-        return await ReadAsync(connection, known, effectiveLimit, cancellationToken).ConfigureAwait(false);
+        return await ReadAsync(connection, known, effective, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Ořízne požadavek na povolené meze. Číslo stránky ani její velikost se z požadavku
+    /// nepřebírají bez kontroly — jdou přímo do textu dotazu.
+    /// </summary>
+    internal DataQuery Normalize(DataQuery query)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        return query with
+        {
+            Page = Math.Max(query.Page, 0),
+            PageSize = Math.Clamp(query.PageSize, 1, options.DataPreview.MaxRows),
+        };
     }
 
     private async Task<DataPreview> ReadAsync(
         DbConnection connection,
         DbTable table,
-        int limit,
+        DataQuery query,
         CancellationToken cancellationToken)
     {
         var masked = table.Columns
@@ -99,15 +144,23 @@ public sealed class DataPreviewService(
             .ToList();
 
         var maskedSet = new HashSet<string>(masked, StringComparer.OrdinalIgnoreCase);
+        var isSqlite = IsSqlite(connection);
 
         // Připojení patří zdroji schématu, takže se jen otevře a zase zavře — neuvolňuje se.
         await using var scope = await ConnectionScope
             .OpenAsync(connection, ownsConnection: false, cancellationToken)
             .ConfigureAwait(false);
 
+        var total = await CountAsync(connection, table, query, isSqlite, cancellationToken)
+            .ConfigureAwait(false);
+
+        var page = DataQueryBuilder.BuildPage(table, query, isSqlite);
+
         await using var command = connection.CreateCommand();
-        command.CommandText = BuildQuery(table, limit, connection);
+        command.CommandText = page.Sql;
         command.CommandType = CommandType.Text;
+        command.CommandTimeout = options.DataPreview.CommandTimeoutSeconds;
+        DataQueryBuilder.Bind(command, page.Parameters);
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
 
@@ -137,37 +190,83 @@ public sealed class DataPreviewService(
             Columns = columns,
             MaskedColumns = masked,
             Rows = rows,
-            Limit = limit,
+            Page = query.Page,
+            PageSize = query.PageSize,
+            TotalRows = total,
+            SortColumn = DataQueryBuilder.FindColumn(table, query.SortColumn)?.Name,
+            SortDescending = query.SortDescending,
         };
     }
 
     /// <summary>
-    /// Sestaví dotaz. Limit je celé číslo z konfigurace, ne z požadavku, a jméno tabulky
-    /// pochází z načteného schématu — do textu se tedy nedostane nic uživatelského.
+    /// Spočítá řádky odpovídající filtrům.
     /// </summary>
-    internal static string BuildQuery(DbTable table, int limit, DbConnection connection)
+    /// <remarks>
+    /// Vrací <c>null</c>, když dotaz selže nebo nedoběhne do časového limitu. Přesný
+    /// počet je nad velkou tabulkou drahý, ale stránkovat se dá i bez něj — mřížka pak
+    /// nabídne jen další a předchozí stránku. Selhání počtu nesmí shodit celý náhled.
+    /// </remarks>
+    private async Task<long?> CountAsync(
+        DbConnection connection,
+        DbTable table,
+        DataQuery query,
+        bool isSqlite,
+        CancellationToken cancellationToken)
     {
-        var isSqlite = connection.GetType().Name.Contains("Sqlite", StringComparison.OrdinalIgnoreCase);
-        var name = QuoteName(table.Name, isSqlite);
+        var count = DataQueryBuilder.BuildCount(table, query, isSqlite);
 
-        return isSqlite
-            ? $"SELECT * FROM {name} LIMIT {limit}"
-            : $"SELECT TOP ({limit}) * FROM {name}";
+        await using var command = connection.CreateCommand();
+        command.CommandText = count.Sql;
+        command.CommandType = CommandType.Text;
+        command.CommandTimeout = options.DataPreview.CommandTimeoutSeconds;
+        DataQueryBuilder.Bind(command, count.Parameters);
+
+        return await TryCountAsync(command, table.Qualified, logger, cancellationToken)
+            .ConfigureAwait(false);
     }
 
-    /// <summary>Escapování identifikátoru podle providera.</summary>
-    internal static string QuoteName(DbObjectName name, bool isSqlite)
+    /// <summary>
+    /// Spustí COUNT. Vrací <c>null</c>, když dotaz selže.
+    /// </summary>
+    /// <remarks>
+    /// Vytaženo z <c>CountAsync</c>, aby šlo otestovat i selhání včetně zalogování:
+    /// v integračním testu se nedá shodit počítání, aniž by se shodilo i čtení stránky,
+    /// a chování při selhání je přitom to podstatné — náhled musí přežít i dotaz,
+    /// který nedoběhne.
+    /// </remarks>
+    internal static async Task<long?> TryCountAsync(
+        DbCommand command,
+        string table,
+        ILogger logger,
+        CancellationToken cancellationToken)
     {
-        if (isSqlite)
+        ArgumentNullException.ThrowIfNull(command);
+        ArgumentNullException.ThrowIfNull(logger);
+
+        try
         {
-            return $"\"{name.Name.Replace("\"", "\"\"", StringComparison.Ordinal)}\"";
+            var value = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+
+            return value is null or DBNull ? null : Convert.ToInt64(value, CultureInfo.InvariantCulture);
         }
+        catch (DbException ex)
+        {
+            logger.LogWarning(
+                ex,
+                "DbsViewer: počet řádků tabulky {Table} se nepodařilo zjistit; "
+                + "stránkuje se bez celkového počtu.",
+                table);
 
-        var table = $"[{name.Name.Replace("]", "]]", StringComparison.Ordinal)}]";
+            return null;
+        }
+    }
 
-        return name.Schema is { } schema
-            ? $"[{schema.Replace("]", "]]", StringComparison.Ordinal)}].{table}"
-            : table;
+    /// <summary>Pozná providera podle typu připojení — jinak než podle jména to nejde.</summary>
+    internal static bool IsSqlite(DbConnection connection)
+    {
+        ArgumentNullException.ThrowIfNull(connection);
+
+        return connection.GetType().Name.Contains("Sqlite", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>Hodnota se do UI posílá jako text — binární data se nikdy nepřenášejí.</summary>

@@ -19,23 +19,36 @@ public class DataPreviewQueryTests
     };
 
     [Fact]
-    public void SQLite_dotaz_pouziva_LIMIT()
+    public void SQLite_strankuje_pres_LIMIT_a_OFFSET()
     {
-        using var connection = new SqliteConnection("Data Source=:memory:");
+        var query = new DataQuery { Page = 2, PageSize = 50 };
+        var table = Table(null, "Orders", "Id") with { PrimaryKey = new DbPrimaryKey { Columns = ["Id"] } };
 
+        // Bez ORDER BY není stránkování stabilní, takže se řadí podle primárního klíče.
         Assert.Equal(
-            "SELECT * FROM \"Orders\" LIMIT 50",
-            DataPreviewService.BuildQuery(Table(null, "Orders"), 50, connection));
+            "SELECT * FROM \"Orders\" ORDER BY \"Id\" LIMIT 50 OFFSET 100",
+            DataQueryBuilder.BuildPage(table, query, isSqlite: true).Sql);
     }
 
     [Fact]
-    public void SqlServer_dotaz_pouziva_TOP()
+    public void SqlServer_strankuje_pres_OFFSET_a_FETCH()
     {
-        using var connection = new Microsoft.Data.SqlClient.SqlConnection();
+        var query = new DataQuery { Page = 1, PageSize = 25 };
+        var table = Table("dbo", "Orders", "Id") with { PrimaryKey = new DbPrimaryKey { Columns = ["Id"] } };
 
         Assert.Equal(
-            "SELECT TOP (25) * FROM [dbo].[Orders]",
-            DataPreviewService.BuildQuery(Table("dbo", "Orders"), 25, connection));
+            "SELECT * FROM [dbo].[Orders] ORDER BY [Id] OFFSET 25 ROWS FETCH NEXT 25 ROWS ONLY",
+            DataQueryBuilder.BuildPage(table, query, isSqlite: false).Sql);
+    }
+
+    [Fact]
+    public void Provider_se_pozna_z_pripojeni()
+    {
+        using var sqlite = new SqliteConnection("Data Source=:memory:");
+        using var sqlServer = new Microsoft.Data.SqlClient.SqlConnection();
+
+        Assert.True(DataPreviewService.IsSqlite(sqlite));
+        Assert.False(DataPreviewService.IsSqlite(sqlServer));
     }
 
     [Theory]
@@ -47,7 +60,7 @@ public class DataPreviewQueryTests
     [InlineData(null, "Order\"s", true, "\"Order\"\"s\"")]
     [InlineData("dbo", "Orders", true, "\"Orders\"")]
     public void Jmeno_tabulky_se_escapuje(string? schema, string name, bool isSqlite, string expected) =>
-        Assert.Equal(expected, DataPreviewService.QuoteName(new DbObjectName(schema, name), isSqlite));
+        Assert.Equal(expected, DataQueryBuilder.QuoteName(new DbObjectName(schema, name), isSqlite));
 
     [Fact]
     public void Hodnoty_se_prevedou_na_text()
@@ -88,7 +101,9 @@ public class DataPreviewQueryTests
         await app.ExecuteAsync(
             "INSERT INTO Customers (Email, DisplayName, CreatedAt) VALUES ('tajne@x.cz', 'Adam', '2026-01-01')");
 
-        var response = await app.Client.GetAsync("/dbschema/api/tables/-/Customers/rows");
+        var response = await app.Client.PostAsJsonAsync(
+            "/dbschema/api/tables/-/Customers/rows", new DataQuery());
+
         var json = await response.Content.ReadAsStringAsync();
 
         Assert.DoesNotContain("tajne@x.cz", json, StringComparison.Ordinal);
@@ -129,7 +144,9 @@ public class DataPreviewQueryTests
         Assert.Equal(2, result.Rows.Count);
         Assert.Equal(["Id", "Nazev"], result.Columns.ToList());
         Assert.Empty(result.MaskedColumns);
-        Assert.False(result.IsTruncated);
+        Assert.Equal(0, result.Page);
+        Assert.Equal(2, result.TotalRows);
+        Assert.False(result.HasMore);
     }
 
     [Fact]

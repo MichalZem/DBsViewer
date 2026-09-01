@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Json;
 using DbsViewer.Server;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -17,8 +18,9 @@ public class SqlInjectionTests
         await using var app = await DbsViewerApp.StartAsync(o => o.DataPreview.Enabled = true);
 
         // Kdyby se jméno dostalo do dotazu bez ověření, tabulka by zmizela.
-        var response = await app.Client.GetAsync(
-            "/dbschema/api/tables/-/Customers%3B%20DROP%20TABLE%20Orders%3B--/rows");
+        var response = await app.Client.PostAsJsonAsync(
+            "/dbschema/api/tables/-/Customers%3B%20DROP%20TABLE%20Orders%3B--/rows",
+            new DataQuery());
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
 
@@ -63,14 +65,14 @@ public class SqlInjectionTests
     public void Escapovani_odolava_pokusu_o_uzavreni_identifikatoru()
     {
         // SQL Server: uzavírací závorka se zdvojí, takže dotaz nejde předčasně ukončit.
-        var sqlServer = DataPreviewService.QuoteName(
+        var sqlServer = DataQueryBuilder.QuoteName(
             new DbObjectName("dbo", "T]; DROP TABLE Orders;--"), isSqlite: false);
 
         Assert.Equal("[dbo].[T]]; DROP TABLE Orders;--]", sqlServer);
         Assert.Equal(2, sqlServer.Count(c => c == '['));
 
         // SQLite: totéž s dvojitou uvozovkou.
-        var sqlite = DataPreviewService.QuoteName(
+        var sqlite = DataQueryBuilder.QuoteName(
             new DbObjectName(null, "T\"; DROP TABLE Orders;--"), isSqlite: true);
 
         Assert.StartsWith("\"T\"\";", sqlite, StringComparison.Ordinal);
@@ -92,14 +94,17 @@ public class SqlInjectionTests
                 $"INSERT INTO Customers (Email, CreatedAt) VALUES ('u{i}@x.cz', '2026-01-01')");
         }
 
-        // Ani záporný, ani obrovský limit nesmí strop obejít.
-        foreach (var limit in new[] { 999999, -1, 0 })
+        // Ani záporná stránka, ani obrovská velikost nesmí strop obejít.
+        foreach (var pageSize in new[] { 999999, -1, 0 })
         {
-            var response = await app.Client.GetAsync($"/dbschema/api/tables/-/Customers/rows?limit={limit}");
+            var response = await app.Client.PostAsJsonAsync(
+                "/dbschema/api/tables/-/Customers/rows",
+                new DataQuery { PageSize = pageSize, Page = -5 });
+
             var json = await response.Content.ReadAsStringAsync();
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            Assert.Contains("\"limit\":", json, StringComparison.Ordinal);
+            Assert.Contains("\"pageSize\":", json, StringComparison.Ordinal);
             Assert.DoesNotContain("u9@x.cz", json, StringComparison.Ordinal);
         }
     }

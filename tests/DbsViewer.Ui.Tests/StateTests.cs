@@ -361,15 +361,21 @@ public class DbsViewerClientTests
     }
 
     [Fact]
-    public async Task Radky_se_nactou_s_limitem()
+    public async Task Radky_se_nactou_POSTem()
     {
-        var handler = new StubHandler(HttpStatusCode.OK, Json(new RowPreview { Limit = 10 }));
+        // Hledané hodnoty jsou obsah databáze; v adrese by skončily v historii
+        // prohlížeče i v logu serveru, proto chodí tělem požadavku.
+        var handler = new StubHandler(HttpStatusCode.OK, Json(new RowPreview { PageSize = 10 }));
         var client = new DbsViewerClient(
             new HttpClient(handler) { BaseAddress = new Uri("http://test/dbschema/") });
 
-        await client.GetRowsAsync(Vzorek.N("Orders"), 10);
+        var preview = await client.GetRowsAsync(
+            Vzorek.N("Orders"),
+            new DataQuery { Page = 2, PageSize = 10 });
 
-        Assert.Contains("api/tables/-/Orders/rows?limit=10", handler.LastUrl, StringComparison.Ordinal);
+        Assert.Contains("api/tables/-/Orders/rows", handler.LastUrl, StringComparison.Ordinal);
+        Assert.DoesNotContain("?", handler.LastUrl, StringComparison.Ordinal);
+        Assert.Equal(10, preview.PageSize);
     }
 
     [Fact]

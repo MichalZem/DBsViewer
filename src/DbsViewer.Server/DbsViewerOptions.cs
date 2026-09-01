@@ -166,6 +166,20 @@ public sealed class DataPreviewOptions
     /// <summary>Tvrdý strop počtu řádků. Nedá se přenastavit.</summary>
     public const int HardRowLimit = 1000;
 
+    /// <summary>
+    /// Časový limit jednoho dotazu v sekundách.
+    /// </summary>
+    /// <remarks>
+    /// Chrání hlavně <c>COUNT(*)</c>: nad velkou tabulkou s filtrem, který se nedá pokrýt
+    /// indexem, běží klidně desítky sekund a držel by přitom připojení. Když nedoběhne,
+    /// stránka se zobrazí i tak — jen bez celkového počtu.
+    /// </remarks>
+    public int CommandTimeoutSeconds
+    {
+        get;
+        set => field = Math.Clamp(value, 1, 300);
+    } = 30;
+
     /// <summary>Smí se z této tabulky číst?</summary>
     public bool IsAllowed(DbObjectName table)
     {
