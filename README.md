@@ -127,8 +127,8 @@ Spusť aplikaci a otevři v prohlížeči:
 http://localhost:<port>/dbschema
 ```
 
-Uvidíš prohlížečku: vlevo seznam tabulek s hledáním, vpravo detail se záložkami,
-nahoře přepínač na ER diagram a na rozdíly.
+Uvidíš prohlížečku: nahoře přepínač mezi přehledem, seznamem tabulek, ER diagramem
+a rozdíly. V seznamu je vlevo hledání, vpravo detail se záložkami.
 
 Když chceš ověřit jen API:
 
@@ -166,9 +166,19 @@ Záložka **Odkazuje sem** je inverzní pohled na cizí klíče a odpovídá na 
 rozbije, když tuhle tabulku změním". V běžných nástrojích chybí, přitom je při zásahu
 do schématu nejužitečnější.
 
+**Přehled** je vstupní obrazovka do cizí databáze: kolik je tabulek, sloupců, vazeb
+a indexů, které tabulky jsou největší a nejvíc propojené, jaké typy se používají — a sekce
+*Co stojí za pozornost* s tabulkami bez primárního klíče, cizími klíči bez indexu
+a tabulkami, které s ničím nesouvisí. Každé jméno je odkaz do detailu.
+
 **ER diagram.** Tabulky jako uzly, vazby jako hrany s popiskem kardinality. Kaskády mají
 vlastní barvu — je to to, co člověk v cizím schématu hledá nejčastěji. Nepovinné vazby
 jsou přerušované, vazba N:M je jedna hrana místo dvou přes vazební tabulku.
+
+Hrany se vedou kolem tabulek, ne přes ně: trasa se hledá po mřížce v odstupu od okrajů
+uzlů a zatáčky se penalizují, takže vyjde co nejpřímější čára, která nikde nemizí pod
+tabulkou. Vazby mířící do jedné tabulky mají každá vlastní kotvu, aby se šipky neslily
+do jednoho bodu.
 
 **Focus mode** je zapnutý ve výchozím stavu a je to jediný způsob, jak udělat diagram
 se stovkou tabulek čitelný: vyber tabulku a posuvníkem urči, jak daleko od ní se má
@@ -490,8 +500,8 @@ Ukázka vygenerované dokumentace je v [`docs/schema-ukazka.md`](docs/schema-uka
 - **Detekci driftu** — neaplikovaná migrace, ručně přidaný index, sloupec navíc,
   `DeleteBehavior`, které se chová jinak než model tvrdí
 - **Odolnost** — načtení schématu nikdy nespadne, dílčí selhání skončí ve `warnings`
-- **Grafické UI** — prohlížeč tabulek, ER diagram s focus modem, přehled rozdílů,
-  náhled dat, export do Mermaid, DBML a Markdownu
+- **Grafické UI** — přehled databáze, prohlížeč tabulek, ER diagram s focus modem,
+  přehled rozdílů, náhled dat, export do Mermaid, DBML a Markdownu
 
 Zdroje dat:
 

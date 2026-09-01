@@ -96,7 +96,7 @@ public class ViewerTests : TestContext
     {
         var component = Render();
 
-        component.FindAll(".pohledy button").ElementAt(1).Click();
+        Zalozka(component, "Diagram");
 
         Assert.NotEmpty(component.FindAll(".uzel"));
         Assert.Contains("Focus na vybranou tabulku", component.Markup, StringComparison.Ordinal);
@@ -106,7 +106,7 @@ public class ViewerTests : TestContext
     public void Focus_v_diagramu_jde_vypnout()
     {
         var component = Render();
-        component.FindAll(".pohledy button").ElementAt(1).Click();
+        Zalozka(component, "Diagram");
         component.FindAll(".seznam li button").ElementAt(1).Click();
 
         var sFocusem = component.FindAll(".uzel").Count;
@@ -120,7 +120,7 @@ public class ViewerTests : TestContext
     public void Vzdalenost_focusu_jde_menit()
     {
         var component = Render();
-        component.FindAll(".pohledy button").ElementAt(1).Click();
+        Zalozka(component, "Diagram");
         component.FindAll(".seznam li button").ElementAt(1).Click();
 
         component.Find("input[type=range]").Change("0");
@@ -133,7 +133,7 @@ public class ViewerTests : TestContext
     public void Neplatna_vzdalenost_se_ignoruje()
     {
         var component = Render();
-        component.FindAll(".pohledy button").ElementAt(1).Click();
+        Zalozka(component, "Diagram");
 
         component.Find("input[type=range]").Change("nesmysl");
 
@@ -144,7 +144,7 @@ public class ViewerTests : TestContext
     public void Rozbaleni_uzlu_v_diagramu_funguje()
     {
         var component = Render();
-        component.FindAll(".pohledy button").ElementAt(1).Click();
+        Zalozka(component, "Diagram");
 
         component.FindAll(".uzel-prepinac").ElementAt(0).Click();
 
@@ -158,14 +158,14 @@ public class ViewerTests : TestContext
 
         Assert.Equal(0, _server.DiffCalls);
 
-        component.FindAll(".pohledy button").ElementAt(2).Click();
+        Zalozka(component, "Rozdíly");
 
         Assert.Equal(1, _server.DiffCalls);
         Assert.Contains("1 chyb", component.Markup, StringComparison.Ordinal);
 
         // Podruhé se už nenačítají.
-        component.FindAll(".pohledy button").ElementAt(0).Click();
-        component.FindAll(".pohledy button").ElementAt(2).Click();
+        Zalozka(component, "Tabulky");
+        Zalozka(component, "Rozdíly");
         Assert.Equal(1, _server.DiffCalls);
     }
 
@@ -173,7 +173,7 @@ public class ViewerTests : TestContext
     public void Klik_v_rozdilech_prepne_na_detail()
     {
         var component = Render();
-        component.FindAll(".pohledy button").ElementAt(2).Click();
+        Zalozka(component, "Rozdíly");
 
         component.FindAll("button.odkaz").ElementAt(0).Click();
 
@@ -185,8 +185,8 @@ public class ViewerTests : TestContext
     public void Nalez_diffu_zvyrazni_tabulku_v_seznamu()
     {
         var component = Render();
-        component.FindAll(".pohledy button").ElementAt(2).Click();
-        component.FindAll(".pohledy button").ElementAt(0).Click();
+        Zalozka(component, "Rozdíly");
+        Zalozka(component, "Tabulky");
 
         Assert.Single(component.FindAll(".seznam li button.nalez-chyba"));
         Assert.Single(component.FindAll(".seznam li button.nalez-varovani"));
@@ -198,7 +198,7 @@ public class ViewerTests : TestContext
         var component = Render();
         _server.FailDiff = true;
 
-        component.FindAll(".pohledy button").ElementAt(2).Click();
+        Zalozka(component, "Rozdíly");
 
         Assert.Contains("Přístup odepřen", component.Markup, StringComparison.Ordinal);
     }
@@ -210,7 +210,7 @@ public class ViewerTests : TestContext
 
         var component = Render();
 
-        Assert.Equal(2, component.FindAll(".pohledy button").Count);
+        Assert.Equal(3, component.FindAll(".pohledy button").Count);
     }
 
     [Fact]
@@ -536,4 +536,14 @@ public class ViewerTests : TestContext
                     "application/json"),
             });
     }
+
+    /// <summary>
+    /// Klikne na záložku podle jejího názvu. Dřív se hledala podle pořadí, jenže to
+    /// spadlo, jakmile mezi záložky přibyl Přehled.
+    /// </summary>
+    private static void Zalozka(IRenderedComponent<Viewer> component, string popisek) =>
+        component
+            .FindAll(".pohledy button")
+            .First(b => b.TextContent.Contains(popisek, StringComparison.Ordinal))
+            .Click();
 }

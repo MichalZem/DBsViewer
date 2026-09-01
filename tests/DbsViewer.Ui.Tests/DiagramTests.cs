@@ -168,7 +168,7 @@ public class DiagramLayoutTests
     }
 
     [Fact]
-    public void Hrana_ma_lomenou_trasu_i_popisek()
+    public void Hrana_ma_ortogonalni_trasu_i_popisek()
     {
         var tables = new[]
         {
@@ -178,9 +178,20 @@ public class DiagramLayoutTests
 
         var edge = Assert.Single(DiagramLayout.Compute(tables, [Rel("Orders", "Customers")]).Edges);
 
-        Assert.Equal(4, edge.Points.Count);
         Assert.False(edge.IsSelfLoop);
+        Assert.True(edge.Points.Count >= 2);
         Assert.True(edge.LabelAt.X > 0);
+
+        // Každý úsek je vodorovný nebo svislý — šikmá čára by v ER diagramu byla cizí.
+        for (var i = 1; i < edge.Points.Count; i++)
+        {
+            var a = edge.Points[i - 1];
+            var b = edge.Points[i];
+
+            Assert.True(
+                Math.Abs(a.X - b.X) < 0.5 || Math.Abs(a.Y - b.Y) < 0.5,
+                $"Úsek {i} není osově zarovnaný: {a} → {b}");
+        }
     }
 
     [Fact]
@@ -266,6 +277,287 @@ public class DiagramLayoutTests
         Assert.Throws<ArgumentNullException>(() => DiagramLayout.Compute([], null!));
         Assert.Throws<ArgumentNullException>(() => DiagramLayout.VisibleColumns(null!, false));
     }
+
+    [Fact]
+    public void Zadna_hrana_nevede_pres_tabulku()
+    {
+        // Schéma podobné tomu, na kterém se problém projevil: prostřední sloupec tabulek,
+        // přes který vedly vazby ze sousedních vrstev.
+        var tables = new[]
+        {
+            Build.Table("Locations", ["Id"], ["Id"]),
+            Build.Table("Spaces", ["Id", "LocationId"], ["Id"]),
+            Build.Table("Bookings", ["Id", "SpaceId"], ["Id"]),
+            Build.Table("Photos", ["Id", "LocationId", "SpaceId"], ["Id"]),
+            Build.Table("SpaceComponents", ["CompositeSpaceId", "PartSpaceId"], ["CompositeSpaceId"]),
+        };
+
+        var relationships = new[]
+        {
+            Rel("Spaces", "Locations"),
+            Rel("Bookings", "Spaces"),
+            Rel("Photos", "Locations"),
+            Rel("Photos", "Spaces"),
+            Rel("SpaceComponents", "Spaces"),
+        };
+
+        var layout = DiagramLayout.Compute(tables, relationships);
+
+        var obstacles = layout.Nodes
+            .Select(n => new RouteObstacle(n.X, n.Y, n.Width, n.Height))
+            .ToList();
+
+        foreach (var edge in layout.Edges.Where(e => !e.IsSelfLoop))
+        {
+            for (var i = 1; i < edge.Points.Count; i++)
+            {
+                var a = edge.Points[i - 1];
+                var b = edge.Points[i];
+
+                Assert.False(
+                    EdgeRouter.Blocked(a, b, obstacles),
+                    $"Vazba {edge.Relationship.Id} vede úsekem {a} → {b} přes tabulku.");
+            }
+        }
+    }
+
+    [Fact]
+    public void Vazby_do_jedne_tabulky_maji_kazda_svou_kotvu()
+    {
+        // Tři vazby mířící do Spaces. Kdyby všechny šly do středu, šipky by se slily
+        // do jednoho bodu a nešlo by poznat, která odkud vede.
+        var tables = new[]
+        {
+            Build.Table("Spaces", ["Id"], ["Id"]),
+            Build.Table("Bookings", ["Id", "SpaceId"], ["Id"]),
+            Build.Table("Photos", ["Id", "SpaceId"], ["Id"]),
+            Build.Table("Reviews", ["Id", "SpaceId"], ["Id"]),
+        };
+
+        var relationships = new[]
+        {
+            Rel("Bookings", "Spaces"),
+            Rel("Photos", "Spaces"),
+            Rel("Reviews", "Spaces"),
+        };
+
+        var layout = DiagramLayout.Compute(tables, relationships);
+        var cile = layout.Edges.Select(e => Math.Round(e.Points[^1].Y, 2)).ToList();
+
+        Assert.Equal(3, cile.Count);
+        Assert.Equal(cile.Count, cile.Distinct().Count());
+    }
+
+    [Fact]
+    public void Popisek_stoji_kousek_pred_sipkou()
+    {
+        IReadOnlyList<(double X, double Y)> body = [(0, 0), (0, 40), (200, 40)];
+
+        var at = DiagramLayout.LabelPosition(body);
+
+        Assert.Equal(174, at.X);
+        Assert.Equal(40, at.Y);
+    }
+
+    [Fact]
+    public void Popisek_na_kratkem_useku_zustane_na_nem()
+    {
+        // Úsek je kratší než odsazení — popisek nesmí vyjet před jeho začátek.
+        IReadOnlyList<(double X, double Y)> body = [(0, 0), (0, 40), (20, 40)];
+
+        Assert.Equal(10, DiagramLayout.LabelPosition(body).X);
+    }
+
+    [Fact]
+    public void Popisek_u_vazby_zprava_doleva_se_odsadi_opacne()
+    {
+        IReadOnlyList<(double X, double Y)> body = [(200, 0), (200, 40), (0, 40)];
+
+        Assert.Equal(26, DiagramLayout.LabelPosition(body).X);
+    }
+
+    [Fact]
+    public void Popisek_bez_vodorovneho_useku_padne_na_zacatek()
+    {
+        IReadOnlyList<(double X, double Y)> body = [(10, 0), (10, 40)];
+
+        Assert.Equal((10, 0), DiagramLayout.LabelPosition(body));
+    }
+
+    [Fact]
+    public void Popisek_z_null_trasy_je_chyba_argumentu() =>
+        Assert.Throws<ArgumentNullException>(() => DiagramLayout.LabelPosition(null!));
+
+
+    [Fact]
+    public void Popisky_kardinality_se_neprekryvaji()
+    {
+        // Do Spaces míří vazby zleva i zprava; jejich popisky by jinak skončily
+        // na stejném místě jako nečitelné „1:N:M".
+        var tables = new[]
+        {
+            Build.Table("Spaces", ["Id"], ["Id"]),
+            Build.Table("Bookings", ["Id", "SpaceId"], ["Id"]),
+            Build.Table("Photos", ["Id", "SpaceId"], ["Id"]),
+            Build.Table("Reviews", ["Id", "SpaceId"], ["Id"]),
+            Build.Table("SpaceTag", ["SpacesId", "TagsId"], ["SpacesId", "TagsId"]),
+        };
+
+        var relationships = new[]
+        {
+            Rel("Bookings", "Spaces"),
+            Rel("Photos", "Spaces"),
+            Rel("Reviews", "Spaces"),
+            Rel("SpaceTag", "Spaces"),
+        };
+
+        var popisky = DiagramLayout.Compute(tables, relationships).Edges
+            .Select(e => e.LabelAt)
+            .ToList();
+
+        for (var i = 0; i < popisky.Count; i++)
+        {
+            for (var j = i + 1; j < popisky.Count; j++)
+            {
+                var blizko = Math.Abs(popisky[i].X - popisky[j].X) < 44
+                    && Math.Abs(popisky[i].Y - popisky[j].Y) < 14;
+
+                Assert.False(blizko, $"Popisky {popisky[i]} a {popisky[j]} se překrývají.");
+            }
+        }
+    }
+
+
+    [Fact]
+    public void Popisky_na_stejnem_miste_se_rozsunou()
+    {
+        // Tři popisky na jednom bodě; každý musí skončit jinde.
+        var edges = Enumerable
+            .Range(0, 3)
+            .Select(i => new DiagramEdge
+            {
+                Relationship = Rel($"A{i}", "B"),
+                Points = [(0, 100), (100, 100)],
+                LabelAt = (100, 100),
+            })
+            .ToList();
+
+        var rozsunute = DiagramLayout.SpreadLabels(edges);
+
+        var mista = rozsunute.Select(e => e.LabelAt).ToList();
+
+        Assert.Equal(3, mista.Distinct().Count());
+        Assert.Equal([100, 86, 72], mista.Select(m => m.Y));
+    }
+
+
+    [Fact]
+    public void Razeni_ve_vrstve_snizi_krizeni()
+    {
+        // Bez barycentra by se A1→B2 a A2→B1 překřížily jen kvůli abecednímu pořadí.
+        var tables = new[]
+        {
+            Build.Table("Bcil", ["Id"], ["Id"]),
+            Build.Table("Acil", ["Id"], ["Id"]),
+            Build.Table("Zdroj1", ["Id", "CizId"], ["Id"]),
+            Build.Table("Zdroj2", ["Id", "CizId"], ["Id"]),
+        };
+
+        var relationships = new[]
+        {
+            Rel("Zdroj1", "Bcil"),
+            Rel("Zdroj2", "Acil"),
+        };
+
+        var layout = DiagramLayout.Compute(tables, relationships);
+
+        // Vazby vedou vodorovně vedle sebe, ne přes sebe: cíl výš má i zdroj výš.
+        var prvni = layout.Find(new DbObjectName(null, "Zdroj1"))!;
+        var druha = layout.Find(new DbObjectName(null, "Zdroj2"))!;
+        var cil1 = layout.Find(new DbObjectName(null, "Bcil"))!;
+        var cil2 = layout.Find(new DbObjectName(null, "Acil"))!;
+
+        Assert.Equal(prvni.Y < druha.Y, cil1.Y < cil2.Y);
+    }
+
+    [Fact]
+    public void Poradi_ve_vrstve_je_pokazde_stejne()
+    {
+        var tables = new[]
+        {
+            Build.Table("Alfa", ["Id"], ["Id"]),
+            Build.Table("Beta", ["Id"], ["Id"]),
+            Build.Table("Gama", ["Id"], ["Id"]),
+        };
+
+        var layers = DiagramLayout.AssignLayers(tables, []);
+
+        var prvni = DiagramLayout.OrderWithinLayers(tables, layers, []);
+        var druhe = DiagramLayout.OrderWithinLayers(tables, layers, []);
+
+        Assert.Equal(prvni, druhe);
+    }
+
+    [Fact]
+    public void Vazba_mimo_schema_razeni_neovlivni()
+    {
+        var tables = new[] { Build.Table("Alfa", ["Id"], ["Id"]) };
+        var layers = DiagramLayout.AssignLayers(tables, []);
+
+        var poradi = DiagramLayout.OrderWithinLayers(
+            tables, layers, [Rel("Alfa", "Neznama"), Rel("Neznama", "Alfa")]);
+
+        Assert.Equal(0, poradi[new DbObjectName(null, "Alfa")]);
+    }
+
+    [Fact]
+    public void Hrany_se_nepokryvaji_navzajem()
+    {
+        // Tři vazby do jedné tabulky ze sousední vrstvy. Kdyby se vedly po téže lince,
+        // splynuly by v jednu čáru a diagram by lhal o počtu vazeb.
+        var tables = new[]
+        {
+            Build.Table("Cil", ["Id"], ["Id"]),
+            Build.Table("Zdroj1", ["Id", "CizId"], ["Id"]),
+            Build.Table("Zdroj2", ["Id", "CizId"], ["Id"]),
+            Build.Table("Zdroj3", ["Id", "CizId"], ["Id"]),
+        };
+
+        var relationships = new[]
+        {
+            Rel("Zdroj1", "Cil"),
+            Rel("Zdroj2", "Cil"),
+            Rel("Zdroj3", "Cil"),
+        };
+
+        var edges = DiagramLayout.Compute(tables, relationships).Edges;
+
+        for (var i = 0; i < edges.Count; i++)
+        {
+            for (var j = i + 1; j < edges.Count; j++)
+            {
+                foreach (var (a, b) in Useky(edges[i].Points))
+                {
+                    foreach (var (c, d) in Useky(edges[j].Points))
+                    {
+                        Assert.False(
+                            EdgeRouter.Overlaps(a, b, c, d),
+                            $"Úseky {a}→{b} a {c}→{d} splývají.");
+                    }
+                }
+            }
+        }
+    }
+
+    private static IEnumerable<((double X, double Y) A, (double X, double Y) B)> Useky(
+        IReadOnlyList<(double X, double Y)> trasa)
+    {
+        for (var i = 1; i < trasa.Count; i++)
+        {
+            yield return (trasa[i - 1], trasa[i]);
+        }
+    }
+
 }
 
 public class SchemaExporterTests

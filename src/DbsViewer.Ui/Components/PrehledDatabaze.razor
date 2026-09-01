@@ -1,0 +1,250 @@
+@*
+    Úvodní přehled celé databáze. Nejdřív čísla, pak žebříčky a nakonec podněty —
+    v tomhle pořadí se člověk v cizím schématu orientuje: kolik toho je, co je největší,
+    a čeho si všimnout.
+*@
+
+<div class="prehled">
+
+    <section class="prehled-cisla">
+        <div class="karta">
+            <span class="hodnota">@Cestina.Cislo(Summary.TableCount)</span>
+            <span class="popis">@Cestina.Tvar(Summary.TableCount, "tabulka", "tabulky", "tabulek")</span>
+        </div>
+
+        @if (Summary.ViewCount > 0)
+        {
+            <div class="karta">
+                <span class="hodnota">@Cestina.Cislo(Summary.ViewCount)</span>
+                <span class="popis">@Cestina.Tvar(Summary.ViewCount, "pohled", "pohledy", "pohledů")</span>
+            </div>
+        }
+
+        <div class="karta">
+            <span class="hodnota">@Cestina.Cislo(Summary.ColumnCount)</span>
+            <span class="popis">@Cestina.Tvar(Summary.ColumnCount, "sloupec", "sloupce", "sloupců")</span>
+        </div>
+
+        <div class="karta">
+            <span class="hodnota">@Cestina.Cislo(Summary.RelationshipCount)</span>
+            <span class="popis">@Cestina.Tvar(Summary.RelationshipCount, "vazba", "vazby", "vazeb")</span>
+        </div>
+
+        <div class="karta">
+            <span class="hodnota">@Cestina.Cislo(Summary.IndexCount)</span>
+            <span class="popis">@Cestina.Tvar(Summary.IndexCount, "index", "indexy", "indexů")</span>
+        </div>
+
+        @if (Summary.TotalRowEstimate is { } radky)
+        {
+            <div class="karta">
+                <span class="hodnota">@Cestina.Cislo(radky)</span>
+                <span class="popis">@Cestina.Tvar(radky, "řádek", "řádky", "řádků") @(" (odhad)")</span>
+            </div>
+        }
+    </section>
+
+    <section class="prehled-puvod">
+        <dl>
+            <dt>Databáze</dt>
+            <dd>@(Schema.DatabaseName ?? "—")</dd>
+
+            <dt>Zdroj</dt>
+            <dd>@(Schema.SourceName ?? Schema.Provider.ToString())</dd>
+
+            @if (Summary.SchemaCount > 1)
+            {
+                <dt>Schémata</dt>
+                <dd>@string.Join(", ", Summary.BySchema.Select(s => $"{s.Schema ?? "výchozí"} ({s.TableCount})"))</dd>
+            }
+
+            @if (Schema.Migrations.Count > 0)
+            {
+                <dt>Migrace</dt>
+                <dd>@Cestina.Pocet(Schema.Migrations.Count, "aplikovaná", "aplikované", "aplikovaných"), poslední @Schema.Migrations[^1].Id</dd>
+            }
+
+            <dt>Načteno</dt>
+            <dd>@Schema.GeneratedAtUtc.ToLocalTime().ToString("d. M. yyyy H:mm", System.Globalization.CultureInfo.InvariantCulture)</dd>
+        </dl>
+    </section>
+
+    @if (Schema.Warnings.Count > 0)
+    {
+        <section class="prehled-varovani">
+            <h3>Při načítání se nepovedlo přečíst všechno</h3>
+            <ul>
+                @foreach (var warning in Schema.Warnings)
+                {
+                    <li>@warning</li>
+                }
+            </ul>
+        </section>
+    }
+
+    <div class="prehled-sloupce">
+
+        @if (Summary.LargestTables.Count > 0)
+        {
+            <section class="prehled-zebricek">
+                <h3>Největší tabulky</h3>
+                <ul>
+                    @foreach (var item in Summary.LargestTables)
+                    {
+                        <li>
+                            <button class="odkaz" @onclick="() => OnSelect.InvokeAsync(item.Table)">@item.Table.Qualified</button>
+                            <span class="cislo">@Cestina.Radky(item.Value)</span>
+                        </li>
+                    }
+                </ul>
+            </section>
+        }
+
+        @if (Summary.MostConnected.Count > 0)
+        {
+            <section class="prehled-zebricek">
+                <h3>Nejvíc propojené</h3>
+                <ul>
+                    @foreach (var item in Summary.MostConnected)
+                    {
+                        <li>
+                            <button class="odkaz" @onclick="() => OnSelect.InvokeAsync(item.Table)">@item.Table.Qualified</button>
+                            <span class="cislo">@Cestina.Vazby((int)item.Value)</span>
+                        </li>
+                    }
+                </ul>
+            </section>
+        }
+
+        @if (Summary.CommonTypes.Count > 0)
+        {
+            <section class="prehled-zebricek">
+                <h3>Nejčastější typy</h3>
+                <ul>
+                    @foreach (var item in Summary.CommonTypes)
+                    {
+                        <li>
+                            <span class="mono">@item.Type</span>
+                            <span class="cislo">@Cestina.Pocet(item.Count, "sloupec", "sloupce", "sloupců")</span>
+                        </li>
+                    }
+                </ul>
+            </section>
+        }
+    </div>
+
+    <section class="prehled-podnety">
+        <h3>Co stojí za pozornost</h3>
+
+        @if (!MaPodnety)
+        {
+            <p class="ok">✓ Nic nápadného. Každá tabulka má primární klíč, cizí klíče jsou pokryté indexy a nic nestojí stranou.</p>
+        }
+        else
+        {
+            <ul class="podnety">
+                @if (Summary.WithoutPrimaryKey.Count > 0)
+                {
+                    <li>
+                        <strong>Bez primárního klíče</strong>
+                        <span class="vysvetleni">Řádek nejde jednoznačně adresovat; EF s takovou tabulkou umí pracovat jen pro čtení.</span>
+                        @Seznam(Summary.WithoutPrimaryKey)
+                    </li>
+                }
+
+                @if (Summary.UnindexedForeignKeys.Count > 0)
+                {
+                    <li>
+                        <strong>Cizí klíč bez indexu</strong>
+                        <span class="vysvetleni">Při JOINu i při mazání rodiče musí databáze projít celou tabulku. U malých číselníků to nevadí.</span>
+                        <ul class="hodnoty">
+                            @foreach (var item in Summary.UnindexedForeignKeys.Take(ZobrazitNejvyse))
+                            {
+                                <li class="mono">@item</li>
+                            }
+                        </ul>
+                        @Zbytek(Summary.UnindexedForeignKeys.Count)
+                    </li>
+                }
+
+                @if (Summary.Isolated.Count > 0)
+                {
+                    <li>
+                        <strong>Bez vazeb</strong>
+                        <span class="vysvetleni">Tabulka nesouvisí s žádnou jinou — číselník, log, nebo pozůstatek.</span>
+                        @Seznam(Summary.Isolated)
+                    </li>
+                }
+
+                @if (Summary.JoinTableCount > 0)
+                {
+                    <li>
+                        <strong>@Cestina.Pocet(Summary.JoinTableCount, "vazební tabulka", "vazební tabulky", "vazebních tabulek") N:M</strong>
+                        <span class="vysvetleni">Spojují dvě tabulky bez vlastních dat. V diagramu jsou označené odznakem.</span>
+                    </li>
+                }
+            </ul>
+        }
+    </section>
+
+</div>
+
+@code {
+    /// <summary>Kolik položek se ve výpisu ukáže, než se zbytek shrne číslem.</summary>
+    private const int ZobrazitNejvyse = 8;
+
+    /// <summary>Schéma, ze kterého přehled vychází.</summary>
+    [Parameter, EditorRequired]
+    public DatabaseSchema Schema { get; set; } = new();
+
+    /// <summary>Spočítaný souhrn.</summary>
+    [Parameter, EditorRequired]
+    public SchemaSummary Summary { get; set; } = new();
+
+    /// <summary>Kliknutí na tabulku v žebříčku.</summary>
+    [Parameter]
+    public EventCallback<DbObjectName> OnSelect { get; set; }
+
+    private bool MaPodnety =>
+        Summary.WithoutPrimaryKey.Count > 0
+        || Summary.UnindexedForeignKeys.Count > 0
+        || Summary.Isolated.Count > 0
+        || Summary.JoinTableCount > 0;
+
+    private RenderFragment Seznam(IReadOnlyList<DbObjectName> tables) => builder =>
+    {
+        builder.OpenElement(0, "ul");
+        builder.AddAttribute(1, "class", "hodnoty");
+
+        var poradi = 2;
+
+        foreach (var table in tables.Take(ZobrazitNejvyse))
+        {
+            builder.OpenElement(poradi++, "li");
+            builder.OpenElement(poradi++, "button");
+            builder.AddAttribute(poradi++, "class", "odkaz");
+            builder.AddAttribute(poradi++, "onclick",
+                EventCallback.Factory.Create(this, () => OnSelect.InvokeAsync(table)));
+            builder.AddContent(poradi++, table.Qualified);
+            builder.CloseElement();
+            builder.CloseElement();
+        }
+
+        builder.CloseElement();
+
+        if (tables.Count > ZobrazitNejvyse)
+        {
+            builder.AddContent(poradi, Zbytek(tables.Count));
+        }
+    };
+
+    private RenderFragment? Zbytek(int celkem) => celkem <= ZobrazitNejvyse
+        ? null
+        : builder =>
+        {
+            builder.OpenElement(0, "p");
+            builder.AddAttribute(1, "class", "zbytek");
+            builder.AddContent(2, $"a další {Cestina.Pocet(celkem - ZobrazitNejvyse, "položka", "položky", "položek")}");
+            builder.CloseElement();
+        };
+}

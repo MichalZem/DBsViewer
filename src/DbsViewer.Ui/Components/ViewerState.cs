@@ -15,6 +15,9 @@ public enum DetailTab
 /// <summary>Hlavní pohled aplikace.</summary>
 public enum ViewerPane
 {
+    /// <summary>Souhrn celé databáze.</summary>
+    Overview,
+
     /// <summary>Seznam tabulek a detail.</summary>
     Browser,
 
@@ -41,12 +44,16 @@ public sealed class ViewerState
         {
             _schema = value ?? new DatabaseSchema();
             Graph = new Model.SchemaGraph(_schema);
+            Summary = Model.SchemaSummary.From(_schema);
             SelectedTable = null;
             ExpandedNodes.Clear();
         }
     }
 
     public Model.SchemaGraph Graph { get; private set; } = new(new DatabaseSchema());
+
+    /// <summary>Souhrn schématu pro úvodní přehled. Přepočítá se s načtením schématu.</summary>
+    public Model.SchemaSummary Summary { get; private set; } = Model.SchemaSummary.From(new DatabaseSchema());
 
     public Model.ViewerMeta Meta { get; set; } = new();
 

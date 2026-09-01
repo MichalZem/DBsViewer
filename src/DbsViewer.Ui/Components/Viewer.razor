@@ -13,6 +13,9 @@
         <h1>@State.Meta.Title</h1>
 
         <nav class="pohledy">
+            <button class="@Active(ViewerPane.Overview)" @onclick="() => SetPane(ViewerPane.Overview)">
+                Přehled
+            </button>
             <button class="@Active(ViewerPane.Browser)" @onclick="() => SetPane(ViewerPane.Browser)">
                 Tabulky
             </button>
@@ -90,7 +93,11 @@
     {
         <div class="obsah @(State.Pane == ViewerPane.Diagram ? "sirokych" : "")">
 
-            @if (State.Pane == ViewerPane.Diff)
+            @if (State.Pane == ViewerPane.Overview)
+            {
+                <PrehledDatabaze Schema="State.Schema" Summary="State.Summary" OnSelect="SelectFromOverviewAsync" />
+            }
+            else if (State.Pane == ViewerPane.Diff)
             {
                 <DiffPrehled Diff="State.Diff" OnSelect="SelectAsync" />
             }
@@ -287,6 +294,16 @@
         {
             _previewChyba = Describe(ex);
         }
+    }
+
+    /// <summary>
+    /// Kliknutí na tabulku v přehledu. Přepne na seznam — v přehledu samotném
+    /// není detail kam vykreslit.
+    /// </summary>
+    private async Task SelectFromOverviewAsync(DbObjectName table)
+    {
+        State.Pane = ViewerPane.Browser;
+        await SelectAsync(table);
     }
 
     private async Task SelectAsync(DbObjectName table)
