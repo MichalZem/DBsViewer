@@ -186,6 +186,19 @@ public class MigrationOperationDescriberTests
     }
 
     [Fact]
+    public void Odstraneni_indexu_bez_tabulky_nespadne()
+    {
+        // DropIndex je jediná operace, která tabulku znát nemusí — některé providery
+        // ruší index jen podle jména.
+        var zmena = MigrationOperationDescriber.Describe(
+            new DropIndexOperation { Name = "IX_Stary" });
+
+        Assert.Equal(SchemaChangeKind.DropIndex, zmena.Kind);
+        Assert.Null(zmena.Table);
+        Assert.Equal("IX_Stary", zmena.Object);
+    }
+
+    [Fact]
     public void Pridani_ciziho_klice_nese_smer_i_chovani_pri_mazani()
     {
         var zmena = MigrationOperationDescriber.Describe(new AddForeignKeyOperation

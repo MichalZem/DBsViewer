@@ -91,7 +91,10 @@ internal static class MigrationOperationDescriber
         DropIndexOperation op => new DbSchemaChange
         {
             Kind = SchemaChangeKind.DropIndex,
-            Table = Name(op.Schema, op.Table),
+
+            // Jako jediná operace nemusí tabulku znát: index se v některých
+            // providerech ruší jen podle jména.
+            Table = op.Table is { } tabulka ? Name(op.Schema, tabulka) : null,
             Object = op.Name,
             Description = $"Odstraněn index {op.Name}",
         },

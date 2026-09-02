@@ -232,7 +232,7 @@ Viz [ADR-0011](docs/adr/0011-parovani-podle-sloupcu.md).
 **Všech sedm etap je hotových.** Datový model, čtení z EF modelu, živá introspekce obou
 providerů, slučování, diff engine, HTTP API s autorizací a cache, Blazor WASM prohlížečka
 s přehledem databáze, ER diagramem a focus modem, náhled dat, export a `dotnet tool`.
-**1250 testů**, 100 % pokrytí řádků a metod ve všech pěti sadách.
+**1251 testů**, 100 % pokrytí řádků a metod ve všech pěti sadách.
 
 Vydáno jako `0.1.0` na NuGetu; publikuje se přes Trusted Publishing z tagu `v*`.
 
