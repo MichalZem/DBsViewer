@@ -881,7 +881,8 @@ button.hlavni {
 
 .diagram-nastroje .vyrez-popis { color: var(--text-2); font-size: 12px; }
 .diagram-nastroje .vyrez-popis strong { color: var(--text); font-weight: 600; }
-.diagram-nastroje .z-celku { color: var(--text-3); }
+/* Razor mezeru před blokem @if zahodí, takže „z 11“ musí odsadit styl, ne text. */
+.diagram-nastroje .z-celku { color: var(--text-3); margin-left: 0.25rem; }
 
 /* ---------- historie schématu ---------- */
 
