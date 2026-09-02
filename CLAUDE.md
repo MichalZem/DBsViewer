@@ -71,6 +71,8 @@ src/
   DbsViewer.Ui             Blazor WASM prohlížečka. Publish se embeduje do Serveru.
 samples/
   DbsViewer.SampleShop     Ukázkový model pro testy a ověření
+  DbsViewer.SampleMigrations  Model se skutečnými EF migracemi. Snapshoty se nedají
+                           vyrobit v paměti, musí je vygenerovat `dotnet ef`.
 tools/
   DbsViewer.Dump           dotnet tool `dbsview` — výpis, diff a export dokumentace
 tests/
@@ -179,6 +181,14 @@ ze schématu, ne to z požadavku; hodnoty jdou výhradně přes `DbParameter`. S
 ji až v UI by u milionů řádků neprošlo. Bez `ORDER BY` navíc není stránkování stabilní,
 takže se vždycky řadí — bez zvoleného sloupce podle primárního klíče.
 
+**Historie schématu se čte ze snapshotů EF migrací.** Každá migrace nese celý model
+po svém provedení; ten se protáhne stejným `EfModelReader`em jako aktuální schéma,
+takže přehled, tabulky i diagram fungují beze změny. Porovnání dvou verzí dělá stejný
+`SchemaComparer` jako drift proti databázi. Viz [ADR-0014](docs/adr/0014-historie-schematu-z-migraci.md).
+
+**Data se z historické verze číst nedají.** Snapshot popisuje strukturu v minulosti,
+řádky existují jen tady a teď — UI to musí vynutit, ne jen doufat.
+
 **UI nepoužívá JavaScript na nic kromě stahování souboru.** Diagram i jeho layout jsou
 v C#, protože JS interop se v testech komponent nedá spustit.
 Viz [ADR-0012](docs/adr/0012-vlastni-layout-diagramu.md).
@@ -222,7 +232,7 @@ Viz [ADR-0011](docs/adr/0011-parovani-podle-sloupcu.md).
 **Všech sedm etap je hotových.** Datový model, čtení z EF modelu, živá introspekce obou
 providerů, slučování, diff engine, HTTP API s autorizací a cache, Blazor WASM prohlížečka
 s přehledem databáze, ER diagramem a focus modem, náhled dat, export a `dotnet tool`.
-**1058 testů**, 100 % pokrytí řádků a metod ve všech pěti sadách.
+**1250 testů**, 100 % pokrytí řádků a metod ve všech pěti sadách.
 
 Vydáno jako `0.1.0` na NuGetu; publikuje se přes Trusted Publishing z tagu `v*`.
 

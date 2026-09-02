@@ -22,6 +22,12 @@ public static class SchemaComparer
         ArgumentNullException.ThrowIfNull(model);
         ArgumentNullException.ThrowIfNull(database);
 
+        // Tabulka bez schématu v modelu a dbo.Tabulka v databázi jsou tatáž tabulka;
+        // bez srovnání by se hlásila jako chybějící na obou stranách.
+        var vychozi = database.DefaultSchema ?? model.DefaultSchema;
+        model = SchemaNames.Normalize(model, vychozi);
+        database = SchemaNames.Normalize(database, vychozi);
+
         options ??= DiffOptions.Default;
         var findings = new List<DiffFinding>();
 

@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using DbsViewer.TestKit;
 using Bunit;
 using DbsViewer.Analysis;
 using DbsViewer.Ui.Components;
@@ -457,6 +458,32 @@ public class ViewerTests : TestContext
 
         public string LastSchemaUrl { get; private set; } = "";
 
+        /// <summary>Schéma vracené pro historickou verzi, když má být jiné než výchozí.</summary>
+        public DatabaseSchema? BaselineOverride { get; set; }
+
+        public int MigrationDiffCalls { get; private set; }
+
+        public string LastMigrationDiffUrl { get; private set; } = "";
+
+        /// <summary>Migrace, které server vrátí. Prázdné znamená aplikaci bez migrací.</summary>
+        public IReadOnlyList<DbMigration> Migrations { get; set; } =
+        [
+            new DbMigration
+            {
+                Id = "20260101_Zaklad",
+                AppliedInDatabase = true,
+                PresentInAssembly = true,
+                HasSnapshot = true,
+            },
+            new DbMigration
+            {
+                Id = "20260202_Sloupec",
+                AppliedInDatabase = true,
+                PresentInAssembly = true,
+                HasSnapshot = true,
+            },
+        ];
+
         /// <summary>Pozdrží odpověď, aby šel otestovat mezistav načítání.</summary>
         public Task? Wait { get; set; }
 
@@ -492,11 +519,31 @@ public class ViewerTests : TestContext
                 return FailDiff ? Deny() : Json(Vzorek.Diff());
             }
 
+            if (url.Contains("api/migrations/diff", StringComparison.Ordinal))
+            {
+                MigrationDiffCalls++;
+                LastMigrationDiffUrl = url;
+                return Json(Vzorek.Diff());
+            }
+
+            if (url.Contains("api/migrations", StringComparison.Ordinal))
+            {
+                return Json(Migrations);
+            }
+
             if (url.Contains("api/schema", StringComparison.Ordinal))
             {
                 SchemaCalls++;
                 LastSchemaUrl = url;
-                return Json(SchemaOverride ?? Vzorek.Schema());
+
+                // Schéma k migraci má míň tabulek — poznají se tak historické verze.
+                return url.Contains("migration=", StringComparison.Ordinal)
+                    ? Json(BaselineOverride ?? Vzorek.Schema() with
+                    {
+                        Tables = [Vzorek.Schema().Tables[0]],
+                        SourceKind = SchemaSourceKind.MigrationSnapshot,
+                    })
+                    : Json(SchemaOverride ?? Vzorek.Schema());
             }
 
             if (url.Contains("/rows", StringComparison.Ordinal))
@@ -570,6 +617,458 @@ public class ViewerTests : TestContext
 
         // Výběr zůstane, takže je vidět, odkud se člověk vrátil.
         Assert.Single(component.FindAll(".uzel.vybrany"));
+    }
+
+    // ---------- historie schématu ----------
+
+    [Fact]
+    public void Bez_migraci_se_zalozka_historie_nenabizi()
+    {
+        _server.Meta = Vzorek.Meta() with { CanBrowseHistory = false };
+
+        Assert.DoesNotContain("Historie", Render().Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void S_migracemi_zalozka_historie_pribude()
+    {
+        _server.Meta = Vzorek.Meta() with { CanBrowseHistory = true };
+
+        Assert.Contains("Historie", Render().Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Otevreni_historie_nacte_migrace()
+    {
+        _server.Meta = Vzorek.Meta() with { CanBrowseHistory = true };
+
+        var component = Render();
+        Zalozka(component, "Historie");
+
+        Assert.Contains("Zaklad", component.Markup, StringComparison.Ordinal);
+        Assert.Contains("Sloupec", component.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Prepnuti_na_migraci_nacte_historicke_schema()
+    {
+        _server.Meta = Vzorek.Meta() with { CanBrowseHistory = true };
+
+        var component = Render();
+        Zalozka(component, "Historie");
+        component.FindAll(".prepnout").ElementAt(0).Click();
+
+        // Schéma se načte s parametrem migrace, ne podle zdroje.
+        Assert.Contains("migration=", _server.LastSchemaUrl, StringComparison.Ordinal);
+        Assert.Contains("Historická verze", component.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void V_historicke_verzi_se_data_prohlizet_nedaji()
+    {
+        // Snapshot popisuje strukturu v minulosti; řádky existují jen tady a teď.
+        _server.Meta = Vzorek.Meta(canPreview: true) with { CanBrowseHistory = true };
+
+        var component = Render();
+        Zalozka(component, "Historie");
+        component.FindAll(".prepnout").ElementAt(0).Click();
+
+        Zalozka(component, "Tabulky");
+        component.FindAll(".seznam li button").ElementAt(0).Click();
+
+        var dataZalozka = component.FindAll(".zalozky button")
+            .First(b => b.TextContent.Contains("Data", StringComparison.Ordinal));
+
+        Assert.True(dataZalozka.HasAttribute("disabled"));
+    }
+
+    [Fact]
+    public void Navrat_na_aktualni_schema_historii_opusti()
+    {
+        _server.Meta = Vzorek.Meta() with { CanBrowseHistory = true };
+
+        var component = Render();
+        Zalozka(component, "Historie");
+        component.FindAll(".prepnout").ElementAt(0).Click();
+
+        component.Find(".zpet-na-aktualni").Click();
+
+        Assert.DoesNotContain("Historická verze", component.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("migration=", _server.LastSchemaUrl, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Zmena_porovnavanych_verzi_se_promitne_do_dotazu()
+    {
+        _server.Meta = Vzorek.Meta() with { CanBrowseHistory = true };
+
+        var component = Render();
+        Zalozka(component, "Historie");
+
+        // Přepnutí na porovnání od začátku historie.
+        component.FindAll(".porovnani select").ElementAt(0).Change("");
+        component.Find(".porovnani button.hlavni").Click();
+
+        Assert.DoesNotContain("from=", _server.LastMigrationDiffUrl, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Porovnani_verzi_zavola_server()
+    {
+        _server.Meta = Vzorek.Meta() with { CanBrowseHistory = true };
+
+        var component = Render();
+        Zalozka(component, "Historie");
+        component.Find(".porovnani button.hlavni").Click();
+
+        Assert.Equal(1, _server.MigrationDiffCalls);
+        Assert.Contains("to=", _server.LastMigrationDiffUrl, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Selhani_porovnani_verzi_skonci_hlaskou()
+    {
+        _server.Meta = Vzorek.Meta() with { CanBrowseHistory = true };
+
+        var component = Render();
+        Zalozka(component, "Historie");
+
+        _server.Fail = HttpStatusCode.InternalServerError;
+        component.Find(".porovnani button.hlavni").Click();
+
+        Assert.Contains("chyba", component.Markup, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Prepinac_verze_je_videt_i_bez_vybrane_migrace()
+    {
+        // Bez stálého pruhu by nebylo poznat, že se schéma dá prohlížet i zpětně.
+        _server.Meta = Vzorek.Meta() with { CanBrowseHistory = true };
+
+        var component = Render();
+
+        Assert.Single(component.FindAll(".verze-pruh"));
+        Assert.Empty(component.FindAll(".verze-pruh.historicka"));
+        Assert.Contains("Aktuální schéma", component.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Bez_historie_prepinac_verze_neni()
+    {
+        _server.Meta = Vzorek.Meta() with { CanBrowseHistory = false };
+
+        Assert.Empty(Render().FindAll(".verze-pruh"));
+    }
+
+    [Fact]
+    public void Verze_jsou_serazene_od_nejnovejsi()
+    {
+        _server.Meta = Vzorek.Meta() with { CanBrowseHistory = true };
+
+        // První select je výběr zobrazené verze, druhý je základ porovnání.
+        var volby = Render().FindAll(".verze-pruh select").ElementAt(0)
+            .QuerySelectorAll("option").Select(o => o.TextContent.Trim()).ToList();
+
+        // Popisky nesou i to, které migraci aktuální schéma odpovídá.
+        Assert.Equal(3, volby.Count);
+        Assert.StartsWith("Aktuální schéma", volby[0], StringComparison.Ordinal);
+        Assert.Contains("Sloupec", volby[0], StringComparison.Ordinal);
+        Assert.Contains("Sloupec", volby[1], StringComparison.Ordinal);
+        Assert.Equal("Zaklad", volby[2]);
+    }
+
+    [Fact]
+    public void Vyber_verze_v_pruhu_prepne_schema()
+    {
+        _server.Meta = Vzorek.Meta() with { CanBrowseHistory = true };
+
+        var component = Render();
+        component.Find(".verze-pruh select").Change("20260101_Zaklad");
+
+        Assert.Contains("migration=20260101_Zaklad", _server.LastSchemaUrl, StringComparison.Ordinal);
+        Assert.Single(component.FindAll(".verze-pruh.historicka"));
+    }
+
+    [Fact]
+    public void Vyber_aktualniho_schematu_historii_opusti()
+    {
+        _server.Meta = Vzorek.Meta() with { CanBrowseHistory = true };
+
+        var component = Render();
+        component.Find(".verze-pruh select").Change("20260101_Zaklad");
+        component.Find(".verze-pruh select").Change("");
+
+        Assert.Empty(component.FindAll(".verze-pruh.historicka"));
+        Assert.DoesNotContain("migration=", _server.LastSchemaUrl, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Verze_bez_snapshotu_se_vybrat_neda()
+    {
+        // Migrace, jejíž kód už v projektu není, schéma nemá.
+        _server.Meta = Vzorek.Meta() with { CanBrowseHistory = true };
+        _server.Migrations =
+        [
+            new DbMigration
+            {
+                Id = "20251111_Zmizela",
+                AppliedInDatabase = true,
+                PresentInAssembly = false,
+                HasSnapshot = false,
+            },
+        ];
+
+        var component = Render();
+        var volba = component.FindAll(".verze-pruh option").ElementAt(1);
+
+        Assert.True(volba.HasAttribute("disabled"));
+        Assert.Contains("bez schématu", volba.TextContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Prepnuti_verze_zachova_vybranou_tabulku()
+    {
+        // O tohle tu jde: vyberu tabulku, přepnu verzi a vidím tutéž tabulku znovu,
+        // takže poznám, které sloupce přibyly nebo zmizely.
+        _server.Meta = Vzorek.Meta() with { CanBrowseHistory = true };
+
+        var component = Render();
+        component.FindAll(".seznam li button").ElementAt(0).Click();
+
+        var pred = component.Find(".detail-hlavicka h2").TextContent;
+
+        component.Find(".verze-pruh select").Change("20260101_Zaklad");
+
+        Assert.Single(component.FindAll(".detail-hlavicka"));
+        Assert.Equal(pred, component.Find(".detail-hlavicka h2").TextContent);
+    }
+
+    [Fact]
+    public void Prepnuti_verze_zachova_rozbaleny_uzel_v_diagramu()
+    {
+        _server.Meta = Vzorek.Meta() with { CanBrowseHistory = true };
+
+        var component = Render();
+        Zalozka(component, "Diagram");
+
+        // Rozbalí se Customers — jediná tabulka, kterou má i starší verze.
+        var uzly = component.FindAll(".uzel");
+        var index = uzly.Select((u, i) => (u, i))
+            .First(x => x.u.TextContent.Contains("Customers", StringComparison.Ordinal)).i;
+
+        component.FindAll(".uzel-prepinac").ElementAt(index).Click();
+
+        Assert.Contains("−", component.FindAll(".uzel-prepinac").ElementAt(index).TextContent, StringComparison.Ordinal);
+
+        component.Find(".verze-pruh select").Change("20260101_Zaklad");
+
+        // Uzel zůstal rozbalený, takže jdou porovnat sloupce mezi verzemi.
+        Assert.Single(component.FindAll(".uzel-prepinac"));
+        Assert.Contains("−", component.Find(".uzel-prepinac").TextContent, StringComparison.Ordinal);
+    }
+
+    // ---------- vizuální porovnání verzí ----------
+
+    [Fact]
+    public void Bez_porovnani_se_nic_neobarvi()
+    {
+        _server.Meta = Vzorek.Meta() with { CanBrowseHistory = true };
+
+        var component = Render();
+        component.FindAll(".seznam li button").ElementAt(0).Click();
+
+        Assert.Empty(component.FindAll(".zmena-pribylo"));
+        Assert.Empty(component.FindAll(".zmena-ubylo"));
+        Assert.Empty(component.FindAll(".legenda-zmen"));
+    }
+
+    [Fact]
+    public void Porovnani_obarvi_pribyle_i_zmizele_sloupce()
+    {
+        // Historická verze má jen Customers; porovnáním vůči ní se ukáže,
+        // co v aktuálním schématu přibylo.
+        _server.Meta = Vzorek.Meta() with { CanBrowseHistory = true };
+
+        var component = Render();
+        component.FindAll(".verze-pruh select").ElementAt(1).Change("20260101_Zaklad");
+
+        Assert.Single(component.FindAll(".legenda-zmen"));
+
+        // Tabulky, které v základu nebyly, jsou označené jako přibylé.
+        Assert.NotEmpty(component.FindAll(".seznam li button.zmena-pribylo"));
+    }
+
+    [Fact]
+    public void Zmizely_sloupec_zustane_videt_jako_duch()
+    {
+        _server.Meta = Vzorek.Meta() with { CanBrowseHistory = true };
+
+        // Základ má sloupec navíc, který v aktuálním schématu není.
+        _server.BaselineOverride = Vzorek.Schema() with
+        {
+            Tables =
+            [
+                Build.Table("Customers", ["Id", "Email", "Zruseny"], ["Id"]),
+            ],
+        };
+
+        var component = Render();
+        component.FindAll(".verze-pruh select").ElementAt(1).Change("20260101_Zaklad");
+        component.FindAll(".seznam li button").First(b => b.TextContent.Contains("Customers", StringComparison.Ordinal)).Click();
+
+        Assert.Contains("Zruseny", component.Markup, StringComparison.Ordinal);
+        Assert.NotEmpty(component.FindAll("tr.zmena-ubylo"));
+    }
+
+    [Fact]
+    public void Vypnuti_porovnani_obarveni_zrusi()
+    {
+        _server.Meta = Vzorek.Meta() with { CanBrowseHistory = true };
+
+        var component = Render();
+        component.FindAll(".verze-pruh select").ElementAt(1).Change("20260101_Zaklad");
+
+        Assert.Single(component.FindAll(".legenda-zmen"));
+
+        component.FindAll(".verze-pruh select").ElementAt(1).Change("");
+
+        Assert.Empty(component.FindAll(".legenda-zmen"));
+        Assert.Empty(component.FindAll(".zmena-pribylo"));
+    }
+
+    [Fact]
+    public void Porovnani_obarvi_i_diagram()
+    {
+        _server.Meta = Vzorek.Meta() with { CanBrowseHistory = true };
+
+        var component = Render();
+        component.FindAll(".verze-pruh select").ElementAt(1).Change("20260101_Zaklad");
+        Zalozka(component, "Diagram");
+
+        Assert.NotEmpty(component.FindAll(".uzel.zmena-pribylo"));
+    }
+
+    [Fact]
+    public void Selhani_nacteni_zakladu_skonci_hlaskou()
+    {
+        _server.Meta = Vzorek.Meta() with { CanBrowseHistory = true };
+
+        var component = Render();
+        _server.Fail = HttpStatusCode.InternalServerError;
+
+        component.FindAll(".verze-pruh select").ElementAt(1).Change("20260101_Zaklad");
+
+        Assert.Contains("chyba", component.Markup, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(component.FindAll(".legenda-zmen"));
+    }
+
+    [Fact]
+    public void Pruh_ukaze_smer_porovnani()
+    {
+        // Z jednoho dropdownu nešlo poznat, která verze je výchozí a která cílová.
+        _server.Meta = Vzorek.Meta() with { CanBrowseHistory = true };
+
+        var component = Render();
+        component.FindAll(".verze-pruh select").ElementAt(1).Change("20260101_Zaklad");
+
+        var smer = component.Find(".smer-porovnani").TextContent;
+
+        Assert.Contains("Zaklad", smer, StringComparison.Ordinal);
+        Assert.Contains("→", smer, StringComparison.Ordinal);
+        // Cíl porovnání nese i jméno migrace, které aktuální schéma odpovídá.
+        Assert.Contains("aktuální", smer, StringComparison.Ordinal);
+        Assert.Contains("Sloupec", smer, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Smer_porovnani_nese_i_zobrazenou_historickou_verzi()
+    {
+        _server.Meta = Vzorek.Meta() with { CanBrowseHistory = true };
+
+        var component = Render();
+        component.FindAll(".verze-pruh select").ElementAt(0).Change("20260202_Sloupec");
+        component.FindAll(".verze-pruh select").ElementAt(1).Change("20260101_Zaklad");
+
+        var smer = component.Find(".smer-porovnani").TextContent;
+
+        Assert.Contains("Zaklad", smer, StringComparison.Ordinal);
+        Assert.Contains("Sloupec", smer, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Popisek_vyberu_rika_smer()
+    {
+        _server.Meta = Vzorek.Meta() with { CanBrowseHistory = true };
+
+        // „Porovnat vůči" nechávalo směr na domyšlení; „Co se změnilo od" ne.
+        Assert.Contains("Co se změnilo od", Render().Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Aktualni_schema_nese_jmeno_odpovidajici_migrace()
+    {
+        // Samotné „Aktuální schéma" nestačilo: stálo v seznamu vedle jmen migrací
+        // a nebylo poznat, které z nich odpovídá.
+        _server.Meta = Vzorek.Meta() with { CanBrowseHistory = true };
+
+        var volba = Render().FindAll(".verze-pruh select").ElementAt(0)
+            .QuerySelectorAll("option").ElementAt(0).TextContent.Trim();
+
+        Assert.Contains("Aktuální schéma", volba, StringComparison.Ordinal);
+        Assert.Contains("Sloupec", volba, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Cekajici_migrace_aktualnimu_schematu_neodpovida()
+    {
+        // Migrace v kódu, ale ne v databázi — aktuální schéma se řídí tou poslední
+        // opravdu aplikovanou.
+        _server.Meta = Vzorek.Meta() with { CanBrowseHistory = true };
+        _server.Migrations =
+        [
+            new DbMigration
+            {
+                Id = "20260101_Nasazena",
+                AppliedInDatabase = true,
+                PresentInAssembly = true,
+                HasSnapshot = true,
+            },
+            new DbMigration
+            {
+                Id = "20260202_Ceka",
+                AppliedInDatabase = false,
+                PresentInAssembly = true,
+                HasSnapshot = true,
+            },
+        ];
+
+        var volby = Render().FindAll(".verze-pruh select").ElementAt(0)
+            .QuerySelectorAll("option").Select(o => o.TextContent.Trim()).ToList();
+
+        Assert.Contains("Nasazena", volby[0], StringComparison.Ordinal);
+        Assert.Contains("čeká na nasazení", volby[1], StringComparison.Ordinal);
+        Assert.Contains("= aktuální schéma", volby[2], StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Bez_aplikovanych_migraci_se_jmeno_nedoplnuje()
+    {
+        _server.Meta = Vzorek.Meta() with { CanBrowseHistory = true };
+        _server.Migrations =
+        [
+            new DbMigration
+            {
+                Id = "20260202_Ceka",
+                AppliedInDatabase = false,
+                PresentInAssembly = true,
+                HasSnapshot = true,
+            },
+        ];
+
+        var volba = Render().FindAll(".verze-pruh select").ElementAt(0)
+            .QuerySelectorAll("option").ElementAt(0).TextContent.Trim();
+
+        Assert.Equal("Aktuální schéma", volba);
     }
 
     /// <summary>

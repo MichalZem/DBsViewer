@@ -168,6 +168,27 @@ public class DiagramLayoutTests
     }
 
     [Fact]
+    public void Tabulky_ze_stejneho_schematu_jsou_pohromade()
+    {
+        // V databázi s víc schématy se čtou tabulky po schématech, ne napřeskáčku.
+        var tables = new[]
+        {
+            new DbTable { Name = new DbObjectName("sales", "Orders") },
+            new DbTable { Name = new DbObjectName("hr", "Employees") },
+            new DbTable { Name = new DbObjectName("sales", "Invoices") },
+            new DbTable { Name = new DbObjectName("hr", "Departments") },
+        };
+
+        var poradi = DiagramLayout.Compute(tables, []).Nodes
+            .OrderBy(n => n.Y)
+            .Select(n => n.Table.Name.Schema)
+            .ToList();
+
+        // Nejdřív všechna hr, pak všechna sales — ne střídavě.
+        Assert.Equal(["hr", "hr", "sales", "sales"], poradi);
+    }
+
+    [Fact]
     public void Hrana_ma_ortogonalni_trasu_i_popisek()
     {
         var tables = new[]

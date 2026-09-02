@@ -63,6 +63,18 @@ public sealed record DbMigration
     /// <summary>Migrace čeká na nasazení — je v kódu, ale ne v databázi.</summary>
     public bool IsPending => PresentInAssembly && !AppliedInDatabase;
 
+    /// <summary>
+    /// Změny, které migrace provádí. Prázdné u migrace, jejíž kód už v projektu není —
+    /// z databáze se dá zjistit jen to, že proběhla.
+    /// </summary>
+    public IReadOnlyList<DbSchemaChange> Changes { get; init; } = [];
+
+    /// <summary>
+    /// Jde k této migraci zobrazit schéma? Snapshot nese jen migrace přítomná
+    /// v assembly aplikace.
+    /// </summary>
+    public bool HasSnapshot { get; init; }
+
     /// <summary>Databáze je napřed před kódem — migrace je aplikovaná, ale v assembly chybí.</summary>
     public bool IsOrphaned => AppliedInDatabase && !PresentInAssembly;
 }

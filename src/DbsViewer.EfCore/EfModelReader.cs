@@ -10,9 +10,15 @@ namespace DbsViewer.EfCore;
 /// <summary>
 /// Převod <c>IRelationalModel</c> na <see cref="DatabaseSchema"/>. Čistě v paměti, bez dotazů do databáze.
 /// </summary>
-internal sealed class EfModelReader(DbContext context, SchemaReadOptions options, List<string> warnings)
+internal sealed class EfModelReader(
+    DbContext context,
+    SchemaReadOptions options,
+    List<string> warnings,
+    IModel? model = null)
 {
-    private readonly IModel _model = ResolveModel(context, warnings);
+    // Model se dá podstrčit zvenčí: snapshot migrace je taky IModel, jen nepochází
+    // z kontextu, ale z historie. Bez zadání se vezme design-time model kontextu.
+    private readonly IModel _model = model ?? ResolveModel(context, warnings);
 
     /// <summary>
     /// <c>DbContext.Model</c> je runtime model optimalizovaný pro čtení — EF z něj odstraňuje

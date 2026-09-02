@@ -49,3 +49,4 @@ Drobnosti (přejmenování metody, oprava chyby, doplnění testu) ADR nepotřeb
 | [0011](0011-parovani-podle-sloupcu.md) | Cizí klíče se párují podle sloupců, ne podle jména | Přijato | 2026-08-27 |
 | [0012](0012-vlastni-layout-diagramu.md) | Vlastní layout diagramu v C# místo elkjs | Přijato | 2026-08-28 |
 | [0013](0013-stav-mimo-komponentu.md) | Stav prohlížečky žije mimo komponentu | Přijato | 2026-08-28 |
+| [0014](0014-historie-schematu-z-migraci.md) | Historie schématu ze snapshotů EF migrací | Přijato | 2026-09-02 |

@@ -97,9 +97,28 @@ public static class DbsViewerEndpointRouteBuilderExtensions
         api.MapGet("/schema", async (
             SchemaProvider provider,
             string? source,
+            string? migration,
             bool? refresh,
             CancellationToken cancellationToken) =>
         {
+            // Historická verze má přednost: zadaná migrace určuje, ke kterému okamžiku
+            // se schéma čte, a zdroj pak nedává smysl — snapshot je vždycky z modelu.
+            if (migration is { Length: > 0 })
+            {
+                try
+                {
+                    var snapshot = await provider
+                        .GetAtMigrationAsync(migration, refresh ?? false, cancellationToken)
+                        .ConfigureAwait(false);
+
+                    return Json(snapshot);
+                }
+                catch (InvalidOperationException ex)
+                {
+                    return Results.NotFound(new { chyba = ex.Message });
+                }
+            }
+
             if (!TryParseView(source, out var view))
             {
                 return Results.BadRequest(new { chyba = $"Neznámý pohled '{source}'. Použij ef, live nebo merged." });
@@ -109,6 +128,51 @@ public static class DbsViewerEndpointRouteBuilderExtensions
                 .ConfigureAwait(false);
 
             return Json(schema);
+        });
+
+        // ---------- historie schématu ----------
+
+        api.MapGet("/migrations", async (
+            SchemaProvider provider,
+            CancellationToken cancellationToken) =>
+        {
+            var schema = await provider
+                .GetAsync(provider.DefaultView, cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
+
+            var history = provider.History;
+
+            // Seznam vychází ze schématu, protože jen to ví, které migrace jsou
+            // v databázi skutečně aplikované. Změny a snapshot přidá historie.
+            var migrations = schema.Migrations
+                .Select(m => m with
+                {
+                    Changes = history?.GetChanges(m.Id) ?? [],
+                    HasSnapshot = history?.Has(m.Id) ?? false,
+                })
+                .ToList();
+
+            return Json(migrations);
+        });
+
+        api.MapGet("/migrations/diff", async (
+            SchemaProvider provider,
+            string? from,
+            string to,
+            CancellationToken cancellationToken) =>
+        {
+            try
+            {
+                var diff = await provider
+                    .CompareMigrationsAsync(from, to, cancellationToken)
+                    .ConfigureAwait(false);
+
+                return Json(diff);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.NotFound(new { chyba = ex.Message });
+            }
         });
 
         api.MapGet("/schema/diff", async (
@@ -249,6 +313,11 @@ public sealed record DbsViewerMeta
 
     public required int DataPreviewMaxRows { get; init; }
 
+    /// <summary>
+    /// Dá se procházet historie schématu? Vyžaduje EF migrace v assembly aplikace.
+    /// </summary>
+    public bool CanBrowseHistory { get; init; }
+
     internal static DbsViewerMeta From(SchemaProvider provider, DbsViewerOptions options) => new()
     {
         Title = options.Title ?? "Schéma databáze",
@@ -259,5 +328,6 @@ public sealed record DbsViewerMeta
         ShowRowCounts = options.ShowRowCounts,
         Groups = new Dictionary<string, string>(options.Groups, StringComparer.Ordinal),
         DataPreviewMaxRows = options.DataPreview.MaxRows,
+        CanBrowseHistory = provider.CanBrowseHistory,
     };
 }

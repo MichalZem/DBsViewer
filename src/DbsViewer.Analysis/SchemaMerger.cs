@@ -16,6 +16,12 @@ public static class SchemaMerger
         ArgumentNullException.ThrowIfNull(model);
         ArgumentNullException.ThrowIfNull(database);
 
+        // EF model hlásí tabulku bez explicitního schématu bez něj, databáze ji vrátí
+        // jako dbo.Neco. Bez srovnání by se objevila dvakrát.
+        var vychozi = database.DefaultSchema ?? model.DefaultSchema;
+        model = SchemaNames.Normalize(model, vychozi);
+        database = SchemaNames.Normalize(database, vychozi);
+
         var modelTables = model.Tables.ToDictionary(static t => t.Name);
         var databaseTables = database.Tables.ToDictionary(static t => t.Name);
 

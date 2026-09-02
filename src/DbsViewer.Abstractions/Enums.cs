@@ -11,6 +11,15 @@ public enum SchemaSourceKind
 
     /// <summary>Sloučení obou zdrojů.</summary>
     Merged,
+
+    /// <summary>
+    /// Ze snapshotu migrace — schéma tak, jak vypadalo po jejím provedení.
+    /// </summary>
+    /// <remarks>
+    /// Historická verze. Data se z ní číst nedají: snapshot popisuje strukturu
+    /// v minulosti, kdežto řádky existují jen v databázi tady a teď.
+    /// </remarks>
+    MigrationSnapshot,
 }
 
 /// <summary>Databázový provider, na který se schéma váže.</summary>

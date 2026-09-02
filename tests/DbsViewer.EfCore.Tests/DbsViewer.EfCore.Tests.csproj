@@ -36,6 +36,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\DbsViewer.EfCore\DbsViewer.EfCore.csproj" />
+    <ProjectReference Include="..\..\samples\DbsViewer.SampleMigrations\DbsViewer.SampleMigrations.csproj" />
     <ProjectReference Include="..\..\samples\DbsViewer.SampleShop\DbsViewer.SampleShop.csproj" />
     <ProjectReference Include="..\DbsViewer.TestKit\DbsViewer.TestKit.csproj" />
   </ItemGroup>

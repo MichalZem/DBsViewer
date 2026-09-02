@@ -44,7 +44,9 @@ else
                         && relationship.From != SelectedTable
                         && relationship.To != SelectedTable;
 
-                    <g class="hrana @DeleteClass(relationship.DeleteBehavior) @(prihlusena ? "prihlusena" : "")">
+                    var stavHrany = Overlay.Vazba(relationship);
+
+                    <g class="hrana @DeleteClass(relationship.DeleteBehavior) @(prihlusena ? "prihlusena" : "") @StavTridy(stavHrany)">
                         <path d="@EdgePath.Build(edge.Points)"
                               fill="none"
                               marker-end="url(#sipka)"
@@ -59,13 +61,31 @@ else
                 {
                     var jeVybrany = node.Table.Name == SelectedTable;
                     var zavaznost = SeverityOf?.Invoke(node.Table.Name);
+                    var stavUzlu = Overlay.Tabulka(node.Table.Name);
 
                     <foreignObject x="@Fmt(node.X)" y="@Fmt(node.Y)"
                                    width="@Fmt(node.Width)" height="@Fmt(node.Height)">
-                        <div class="uzel @(jeVybrany ? "vybrany" : "") @SeverityClass(zavaznost)"
+                        <div class="uzel @(jeVybrany ? "vybrany" : "") @SeverityClass(zavaznost) @StavTridy(stavUzlu)"
                              @onclick="() => OnSelect.InvokeAsync(node.Table.Name)">
 
                             <div class="uzel-hlavicka">
+                                @if (StavZnak(stavUzlu) is { Length: > 0 } znakUzlu)
+                                {
+                                    <span class="znacka-zmeny" title="@StavPopis(stavUzlu)">@znakUzlu</span>
+                                }
+
+                                @if (ShowSchemas && node.Table.Name.Schema is { Length: > 0 } schemaName)
+                                {
+                                    @*
+                                        Schéma je součástí jména, ne odznak vedle něj:
+                                        v databázi s dbo.Orders i sales.Orders je „dbo.Orders"
+                                        to, co člověk hledá. Barva pak nechá oko rozeznat
+                                        celou skupinu dřív, než přečte prefix.
+                                    *@
+                                    <span class="uzel-schema" style="@SchemaBarvy.Styl(schemaName)"
+                                          title="Schéma @schemaName">@schemaName<span class="tecka">.</span></span>
+                                }
+
                                 <span class="uzel-jmeno">@node.Table.Name.Name</span>
                                 @if (node.Table.IsJoinTable)
                                 {
@@ -87,7 +107,9 @@ else
                                 @foreach (var column in DiagramLayout.VisibleColumns(
                                     node.Table, IsExpanded(node.Table.Name)))
                                 {
-                                    <div class="uzel-sloupec @(column.IsPrimaryKey ? "pk" : "")">
+                                    var stavSloupce = Overlay.Sloupec(node.Table.Name, column.Name);
+
+                                    <div class="uzel-sloupec @(column.IsPrimaryKey ? "pk" : "") @StavTridy(stavSloupce)">
                                         <span class="klic">@KeyMark(column)</span>
                                         <span class="jmeno">@column.Name</span>
                                         <span class="typ">@column.StoreType</span>
@@ -163,6 +185,45 @@ else
     /// <summary>Uzly zobrazené se všemi sloupci.</summary>
     [Parameter]
     public IReadOnlySet<DbObjectName> Expanded { get; set; } = new HashSet<DbObjectName>();
+
+    /// <summary>
+    /// Vrstva změn oproti porovnávané verzi. Bez porovnání označuje vše jako beze změny.
+    /// </summary>
+    [Parameter]
+    public SchemaOverlay Overlay { get; set; } = SchemaOverlay.None(new DatabaseSchema());
+
+    /// <summary>
+    /// Ukazovat u uzlů jméno databázového schématu. Zapíná se, až když je schémat víc —
+    /// u jediného by štítek jen zabíral místo.
+    /// </summary>
+    [Parameter]
+    public bool ShowSchemas { get; set; }
+
+    /// <summary>CSS třída podle stavu změny.</summary>
+    internal static string StavTridy(ZmenaStav stav) => stav switch
+    {
+        ZmenaStav.Pribylo => "zmena-pribylo",
+        ZmenaStav.Ubylo => "zmena-ubylo",
+        ZmenaStav.Zmeneno => "zmena-zmeneno",
+        _ => "",
+    };
+
+    /// <summary>Znak před jménem tabulky. U nezměněné prázdný.</summary>
+    internal static string StavZnak(ZmenaStav stav) => stav switch
+    {
+        ZmenaStav.Pribylo => "+",
+        ZmenaStav.Ubylo => "−",
+        ZmenaStav.Zmeneno => "~",
+        _ => "",
+    };
+
+    internal static string? StavPopis(ZmenaStav stav) => stav switch
+    {
+        ZmenaStav.Pribylo => "Přibylo oproti porovnávané verzi",
+        ZmenaStav.Ubylo => "V porovnávané verzi bylo, teď už není",
+        ZmenaStav.Zmeneno => "Změnilo se oproti porovnávané verzi",
+        _ => null,
+    };
 
     /// <summary>Závažnost nálezu diffu pro tabulku, pro barevné orámování uzlu.</summary>
     [Parameter]

@@ -219,7 +219,6 @@ body {
 .seznam li button.nalez-chyba { border-left-color: var(--chyba); }
 .seznam li button.nalez-varovani { border-left-color: var(--varovani); }
 
-.seznam .schema { color: var(--text-3); font-size: 11px; }
 .seznam .pocet-sloupcu { margin-left: auto; color: var(--text-3); font-size: 11px; }
 
 /* ---------- hlavní panel ---------- */
@@ -883,3 +882,401 @@ button.hlavni {
 .diagram-nastroje .vyrez-popis { color: var(--text-2); font-size: 12px; }
 .diagram-nastroje .vyrez-popis strong { color: var(--text); font-weight: 600; }
 .diagram-nastroje .z-celku { color: var(--text-3); }
+
+/* ---------- historie schématu ---------- */
+
+/*
+   Přepínač verze schématu. V běžném stavu splývá s okolím a jen nabízí cestu do historie;
+   jakmile je vybraná stará verze, zežloutne, aby nešlo přehlédnout, že data na obrazovce
+   jsou z minulosti.
+*/
+.verze-pruh {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 5px 16px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--linka);
+    font-size: 12px;
+    color: var(--text-2);
+}
+
+.verze-pruh.historicka {
+    background: var(--varovani-svetla);
+    border-bottom-color: var(--varovani);
+}
+
+.verze-pruh .vyber { display: flex; align-items: center; gap: 8px; }
+
+.verze-pruh .stitek {
+    font-weight: 600;
+    color: var(--text-2);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-size: 10px;
+    white-space: nowrap;
+}
+
+.verze-pruh.historicka .stitek {
+    background: var(--varovani);
+    color: var(--pozadi);
+    border-radius: 3px;
+    padding: 1px 7px;
+}
+
+.verze-pruh select {
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--linka);
+    border-radius: 4px;
+    padding: 2px 6px;
+    font: inherit;
+    font-size: 12px;
+    max-width: 260px;
+}
+
+.verze-pruh.historicka select { border-color: var(--varovani); font-weight: 600; }
+
+.verze-pruh .popis { color: var(--text-3); }
+
+.verze-pruh .zpet-na-aktualni {
+    margin-left: auto;
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--linka);
+    border-radius: 4px;
+    padding: 3px 10px;
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.verze-pruh .zpet-na-aktualni:hover { border-color: var(--akcent); color: var(--akcent); }
+
+.historie {
+    grid-column: 1 / -1;
+    overflow: auto;
+    padding: 16px 24px 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.historie-lista .porovnani {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    font-size: 13px;
+    color: var(--text-2);
+}
+
+.historie-lista label { display: flex; align-items: center; gap: 6px; }
+
+.historie-lista select {
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--linka);
+    border-radius: 4px;
+    padding: 3px 6px;
+    font: inherit;
+    font-size: 12px;
+    max-width: 220px;
+}
+
+.historie-diff {
+    background: var(--panel);
+    border: 1px solid var(--linka);
+    border-radius: 8px;
+    padding: 14px 16px;
+}
+
+.historie-diff h3 { margin: 0 0 10px; font-size: 13px; font-weight: 600; }
+
+/* Časová osa: nejnovější nahoře, protože ta zajímá nejčastěji. */
+.casova-osa {
+    list-style: none;
+    margin: 0;
+    padding: 0 0 0 20px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.casova-osa::before {
+    content: "";
+    position: absolute;
+    left: 5px;
+    top: 8px;
+    bottom: 8px;
+    width: 2px;
+    background: var(--linka);
+}
+
+.casova-osa > li { position: relative; }
+
+.casova-osa .bod {
+    position: absolute;
+    left: -19px;
+    top: 12px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--ok);
+    border: 2px solid var(--pozadi);
+}
+
+.casova-osa > li.ceka .bod { background: var(--varovani); }
+.casova-osa > li.osirela .bod { background: var(--text-3); }
+
+.casova-osa .obsah {
+    background: var(--panel);
+    border: 1px solid var(--linka);
+    border-radius: 8px;
+    padding: 10px 14px;
+}
+
+.casova-osa > li.vybrana .obsah {
+    border-color: var(--akcent);
+    box-shadow: 0 0 0 2px var(--akcent-svetly);
+}
+
+.casova-osa .hlavicka {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.casova-osa .jmeno { font-weight: 600; }
+
+.casova-osa .odznak {
+    border-radius: 3px;
+    padding: 1px 7px;
+    font-size: 11px;
+    border: 1px solid currentColor;
+}
+
+.casova-osa .odznak.aplikovana { color: var(--ok); }
+.casova-osa .odznak.ceka { color: var(--varovani); }
+.casova-osa .odznak.osirela { color: var(--text-3); }
+
+.casova-osa .prepnout {
+    margin-left: auto;
+    background: var(--panel);
+    color: var(--akcent);
+    border: 1px solid var(--linka);
+    border-radius: 4px;
+    padding: 2px 10px;
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.casova-osa .prepnout:hover { border-color: var(--akcent); }
+.casova-osa .prepnout.aktivni { background: var(--akcent-svetly); border-color: var(--akcent); }
+
+.casova-osa .bez-snapshotu { margin-left: auto; color: var(--text-3); font-size: 12px; }
+.casova-osa .bez-zmen { margin: 6px 0 0; color: var(--text-3); font-size: 12px; }
+
+.casova-osa .zmeny {
+    list-style: none;
+    margin: 8px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    font-size: 12px;
+}
+
+.casova-osa .zmeny li { display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap; }
+
+.casova-osa .znak {
+    flex: 0 0 12px;
+    font-weight: 700;
+    font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+
+.casova-osa li.pribylo .znak { color: var(--ok); }
+.casova-osa li.ubylo .znak { color: var(--chyba); }
+.casova-osa li.zmeneno .znak { color: var(--varovani); }
+.casova-osa li.neznama .znak { color: var(--text-3); }
+
+.casova-osa .hodnota {
+    color: var(--text-3);
+    font-size: 11px;
+    background: var(--panel-2);
+    border-radius: 3px;
+    padding: 0 5px;
+}
+
+.casova-osa .hodnota.pred { text-decoration: line-through; }
+.casova-osa .sipka { color: var(--text-3); }
+
+.casova-osa .upozorneni {
+    margin: 8px 0 0;
+    color: var(--varovani);
+    font-size: 12px;
+}
+
+/* ---------- vizuální porovnání verzí ---------- */
+
+/*
+   Barvy změn drží stejný význam všude: v seznamu tabulek, v detailu i v diagramu.
+   Zelená přibylo, červená ubylo, žlutá změněno — a co ubylo, je přeškrtnuté,
+   protože barva sama by se v tmavém tématu četla hůř.
+*/
+.znacka-zmeny {
+    display: inline-block;
+    min-width: 11px;
+    font-weight: 700;
+    font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+
+/* --- řádky v mřížce --- */
+
+tr.zmena-pribylo { background: color-mix(in srgb, var(--ok) 12%, transparent); }
+tr.zmena-ubylo { background: color-mix(in srgb, var(--chyba) 12%, transparent); }
+tr.zmena-zmeneno { background: color-mix(in srgb, var(--varovani) 12%, transparent); }
+
+tr.zmena-pribylo .znacka-zmeny { color: var(--ok); }
+tr.zmena-ubylo .znacka-zmeny { color: var(--chyba); }
+tr.zmena-zmeneno .znacka-zmeny { color: var(--varovani); }
+
+/* Co zmizelo, se přeškrtne — barva sama by v tmavém tématu nestačila. */
+tr.zmena-ubylo .jmeno,
+tr.zmena-ubylo .mono { text-decoration: line-through; opacity: 0.75; }
+
+/* --- seznam tabulek --- */
+
+.seznam li button.zmena-pribylo { border-left-color: var(--ok); }
+.seznam li button.zmena-ubylo { border-left-color: var(--chyba); text-decoration: line-through; opacity: 0.7; }
+.seznam li button.zmena-zmeneno { border-left-color: var(--varovani); }
+
+/* --- uzly diagramu --- */
+
+.uzel.zmena-pribylo { border-color: var(--ok); box-shadow: 0 0 0 2px color-mix(in srgb, var(--ok) 25%, transparent); }
+.uzel.zmena-zmeneno { border-color: var(--varovani); }
+
+.uzel.zmena-ubylo {
+    border-color: var(--chyba);
+    border-style: dashed;
+    opacity: 0.6;
+}
+
+.uzel.zmena-ubylo .uzel-jmeno { text-decoration: line-through; }
+
+.uzel .znacka-zmeny { margin-right: 3px; font-size: 12px; }
+.uzel.zmena-pribylo .znacka-zmeny { color: var(--ok); }
+.uzel.zmena-ubylo .znacka-zmeny { color: var(--chyba); }
+.uzel.zmena-zmeneno .znacka-zmeny { color: var(--varovani); }
+
+/* --- sloupce uvnitř uzlů --- */
+
+.uzel-sloupec.zmena-pribylo { background: color-mix(in srgb, var(--ok) 18%, transparent); }
+.uzel-sloupec.zmena-zmeneno { background: color-mix(in srgb, var(--varovani) 18%, transparent); }
+
+.uzel-sloupec.zmena-ubylo {
+    background: color-mix(in srgb, var(--chyba) 18%, transparent);
+    text-decoration: line-through;
+    opacity: 0.75;
+}
+
+/* --- hrany diagramu --- */
+
+.hrana.zmena-pribylo path { stroke: var(--ok); stroke-width: 2; }
+.hrana.zmena-zmeneno path { stroke: var(--varovani); stroke-width: 2; }
+
+.hrana.zmena-ubylo path {
+    stroke: var(--chyba);
+    stroke-width: 2;
+    stroke-dasharray: 2 5;
+    opacity: 0.8;
+}
+
+/* --- legenda v pruhu --- */
+
+.legenda-zmen { display: flex; align-items: center; gap: 6px; font-size: 11px; }
+
+.legenda-zmen .vzorek {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 15px;
+    height: 15px;
+    border-radius: 3px;
+    font-weight: 700;
+    font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+
+.legenda-zmen .vzorek.pribylo { color: var(--ok); background: color-mix(in srgb, var(--ok) 18%, transparent); }
+.legenda-zmen .vzorek.ubylo { color: var(--chyba); background: color-mix(in srgb, var(--chyba) 18%, transparent); }
+.legenda-zmen .vzorek.zmeneno { color: var(--varovani); background: color-mix(in srgb, var(--varovani) 18%, transparent); }
+
+.verze-pruh .vyber-zakladu { margin-left: 8px; }
+
+/* ---------- databazova schemata ---------- */
+
+/*
+   Schema se pise jako prefix jmena: „dbo.Orders" je to, co clovek v databazi hleda.
+   Barva se pocita z jmena schematu (viz SchemaBarvy), takze je pro totez schema
+   stejna vsude a napric nactenimi. Odstin prijde inline stylem, sytost a svetlost
+   dopocita tenhle stylopis, aby barva drzela ve svetlem i tmavem tematu.
+*/
+.schema-prefix,
+.uzel-schema {
+    color: hsl(var(--schema-odstin, 220) 70% 38%);
+    font-weight: 600;
+}
+
+.schema-prefix .tecka,
+.uzel-schema .tecka { opacity: 0.55; }
+
+/* Ve tmavem tematu by tmavy odstin zanikl v pozadi. */
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .schema-prefix,
+    :root:not([data-theme="light"]) .uzel-schema {
+        color: hsl(var(--schema-odstin, 220) 65% 70%);
+    }
+}
+
+:root[data-theme="dark"] .schema-prefix,
+:root[data-theme="dark"] .uzel-schema {
+    color: hsl(var(--schema-odstin, 220) 65% 70%);
+}
+
+/* V seznamu tabulek se prefix drzi u jmena, ale nesmi ho pretlacit. */
+.seznam .schema-prefix { font-size: 11px; }
+
+.detail-hlavicka h2 .schema-prefix { font-size: 0.8em; }
+
+/* U tabulky, ktera zmizela, jde barva stranou — prednost ma preskrtnuti. */
+.zmena-ubylo .schema-prefix,
+.zmena-ubylo .uzel-schema { opacity: 0.7; }
+
+/* Směr porovnání: „od → do". Bez něj nebylo z jednoho dropdownu poznat,
+   která verze je výchozí a která cílová. */
+.smer-porovnani {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 1px 8px;
+    background: var(--panel-2);
+    border-radius: 4px;
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+.smer-porovnani .sipka { color: var(--text-3); }
+.smer-porovnani .mono { color: var(--text); font-weight: 600; }
+
+.historie-lista .sipka { color: var(--text-3); margin-right: 2px; }
+
+.historie-diff .smer-vysvetleni {
+    margin: -4px 0 10px;
+    color: var(--text-3);
+    font-size: 12px;
+}

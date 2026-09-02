@@ -11,7 +11,15 @@
 else
 {
     <header class="detail-hlavicka">
-        <h2>@Table.Qualified</h2>
+        <h2>
+            @if (Table.Name.Schema is { Length: > 0 } schemaPrefix)
+            {
+                <span class="schema-prefix" style="@SchemaBarvy.Styl(schemaPrefix)"
+                      title="Schéma @schemaPrefix">@schemaPrefix<span class="tecka">.</span></span>
+            }
+
+            @Table.Name.Name
+        </h2>
 
         <div class="odznaky">
             @if (Table.IsView)
@@ -65,6 +73,7 @@ else
         {
             <button class="@(tab == ActiveTab ? "aktivni" : "")"
                     disabled="@(tab == DetailTab.Data && !CanPreviewData)"
+                    title="@TabTitle(tab)"
                     @onclick="() => OnTabChange.InvokeAsync(tab)">
                 @TabLabel(tab)@TabCount(tab)
             </button>
@@ -89,8 +98,13 @@ else
                     <tbody>
                         @foreach (var column in Table.Columns)
                         {
-                            <tr class="@(Highlighted.Contains(column.Name) ? "nalezeno" : "")">
-                                <td class="jmeno">@column.Name</td>
+                            var stav = Overlay.Sloupec(Table.Name, column.Name);
+
+                            <tr class="@(Highlighted.Contains(column.Name) ? "nalezeno" : "") @StavTridy(stav)">
+                                <td class="jmeno">
+                                    <span class="znacka-zmeny" title="@StavPopis(stav)">@StavZnak(stav)</span>
+                                    @column.Name
+                                </td>
                                 <td class="mono">@column.StoreType</td>
                                 <td>@(column.IsNullable ? "ano" : "")</td>
                                 <td class="klic">@KeyMark(column)</td>
@@ -121,7 +135,9 @@ else
                         <tbody>
                             @foreach (var index in Table.Indexes)
                             {
-                                <tr>
+                                var stavIndexu = Overlay.Index(Table.Name, index.Name);
+
+                                <tr class="@StavTridy(stavIndexu)">
                                     <td class="jmeno">@index.Name</td>
                                     <td class="mono">@string.Join(", ", index.Columns)</td>
                                     <td>@(index.IsUnique ? "ano" : "")</td>
@@ -244,6 +260,53 @@ else
 
     [Parameter]
     public bool CanPreviewData { get; set; }
+
+    /// <summary>
+    /// Zobrazuje se historická verze schématu? Data se pak číst nedají — snapshot
+    /// popisuje strukturu v minulosti, kdežto řádky existují jen tady a teď.
+    /// </summary>
+    [Parameter]
+    public bool IsHistorical { get; set; }
+
+    /// <summary>
+    /// Vrstva změn oproti porovnávané verzi. Bez porovnání označuje vše jako beze změny.
+    /// </summary>
+    [Parameter]
+    public SchemaOverlay Overlay { get; set; } = SchemaOverlay.None(new DatabaseSchema());
+
+    /// <summary>CSS třída podle stavu změny. Beze změny nepřidává nic.</summary>
+    internal static string StavTridy(ZmenaStav stav) => stav switch
+    {
+        ZmenaStav.Pribylo => "zmena-pribylo",
+        ZmenaStav.Ubylo => "zmena-ubylo",
+        ZmenaStav.Zmeneno => "zmena-zmeneno",
+        _ => "",
+    };
+
+    /// <summary>Znak před jménem. U nezměněného objektu prázdný, aby řádky nešuměly.</summary>
+    internal static string StavZnak(ZmenaStav stav) => stav switch
+    {
+        ZmenaStav.Pribylo => "+",
+        ZmenaStav.Ubylo => "−",
+        ZmenaStav.Zmeneno => "~",
+        _ => "",
+    };
+
+    /// <summary>Vysvětlení stavu do bublinové nápovědy.</summary>
+    internal static string? StavPopis(ZmenaStav stav) => stav switch
+    {
+        ZmenaStav.Pribylo => "Přibylo oproti porovnávané verzi",
+        ZmenaStav.Ubylo => "V porovnávané verzi bylo, teď už není",
+        ZmenaStav.Zmeneno => "Změnilo se oproti porovnávané verzi",
+        _ => null,
+    };
+
+    /// <summary>Vysvětlení, proč je záložka nedostupná. U dostupné je prázdné.</summary>
+    private string? TabTitle(DetailTab tab) => tab == DetailTab.Data && !CanPreviewData
+        ? IsHistorical
+            ? "Data se dají prohlížet jen v aktuálním schématu — v historické verzi neexistují."
+            : "Náhled dat je vypnutý."
+        : null;
 
     [Parameter]
     public RowPreview? Preview { get; set; }

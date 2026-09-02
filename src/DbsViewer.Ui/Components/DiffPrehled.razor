@@ -31,8 +31,8 @@ else
                         <tr>
                             <th>Objekt</th>
                             <th>Nález</th>
-                            <th>Model</th>
-                            <th>Databáze</th>
+                            <th>@(Historical ? "Starší verze" : "Model")</th>
+                            <th>@(Historical ? "Novější verze" : "Databáze")</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -55,7 +55,7 @@ else
                                         <span>@(finding.Object ?? "schéma")</span>
                                     }
                                 </td>
-                                <td>@finding.Message</td>
+                                <td>@Zprava(finding)</td>
                                 <td class="mono">@(finding.ModelValue ?? "—")</td>
                                 <td class="mono">@(finding.DatabaseValue ?? "—")</td>
                             </tr>
@@ -73,6 +73,53 @@ else
 
     [Parameter]
     public EventCallback<DbObjectName> OnSelect { get; set; }
+
+    /// <summary>
+    /// Porovnávají se dvě verze historie, ne model proti databázi?
+    /// </summary>
+    /// <remarks>
+    /// Nálezy jsou v obou případech stejné, ale slova ne: „sloupec je v databázi, ale
+    /// v modelu není" dává smysl u driftu, kdežto v historii je to prostě „sloupec přibyl".
+    /// Mění se jen popisky; data zůstávají tak, jak je spočítal porovnávač.
+    /// </remarks>
+    [Parameter]
+    public bool Historical { get; set; }
+
+    /// <summary>Popis nálezu. V historii se čte ve směru času.</summary>
+    internal string Zprava(DiffFinding finding)
+    {
+        ArgumentNullException.ThrowIfNull(finding);
+
+        return Historical ? HistorickaZprava(finding.Kind) ?? finding.Message : finding.Message;
+    }
+
+    /// <summary>
+    /// Překlad nálezu do řeči historie. „V modelu" je starší verze, „v databázi"
+    /// novější — porovnávač dostává verze v tomhle pořadí.
+    /// </summary>
+    internal static string? HistorickaZprava(DiffKind kind) => kind switch
+    {
+        DiffKind.TableMissingInModel => "Tabulka přibyla.",
+        DiffKind.TableMissingInDatabase => "Tabulka zanikla.",
+        DiffKind.ColumnMissingInModel => "Sloupec přibyl.",
+        DiffKind.ColumnMissingInDatabase => "Sloupec zanikl.",
+        DiffKind.ColumnTypeMismatch => "Sloupec změnil typ.",
+        DiffKind.ColumnNullabilityMismatch => "Sloupec změnil povinnost.",
+        DiffKind.ColumnLengthMismatch => "Sloupec změnil délku.",
+        DiffKind.ColumnDefaultMismatch => "Sloupec změnil výchozí hodnotu.",
+        DiffKind.IndexMissingInModel => "Index přibyl.",
+        DiffKind.IndexMissingInDatabase => "Index zanikl.",
+        DiffKind.IndexUniquenessMismatch => "Index změnil unikátnost.",
+        DiffKind.IndexColumnsMismatch => "Index změnil sloupce.",
+        DiffKind.PrimaryKeyMismatch => "Primární klíč se změnil.",
+        DiffKind.ForeignKeyMissingInModel => "Cizí klíč přibyl.",
+        DiffKind.ForeignKeyMissingInDatabase => "Cizí klíč zanikl.",
+        DiffKind.ForeignKeyDeleteBehaviorMismatch => "Cizí klíč změnil chování při mazání.",
+        DiffKind.ForeignKeyTargetMismatch => "Cizí klíč změnil cíl.",
+
+        // Stav migrací se mezi dvěma snapshoty neporovnává — původní zpráva sedí.
+        _ => null,
+    };
 
     internal static string SeverityLabel(DiffSeverity severity) => severity switch
     {

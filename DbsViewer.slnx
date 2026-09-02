@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/samples/">
+    <Project Path="samples/DbsViewer.SampleMigrations/DbsViewer.SampleMigrations.csproj" />
     <Project Path="samples/DbsViewer.SampleShop/DbsViewer.SampleShop.csproj" />
   </Folder>
   <Folder Name="/src/">

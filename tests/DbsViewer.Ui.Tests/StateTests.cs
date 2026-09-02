@@ -98,17 +98,97 @@ public class ViewerStateTests
     }
 
     [Fact]
-    public void Nastaveni_schematu_prepocita_graf_a_zrusi_vyber()
+    public void Nastaveni_schematu_zachova_vyber_i_rozbaleni()
     {
+        // Zásadní pro porovnávání verzí okem: po přepnutí na jinou verzi musí zůstat
+        // tatáž tabulka vybraná a stejně rozbalená, jinak se rozdíl ztratí.
         var state = State();
         state.Select(Vzorek.N("Orders"));
         state.ToggleExpanded(Vzorek.N("Orders"));
 
         state.Schema = Vzorek.Schema();
 
+        Assert.Equal(Vzorek.N("Orders"), state.SelectedTable);
+        Assert.Contains(Vzorek.N("Orders"), state.ExpandedNodes);
+        Assert.Equal(4, state.Schema.Tables.Count);
+    }
+
+    [Fact]
+    public void Tabulka_ktera_v_nove_verzi_neni_se_odvybere()
+    {
+        // Detail tabulky, která tehdy neexistovala, by ukazoval nesmysl.
+        var state = State();
+        state.Select(Vzorek.N("Orders"));
+        state.ToggleExpanded(Vzorek.N("Orders"));
+
+        state.Schema = new DatabaseSchema
+        {
+            Tables = [Build.Table("Customers", ["Id"], ["Id"])],
+        };
+
         Assert.Null(state.SelectedTable);
         Assert.Empty(state.ExpandedNodes);
-        Assert.Equal(4, state.Schema.Tables.Count);
+    }
+
+    [Fact]
+    public void Rozbalene_uzly_se_orezou_jen_o_ty_chybejici()
+    {
+        var state = State();
+        state.ToggleExpanded(Vzorek.N("Orders"));
+        state.ToggleExpanded(Vzorek.N("Customers"));
+
+        state.Schema = new DatabaseSchema
+        {
+            Tables = [Build.Table("Customers", ["Id"], ["Id"])],
+        };
+
+        Assert.Contains(Vzorek.N("Customers"), state.ExpandedNodes);
+        Assert.DoesNotContain(Vzorek.N("Orders"), state.ExpandedNodes);
+    }
+
+    [Fact]
+    public void Nastaveni_zakladu_zapne_vizualni_porovnani()
+    {
+        var state = State();
+        state.Schema = Vzorek.Schema();
+
+        Assert.False(state.JeVizualniPorovnani);
+
+        state.Baseline = new DatabaseSchema
+        {
+            Tables = [Build.Table("Customers", ["Id"], ["Id"])],
+        };
+
+        Assert.True(state.JeVizualniPorovnani);
+
+        // Zobrazené schéma nese i to, co v základu bylo navíc, a stavy změn.
+        Assert.Equal(ZmenaStav.Pribylo, state.Overlay.Tabulka(Vzorek.N("Orders")));
+        Assert.True(state.Overlay.PocetZmen > 0);
+    }
+
+    [Fact]
+    public void Zaklad_porovnani_jde_precist_zpet()
+    {
+        var state = State();
+        var zaklad = new DatabaseSchema { Tables = [Build.Table("Customers", ["Id"], ["Id"])] };
+
+        state.Baseline = zaklad;
+
+        Assert.Same(zaklad, state.Baseline);
+    }
+
+    [Fact]
+    public void Zruseni_zakladu_porovnani_vypne()
+    {
+        var state = State();
+        state.Schema = Vzorek.Schema();
+        state.Baseline = new DatabaseSchema { Tables = [] };
+
+        state.Baseline = null;
+
+        Assert.False(state.JeVizualniPorovnani);
+        Assert.Equal(0, state.Overlay.PocetZmen);
+        Assert.Equal(state.Schema.Tables.Count, state.DisplaySchema.Tables.Count);
     }
 
     [Fact]

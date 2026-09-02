@@ -316,9 +316,11 @@ public static class DiagramLayout
         var vrstvy = tables
             .GroupBy(t => layers[t.Name])
             .OrderBy(static g => g.Key)
-            .Select(static g => g.OrderBy(static t => t.Qualified, StringComparer.OrdinalIgnoreCase)
-                                 .Select(static t => t.Name)
-                                 .ToList())
+            .Select(static g => g
+                .OrderBy(static t => t.Name.Schema ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(static t => t.Qualified, StringComparer.OrdinalIgnoreCase)
+                .Select(static t => t.Name)
+                .ToList())
             .ToList();
 
         var pozice = new Dictionary<DbObjectName, int>();
@@ -340,8 +342,11 @@ public static class DiagramLayout
                     continue;
                 }
 
+                // Schéma je první kritérium: tabulky z jednoho schématu patří k sobě
+                // i za cenu pár křížení navíc, protože tak se v databázi čtou.
                 vrstvy[index] = vrstvy[index]
-                    .OrderBy(n => Barycentrum(n, vrstvy[sousedni]))
+                    .OrderBy(n => n.Schema ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(n => Barycentrum(n, vrstvy[sousedni]))
                     .ThenBy(n => n.Qualified, StringComparer.OrdinalIgnoreCase)
                     .ToList();
 

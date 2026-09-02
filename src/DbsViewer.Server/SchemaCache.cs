@@ -10,7 +10,9 @@ namespace DbsViewer.Server;
 /// </remarks>
 public sealed class SchemaCache(DbsViewerOptions options, TimeProvider timeProvider) : IDisposable
 {
-    private readonly Dictionary<SchemaView, CacheEntry> _entries = [];
+    // Klíčem je řetězec, ne SchemaView: kromě tří pohledů se cachují i snapshoty
+    // jednotlivých migrací, kterých je libovolně mnoho.
+    private readonly Dictionary<string, CacheEntry> _entries = new(StringComparer.Ordinal);
     private readonly SemaphoreSlim _lock = new(1, 1);
 
     /// <summary>
@@ -21,15 +23,27 @@ public sealed class SchemaCache(DbsViewerOptions options, TimeProvider timeProvi
         SchemaView view,
         Func<CancellationToken, Task<DatabaseSchema>> load,
         bool refresh,
+        CancellationToken cancellationToken) =>
+        await GetOrLoadAsync(view.ToString(), load, refresh, cancellationToken).ConfigureAwait(false);
+
+    /// <summary>
+    /// Totéž pod libovolným klíčem — používá se pro snapshoty migrací, kde samotný
+    /// pohled nestačí a je potřeba rozlišit i konkrétní verzi.
+    /// </summary>
+    public async Task<DatabaseSchema> GetOrLoadAsync(
+        string key,
+        Func<CancellationToken, Task<DatabaseSchema>> load,
+        bool refresh,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(load);
+        ArgumentException.ThrowIfNullOrEmpty(key);
 
         await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             if (!refresh
-                && _entries.TryGetValue(view, out var entry)
+                && _entries.TryGetValue(key, out var entry)
                 && entry.ExpiresAt > timeProvider.GetUtcNow())
             {
                 return entry.Schema;
@@ -39,7 +53,7 @@ public sealed class SchemaCache(DbsViewerOptions options, TimeProvider timeProvi
 
             if (options.CacheFor > TimeSpan.Zero)
             {
-                _entries[view] = new CacheEntry(schema, timeProvider.GetUtcNow() + options.CacheFor);
+                _entries[key] = new CacheEntry(schema, timeProvider.GetUtcNow() + options.CacheFor);
             }
 
             return schema;

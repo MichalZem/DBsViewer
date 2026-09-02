@@ -410,7 +410,11 @@ public class TableDetailTests : TestContext
     {
         var component = RenderComponent<TableDetail>(p => p.Add(x => x.Table, Table()));
 
-        Assert.Contains("dbo.Orders", component.Markup, StringComparison.Ordinal);
+        // Schéma je barevný prefix ve vlastním elementu, takže se v markupu
+        // se jménem nespojí — čtou se odděleně.
+        Assert.Contains("dbo", component.Markup, StringComparison.Ordinal);
+        Assert.Contains("Orders", component.Markup, StringComparison.Ordinal);
+        Assert.Equal("dbo.Orders", component.Find(".detail-hlavicka h2").TextContent.Trim());
         Assert.Contains("Objednávky", component.Markup, StringComparison.Ordinal);
         Assert.Contains("Order", component.Markup, StringComparison.Ordinal);
         Assert.Contains("TPH: Typ", component.Markup, StringComparison.Ordinal);
@@ -1028,6 +1032,129 @@ public class DataNahledTests : TestContext
             new DbColumn { Name = "Nazev", Ordinal = 2, StoreType = "nvarchar" },
         ],
     };
+
+    // ---------- označení změn ----------
+
+    [Theory]
+    [InlineData(ZmenaStav.Beze, "", "")]
+    [InlineData(ZmenaStav.Pribylo, "zmena-pribylo", "+")]
+    [InlineData(ZmenaStav.Ubylo, "zmena-ubylo", "−")]
+    [InlineData(ZmenaStav.Zmeneno, "zmena-zmeneno", "~")]
+    public void Diagram_ma_pro_kazdy_stav_tridu_i_znak(ZmenaStav stav, string trida, string znak)
+    {
+        Assert.Equal(trida, ErDiagram.StavTridy(stav));
+        Assert.Equal(znak, ErDiagram.StavZnak(stav));
+    }
+
+    [Theory]
+    [InlineData(ZmenaStav.Pribylo, "Přibylo")]
+    [InlineData(ZmenaStav.Ubylo, "teď už není")]
+    [InlineData(ZmenaStav.Zmeneno, "Změnilo se")]
+    public void Diagram_vysvetli_kazdy_stav(ZmenaStav stav, string cast) =>
+        Assert.Contains(cast, ErDiagram.StavPopis(stav)!, StringComparison.Ordinal);
+
+    [Fact]
+    public void Nezmeneny_stav_nema_vysvetleni()
+    {
+        Assert.Null(ErDiagram.StavPopis(ZmenaStav.Beze));
+        Assert.Null(TableDetail.StavPopis(ZmenaStav.Beze));
+    }
+
+    [Theory]
+    [InlineData(ZmenaStav.Beze, "", "")]
+    [InlineData(ZmenaStav.Pribylo, "zmena-pribylo", "+")]
+    [InlineData(ZmenaStav.Ubylo, "zmena-ubylo", "−")]
+    [InlineData(ZmenaStav.Zmeneno, "zmena-zmeneno", "~")]
+    public void Detail_ma_pro_kazdy_stav_tridu_i_znak(ZmenaStav stav, string trida, string znak)
+    {
+        Assert.Equal(trida, TableDetail.StavTridy(stav));
+        Assert.Equal(znak, TableDetail.StavZnak(stav));
+    }
+
+    [Theory]
+    [InlineData(ZmenaStav.Pribylo, "Přibylo")]
+    [InlineData(ZmenaStav.Ubylo, "teď už není")]
+    [InlineData(ZmenaStav.Zmeneno, "Změnilo se")]
+    public void Detail_vysvetli_kazdy_stav(ZmenaStav stav, string cast) =>
+        Assert.Contains(cast, TableDetail.StavPopis(stav)!, StringComparison.Ordinal);
+
+    // ---------- databázová schémata ----------
+
+    [Fact]
+    public void Schema_se_pise_jako_prefix_s_teckou()
+    {
+        var tables = new[] { new DbTable { Name = new DbObjectName("prodej", "Objednavky") } };
+
+        var component = RenderComponent<ErDiagram>(p => p
+            .Add(x => x.Layout, DiagramLayout.Compute(tables, []))
+            .Add(x => x.ShowSchemas, true));
+
+        // V uzlu stojí „prodej.Objednavky", ne odznak vedle jména.
+        Assert.Equal("prodej.", component.Find(".uzel-schema").TextContent);
+        Assert.Contains("--schema-odstin", component.Find(".uzel-schema").GetAttribute("style")!, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Kazde_schema_ma_svou_barvu()
+    {
+        var tables = new[]
+        {
+            new DbTable { Name = new DbObjectName("prodej", "Objednavky") },
+            new DbTable { Name = new DbObjectName("sklad", "Produkty") },
+        };
+
+        var component = RenderComponent<ErDiagram>(p => p
+            .Add(x => x.Layout, DiagramLayout.Compute(tables, []))
+            .Add(x => x.ShowSchemas, true));
+
+        var styly = component.FindAll(".uzel-schema").Select(e => e.GetAttribute("style")).ToList();
+
+        Assert.Equal(2, styly.Count);
+        Assert.Equal(2, styly.Distinct().Count());
+    }
+
+    [Fact]
+    public void Uzel_ukaze_schema_kdyz_je_jich_vic()
+    {
+        // V databázi s dbo.Orders i sales.Orders by bez štítku nešlo poznat,
+        // který uzel je který.
+        var tables = new[]
+        {
+            new DbTable { Name = new DbObjectName("sales", "Orders") },
+            new DbTable { Name = new DbObjectName("dbo", "Orders") },
+        };
+
+        var component = RenderComponent<ErDiagram>(p => p
+            .Add(x => x.Layout, DiagramLayout.Compute(tables, []))
+            .Add(x => x.ShowSchemas, true));
+
+        Assert.Equal(2, component.FindAll(".uzel-schema").Count);
+        Assert.Contains("sales", component.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void S_jedinym_schematem_se_stitek_neukazuje()
+    {
+        var tables = new[] { new DbTable { Name = new DbObjectName("dbo", "Orders") } };
+
+        var component = RenderComponent<ErDiagram>(p => p
+            .Add(x => x.Layout, DiagramLayout.Compute(tables, []))
+            .Add(x => x.ShowSchemas, false));
+
+        Assert.Empty(component.FindAll(".uzel-schema"));
+    }
+
+    [Fact]
+    public void Tabulky_bez_schematu_stitek_nemaji()
+    {
+        var tables = new[] { new DbTable { Name = new DbObjectName(null, "Orders") } };
+
+        var component = RenderComponent<ErDiagram>(p => p
+            .Add(x => x.Layout, DiagramLayout.Compute(tables, []))
+            .Add(x => x.ShowSchemas, true));
+
+        Assert.Empty(component.FindAll(".uzel-schema"));
+    }
 }
 
 /// <summary>Přehled rozdílů.</summary>
@@ -1129,4 +1256,64 @@ public class DiffPrehledTests : TestContext
         Assert.Equal(label, DiffPrehled.SeverityLabel(severity));
         Assert.Equal(css, DiffPrehled.SeverityClass(severity));
     }
+
+    [Fact]
+    public void Mimo_historii_zustavaji_puvodni_zpravy()
+    {
+        var diff = new SchemaDiff
+        {
+            Findings =
+            [
+                new DiffFinding
+                {
+                    Kind = DiffKind.ColumnMissingInModel,
+                    Severity = DiffSeverity.Warning,
+                    Message = "Sloupec je v databázi, ale v modelu není.",
+                    Table = new DbObjectName(null, "Orders"),
+                },
+            ],
+        };
+
+        var component = RenderComponent<DiffPrehled>(p => p.Add(x => x.Diff, diff));
+
+        Assert.Contains("v modelu není", component.Markup, StringComparison.Ordinal);
+        Assert.Contains("Databáze", component.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Nalezy_o_migracich_se_neprekladaji()
+    {
+        // Stav migrací se mezi dvěma snapshoty neporovnává — původní zpráva sedí.
+        Assert.Null(DiffPrehled.HistorickaZprava(DiffKind.MigrationPending));
+        Assert.Null(DiffPrehled.HistorickaZprava(DiffKind.MigrationOrphaned));
+    }
+
+    [Theory]
+    [InlineData(DiffKind.TableMissingInModel, "Tabulka přibyla.")]
+    [InlineData(DiffKind.TableMissingInDatabase, "Tabulka zanikla.")]
+    [InlineData(DiffKind.ColumnMissingInDatabase, "Sloupec zanikl.")]
+    [InlineData(DiffKind.ColumnTypeMismatch, "Sloupec změnil typ.")]
+    [InlineData(DiffKind.ColumnNullabilityMismatch, "Sloupec změnil povinnost.")]
+    [InlineData(DiffKind.ColumnLengthMismatch, "Sloupec změnil délku.")]
+    [InlineData(DiffKind.ColumnDefaultMismatch, "Sloupec změnil výchozí hodnotu.")]
+    [InlineData(DiffKind.IndexMissingInModel, "Index přibyl.")]
+    [InlineData(DiffKind.IndexMissingInDatabase, "Index zanikl.")]
+    [InlineData(DiffKind.IndexUniquenessMismatch, "Index změnil unikátnost.")]
+    [InlineData(DiffKind.IndexColumnsMismatch, "Index změnil sloupce.")]
+    [InlineData(DiffKind.PrimaryKeyMismatch, "Primární klíč se změnil.")]
+    [InlineData(DiffKind.ForeignKeyMissingInModel, "Cizí klíč přibyl.")]
+    [InlineData(DiffKind.ForeignKeyMissingInDatabase, "Cizí klíč zanikl.")]
+    [InlineData(DiffKind.ForeignKeyDeleteBehaviorMismatch, "Cizí klíč změnil chování při mazání.")]
+    [InlineData(DiffKind.ForeignKeyTargetMismatch, "Cizí klíč změnil cíl.")]
+    public void Kazdy_druh_nalezu_ma_historicke_zneni(DiffKind kind, string expected) =>
+        Assert.Equal(expected, DiffPrehled.HistorickaZprava(kind));
+
+    [Fact]
+    public void Zprava_bez_nalezu_je_chyba_argumentu()
+    {
+        var component = RenderComponent<DiffPrehled>(p => p.Add(x => x.Diff, new SchemaDiff { Findings = [] }));
+
+        Assert.Throws<ArgumentNullException>(() => component.Instance.Zprava(null!));
+    }
+
 }

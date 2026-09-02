@@ -9,6 +9,79 @@
 
 <div class="dbsviewer">
 
+    @if (State.Meta.CanBrowseHistory && State.Migrations.Count > 0)
+    {
+        @*
+            Přepínač verze je vidět pořád, ne jen když se člověk kouká do minulosti.
+            Jinak by nebylo poznat, že se schéma dá prohlížet i zpětně — a cesta zpátky
+            by se hledala hůř než cesta tam.
+        *@
+        <div class="verze-pruh @(State.IsHistorical ? "historicka" : "")">
+            <label class="vyber">
+                <span class="stitek">@(State.IsHistorical ? "Historická verze" : "Verze schématu")</span>
+
+                <select value="@(State.SelectedMigration ?? "")" @onchange="OnVerzeChangedAsync">
+                    @*
+                        Samotné „Aktuální schéma" nestačí: v seznamu verzí stojí vedle
+                        jmen migrací a nebylo poznat, které z nich odpovídá.
+                    *@
+                    <option value="">Aktuální schéma@(PosledniAplikovanaPopis)</option>
+
+                    @foreach (var migrace in VerzeOdNejnovejsi)
+                    {
+                        <option value="@migrace.Id" disabled="@(!migrace.HasSnapshot)">
+                            @HistorieSchematu.Kratce(migrace.Id)@PoznamkaKVerzi(migrace)
+                        </option>
+                    }
+                </select>
+            </label>
+
+            <label class="vyber vyber-zakladu">
+                @*
+                    Popisek říká směr: „co se změnilo od X" — tedy X je výchozí bod
+                    a zobrazená verze je cíl. Bez toho nebylo z jednoho dropdownu poznat,
+                    která strana je která, a člověk si směr domýšlel opačně.
+                *@
+                <span class="stitek">Co se změnilo od</span>
+
+                <select value="@(State.BaselineMigration ?? "")" @onchange="OnPorovnaniChangedAsync">
+                    <option value="">neporovnávat</option>
+
+                    @foreach (var migrace in VerzeOdNejnovejsi.Where(m => m.HasSnapshot))
+                    {
+                        <option value="@migrace.Id">@HistorieSchematu.Kratce(migrace.Id)</option>
+                    }
+                </select>
+            </label>
+
+            @if (State.JeVizualniPorovnani)
+            {
+                <span class="smer-porovnani">
+                    <span class="mono">@(HistorieSchematu.Kratce(State.BaselineMigration) ?? "?")</span>
+                    <span class="sipka">→</span>
+                    <span class="mono">@ZobrazenaVerze</span>
+                </span>
+
+                <span class="legenda-zmen" title="Změny se čtou ve směru šipky">
+                    <span class="vzorek pribylo">+</span> přibylo
+                    <span class="vzorek ubylo">−</span> chybí
+                    <span class="vzorek zmeneno">~</span> jiné
+                </span>
+            }
+            else if (State.IsHistorical)
+            {
+                <span class="popis">Data se v historické verzi prohlížet nedají.</span>
+            }
+
+            @if (State.IsHistorical)
+            {
+                <button class="zpet-na-aktualni" @onclick="ZobrazAktualniAsync">
+                    ← Zpět na aktuální schéma
+                </button>
+            }
+        </div>
+    }
+
     <header class="lista">
         <h1>@State.Meta.Title</h1>
 
@@ -26,6 +99,12 @@
             {
                 <button class="@Active(ViewerPane.Diff)" @onclick="ShowDiffAsync">
                     Rozdíly@(DiffBadge())
+                </button>
+            }
+            @if (State.Meta.CanBrowseHistory)
+            {
+                <button class="@Active(ViewerPane.History)" @onclick="ShowHistoryAsync">
+                    Historie
                 </button>
             }
         </nav>
@@ -93,7 +172,20 @@
     {
         <div class="obsah @(State.Pane == ViewerPane.Diagram ? "sirokych" : "")">
 
-            @if (State.Pane == ViewerPane.Overview)
+            @if (State.Pane == ViewerPane.History)
+            {
+                <HistorieSchematu Migrations="State.Migrations"
+                                  SelectedMigration="@State.SelectedMigration"
+                                  Diff="State.Diff"
+                                  From="@State.CompareFrom"
+                                  To="@State.CompareTo"
+                                  OnSwitch="PrepniNaMigraciAsync"
+                                  OnCompare="PorovnejMigraceAsync"
+                                  OnRangeChange="ZmenRozsahPorovnani"
+                                  OnCloseDiff="() => State.Diff = null"
+                                  OnSelectTable="SelectFromOverviewAsync" />
+            }
+            else if (State.Pane == ViewerPane.Overview)
             {
                 <PrehledDatabaze Schema="State.Schema" Summary="State.Summary" OnSelect="SelectFromOverviewAsync" />
             }
@@ -110,19 +202,23 @@
                            @oninput="OnSearchChanged" />
 
                     @* Po předložce „z" je vždy genitiv plurálu, takže se tu neskloňuje. *@
-                    <p class="pocet">@FilteredTables.Count z @State.Schema.Tables.Count tabulek</p>
+                    <p class="pocet">@FilteredTables.Count z @State.DisplaySchema.Tables.Count tabulek</p>
 
                     <ul>
                         @foreach (var table in FilteredTables)
                         {
+                            var stavTabulky = State.Overlay.Tabulka(table.Name);
+
                             <li>
-                                <button class="@(table.Name == State.SelectedTable ? "vybrana" : "") @SeverityClass(table.Name)"
+                                <button class="@(table.Name == State.SelectedTable ? "vybrana" : "") @SeverityClass(table.Name) @TableDetail.StavTridy(stavTabulky)"
                                         @onclick="() => SelectAsync(table.Name)">
-                                    <span class="jmeno">@table.Name.Name</span>
-                                    @if (table.Name.Schema is { } schema)
+                                    @if (table.Name.Schema is { Length: > 0 } schema)
                                     {
-                                        <span class="schema">@schema</span>
+                                        <span class="schema-prefix" style="@SchemaBarvy.Styl(schema)"
+                                              title="Schéma @schema">@schema<span class="tecka">.</span></span>
                                     }
+
+                                    <span class="jmeno">@table.Name.Name</span>
                                     <span class="pocet-sloupcu">@table.Columns.Count</span>
                                 </button>
                             </li>
@@ -177,6 +273,8 @@
                         <ErDiagram Layout="Layout"
                                    SelectedTable="State.SelectedTable"
                                    Expanded="State.ExpandedNodes"
+                                   Overlay="State.Overlay"
+                                   ShowSchemas="Schemas.Count > 1"
                                    SeverityOf="State.SeverityOf"
                                    OnSelect="SelectAsync"
                                    OnToggleExpand="ToggleExpand" />
@@ -188,7 +286,9 @@
                                      Incoming="Incoming"
                                      Findings="Findings"
                                      Highlighted="Highlighted"
-                                     CanPreviewData="State.Meta.CanPreviewData"
+                                     CanPreviewData="State.Meta.CanPreviewData && !State.IsHistorical"
+                                     IsHistorical="State.IsHistorical"
+                                     Overlay="State.Overlay"
                                      Preview="_preview"
                                      PreviewError="@_previewChyba"
                                      OnTabChange="OnTabChanged"
@@ -262,7 +362,15 @@
                 State.Source = State.Meta.Views[^1];
             }
 
-            State.Schema = await Client.GetSchemaAsync(State.Source, refresh, _cancellation.Token);
+            State.Schema = State.SelectedMigration is { Length: > 0 } migrace
+                ? await Client.GetSchemaAtMigrationAsync(migrace, _cancellation.Token)
+                : await Client.GetSchemaAsync(State.Source, refresh, _cancellation.Token);
+
+            if (State.Meta.CanBrowseHistory && State.Migrations.Count == 0)
+            {
+                State.Migrations = await Client.GetMigrationsAsync(_cancellation.Token);
+            }
+
             _preview = null;
             _previewChyba = null;
         }
@@ -375,6 +483,169 @@
         State.Source = e.Value?.ToString() ?? State.Source;
         State.Diff = null;
         await LoadAsync(refresh: false);
+    }
+
+    /// <summary>Otevře historii a dotáhne seznam migrací, pokud ještě není.</summary>
+    internal async Task ShowHistoryAsync()
+    {
+        State.Pane = ViewerPane.History;
+        State.Diff = null;
+
+        try
+        {
+            if (State.Migrations.Count == 0)
+            {
+                State.Migrations = await Client.GetMigrationsAsync(_cancellation.Token);
+            }
+
+            // Předvyplní se porovnání poslední dvojice — to je nejčastější dotaz.
+            // Musí to být mimo načítání: migrace už mohl dotáhnout LoadAsync.
+            if (State.CompareTo is null && State.Migrations.Count > 0)
+            {
+                State.CompareTo = State.Migrations[^1].Id;
+
+                State.CompareFrom = State.Migrations.Count > 1
+                    ? State.Migrations[^2].Id
+                    : null;
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            State.Error = Describe(ex);
+        }
+    }
+
+    /// <summary>
+    /// Přepne zobrazené schéma na stav po zadané migraci. Zbytek UI se nemění —
+    /// přehled, seznam tabulek i diagram pracují se schématem, ať je z kdykoli.
+    /// </summary>
+    internal async Task PrepniNaMigraciAsync(string migrationId)
+    {
+        State.SelectedMigration = migrationId;
+
+        // Výběr tabulky ani rozbalené uzly se nezahazují — o to tu jde. Přepnutím
+        // na jinou verzi se má změnit schéma, ne to, na co se člověk zrovna dívá.
+        await LoadAsync(refresh: false);
+    }
+
+    /// <summary>
+    /// Verze v pořadí od nejnovější. Migrace chodí ze serveru tak, jak se aplikují,
+    /// ale v přepínači zajímá nejčastěji ta poslední.
+    /// </summary>
+    private IEnumerable<DbMigration> VerzeOdNejnovejsi => State.Migrations.Reverse();
+
+    /// <summary>Jméno právě zobrazené verze — cíl porovnání.</summary>
+    private string ZobrazenaVerze =>
+        HistorieSchematu.Kratce(State.SelectedMigration)
+        ?? (PosledniAplikovana is { } posledni
+            ? $"aktuální ({HistorieSchematu.Kratce(posledni.Id)})"
+            : "aktuální schéma");
+
+    /// <summary>
+    /// Poslední migrace, která je opravdu v databázi — tomu odpovídá aktuální schéma.
+    /// </summary>
+    /// <remarks>
+    /// Čekající migrace se nepočítají: jsou v kódu, ale databáze o nich neví, takže
+    /// se v aktuálním schématu ještě neprojevily.
+    /// </remarks>
+    private DbMigration? PosledniAplikovana =>
+        State.Migrations.LastOrDefault(static m => m.AppliedInDatabase);
+
+    /// <summary>
+    /// Poznámka za jménem migrace v seznamu verzí: která je poslední v databázi
+    /// a která ještě čeká.
+    /// </summary>
+    private string PoznamkaKVerzi(DbMigration migrace)
+    {
+        if (!migrace.HasSnapshot)
+        {
+            return " (bez schématu)";
+        }
+
+        if (migrace.IsPending)
+        {
+            return " (čeká na nasazení)";
+        }
+
+        return migrace.Id == PosledniAplikovana?.Id ? " (= aktuální schéma)" : string.Empty;
+    }
+
+    /// <summary>Doplněk k popisku „Aktuální schéma" se jménem odpovídající migrace.</summary>
+    private string PosledniAplikovanaPopis =>
+        PosledniAplikovana is { } posledni
+            ? $" — po {HistorieSchematu.Kratce(posledni.Id)}"
+            : string.Empty;
+
+    /// <summary>
+    /// Zapnutí nebo vypnutí vizuálního porovnání. Základ se načte celý, protože
+    /// se z něj kreslí i to, co ve zobrazené verzi chybí.
+    /// </summary>
+    private async Task OnPorovnaniChangedAsync(ChangeEventArgs e)
+    {
+        var vybrana = e.Value?.ToString();
+
+        State.BaselineMigration = vybrana is { Length: > 0 } ? vybrana : null;
+
+        if (State.BaselineMigration is not { Length: > 0 } zaklad)
+        {
+            State.Baseline = null;
+            return;
+        }
+
+        try
+        {
+            State.Baseline = await Client.GetSchemaAtMigrationAsync(zaklad, _cancellation.Token);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            State.BaselineMigration = null;
+            State.Baseline = null;
+            State.Error = Describe(ex);
+        }
+    }
+
+    /// <summary>Přepnutí verze z pruhu nahoře. Prázdná hodnota znamená aktuální schéma.</summary>
+    private async Task OnVerzeChangedAsync(ChangeEventArgs e)
+    {
+        var vybrana = e.Value?.ToString();
+
+        if (vybrana is { Length: > 0 })
+        {
+            await PrepniNaMigraciAsync(vybrana);
+            return;
+        }
+
+        await ZobrazAktualniAsync();
+    }
+
+    /// <summary>Vrátí zobrazení na aktuální schéma.</summary>
+    internal async Task ZobrazAktualniAsync()
+    {
+        State.SelectedMigration = null;
+
+        await LoadAsync(refresh: false);
+    }
+
+    internal async Task PorovnejMigraceAsync((string? From, string To) rozsah)
+    {
+        State.CompareFrom = rozsah.From;
+        State.CompareTo = rozsah.To;
+
+        try
+        {
+            State.Diff = await Client.CompareMigrationsAsync(
+                rozsah.From, rozsah.To, _cancellation.Token);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            State.Error = Describe(ex);
+        }
+    }
+
+    private void ZmenRozsahPorovnani((string? From, string? To) rozsah)
+    {
+        State.CompareFrom = rozsah.From;
+        State.CompareTo = rozsah.To;
     }
 
     private void ToggleExport() => _exportOtevreny = !_exportOtevreny;

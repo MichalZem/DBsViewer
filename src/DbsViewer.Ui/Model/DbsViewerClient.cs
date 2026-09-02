@@ -11,6 +11,9 @@ public sealed record ViewerMeta
 
     public string RoutePrefix { get; init; } = "/dbschema";
 
+    /// <summary>Dá se procházet historie schématu podle migrací?</summary>
+    public bool CanBrowseHistory { get; init; }
+
     public IReadOnlyList<string> Views { get; init; } = [];
 
     public bool CanDiff { get; init; }
@@ -160,6 +163,43 @@ public sealed class DbsViewerClient(HttpClient http)
             .ReadFromJsonAsync<RowPreview>(Json, cancellationToken)
             .ConfigureAwait(false)
             ?? new RowPreview();
+    }
+
+    /// <summary>Seznam migrací i s tím, co která změnila.</summary>
+    public Task<IReadOnlyList<DbMigration>> GetMigrationsAsync(
+        CancellationToken cancellationToken = default) =>
+        GetAsync<IReadOnlyList<DbMigration>>("api/migrations", cancellationToken);
+
+    /// <summary>
+    /// Schéma tak, jak vypadalo po zadané migraci. Vrací se stejný tvar jako u aktuálního
+    /// schématu, takže přehled, seznam tabulek i diagram fungují beze změny.
+    /// </summary>
+    public Task<DatabaseSchema> GetSchemaAtMigrationAsync(
+        string migrationId,
+        CancellationToken cancellationToken = default) =>
+        GetAsync<DatabaseSchema>(
+            $"api/schema?migration={Uri.EscapeDataString(migrationId)}",
+            cancellationToken);
+
+    /// <summary>
+    /// Porovná schéma ve dvou bodech historie.
+    /// </summary>
+    /// <param name="from">Starší verze, nebo <c>null</c> pro stav před první migrací.</param>
+    /// <param name="to">Novější verze.</param>
+    /// <param name="cancellationToken">Zrušení operace.</param>
+    public Task<SchemaDiff> CompareMigrationsAsync(
+        string? from,
+        string to,
+        CancellationToken cancellationToken = default)
+    {
+        var url = $"api/migrations/diff?to={Uri.EscapeDataString(to)}";
+
+        if (from is { Length: > 0 })
+        {
+            url += $"&from={Uri.EscapeDataString(from)}";
+        }
+
+        return GetAsync<SchemaDiff>(url, cancellationToken);
     }
 
     /// <summary>Zahodí serverovou cache, aby se schéma načetlo znovu.</summary>

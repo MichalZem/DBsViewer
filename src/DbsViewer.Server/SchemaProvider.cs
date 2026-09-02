@@ -1,4 +1,5 @@
 using DbsViewer.Analysis;
+using DbsViewer.EfCore;
 using Microsoft.Extensions.Logging;
 
 namespace DbsViewer.Server;
@@ -24,7 +25,8 @@ public sealed class SchemaProvider(
     IEnumerable<ISchemaSource> sources,
     DbsViewerOptions options,
     SchemaCache cache,
-    ILogger<SchemaProvider> logger)
+    ILogger<SchemaProvider> logger,
+    MigrationHistoryReader? history = null)
 {
     private readonly List<ISchemaSource> _sources = [.. sources];
 
@@ -108,6 +110,79 @@ public sealed class SchemaProvider(
         var database = await GetAsync(SchemaView.Live, refresh, cancellationToken).ConfigureAwait(false);
 
         return SchemaComparer.Compare(model, database, options.Diff);
+    }
+
+    /// <summary>
+    /// Čtečka historie migrací, nebo <c>null</c>, když aplikace migrace nepoužívá.
+    /// </summary>
+    public MigrationHistoryReader? History => history;
+
+    /// <summary>Dá se historie schématu procházet?</summary>
+    public bool CanBrowseHistory => history is { } h && h.Ids.Count > 0;
+
+    /// <summary>
+    /// Schéma tak, jak vypadalo po zadané migraci.
+    /// </summary>
+    /// <param name="migrationId">Identifikátor migrace.</param>
+    /// <param name="refresh">Obejít cache.</param>
+    /// <param name="cancellationToken">Zrušení operace.</param>
+    public async Task<DatabaseSchema> GetAtMigrationAsync(
+        string migrationId,
+        bool refresh = false,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(migrationId);
+
+        if (history is not { } reader || !reader.Has(migrationId))
+        {
+            throw new InvalidOperationException(
+                $"Migrace {migrationId} není v assembly aplikace, takže k ní schéma neexistuje.");
+        }
+
+        // Snapshot se čte z assembly, ne z databáze, takže je levný — cache je tu
+        // hlavně proto, aby se model neinicializoval při každém překliknutí v UI.
+        return await cache
+            .GetOrLoadAsync(
+                $"migration:{migrationId}",
+                _ =>
+                {
+                    logger.LogInformation(
+                        "DbsViewer načítá schéma ke stavu po migraci {Migration}.",
+                        migrationId);
+
+                    return Task.FromResult(reader.ReadAt(migrationId, options.ToReadOptions()));
+                },
+                refresh,
+                cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Porovná schéma ve dvou bodech historie.
+    /// </summary>
+    /// <param name="fromMigrationId">
+    /// Starší verze, nebo <c>null</c> pro prázdné schéma — pak diff ukáže, co všechno
+    /// do zadané verze vzniklo.
+    /// </param>
+    /// <param name="toMigrationId">Novější verze.</param>
+    /// <param name="cancellationToken">Zrušení operace.</param>
+    public async Task<SchemaDiff> CompareMigrationsAsync(
+        string? fromMigrationId,
+        string toMigrationId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(toMigrationId);
+
+        var stara = fromMigrationId is { Length: > 0 } id
+            ? await GetAtMigrationAsync(id, cancellationToken: cancellationToken).ConfigureAwait(false)
+            : new DatabaseSchema();
+
+        var nova = await GetAtMigrationAsync(toMigrationId, cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+
+        // Použije se tentýž porovnávač jako na drift proti živé databázi. „Model" je
+        // starší verze, „databáze" novější, takže se změny čtou ve směru času.
+        return SchemaComparer.Compare(stara, nova, options.Diff);
     }
 
     /// <summary>Zahodí cache. Volá se po ručním obnovení z UI.</summary>

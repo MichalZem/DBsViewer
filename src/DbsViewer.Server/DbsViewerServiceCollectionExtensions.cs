@@ -29,6 +29,11 @@ public static class DbsViewerServiceCollectionExtensions
         services.AddScoped<ISchemaSource>(provider =>
             new EfCoreModelSchemaSource(provider.GetRequiredService<TContext>()));
 
+        // Historie schématu je dostupná jen s DbContextem — snapshoty leží v assembly
+        // aplikace, ne v databázi. U registrace přes vlastní ISchemaSource proto chybí.
+        services.AddScoped(provider =>
+            new MigrationHistoryReader(provider.GetRequiredService<TContext>()));
+
         if (options.IncludeLiveDatabase)
         {
             services.AddSingleton<DbsViewerLiveSourceFactory>();

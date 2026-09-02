@@ -26,6 +26,9 @@ public enum ViewerPane
 
     /// <summary>Nálezy porovnání modelu s databází.</summary>
     Diff,
+
+    /// <summary>Historie schématu podle migrací.</summary>
+    History,
 }
 
 /// <summary>
@@ -43,11 +46,34 @@ public sealed class ViewerState
         set
         {
             _schema = value ?? new DatabaseSchema();
-            Graph = new Model.SchemaGraph(_schema);
-            Summary = Model.SchemaSummary.From(_schema);
-            SelectedTable = null;
-            ExpandedNodes.Clear();
+            PrepocitejOdvozene();
+            ZachovejKontext();
         }
+    }
+
+    /// <summary>
+    /// Ponechá vybranou tabulku i rozbalené uzly, pokud v novém schématu existují.
+    /// </summary>
+    /// <remarks>
+    /// Zásadní pro porovnávání verzí okem: přepnu se na starší migraci a chci vidět
+    /// **tutéž** tabulku se stejně rozbalenými sloupci, abych poznal, co přibylo nebo
+    /// zmizelo. Kdyby se výběr zahodil, musel bych ho po každém přepnutí hledat znovu
+    /// a rozdíl by se ztratil.
+    ///
+    /// Co v novém schématu není, se zahodí — jinak by detail ukazoval tabulku,
+    /// která tehdy neexistovala.
+    /// </remarks>
+    private void ZachovejKontext()
+    {
+        var znameTabulky = new HashSet<DbObjectName>(
+            Overlay.Schema.Tables.Select(static t => t.Name));
+
+        if (SelectedTable is { } vybrana && !znameTabulky.Contains(vybrana))
+        {
+            SelectedTable = null;
+        }
+
+        ExpandedNodes.RemoveWhere(n => !znameTabulky.Contains(n));
     }
 
     public Model.SchemaGraph Graph { get; private set; } = new(new DatabaseSchema());
@@ -55,16 +81,88 @@ public sealed class ViewerState
     /// <summary>Souhrn schématu pro úvodní přehled. Přepočítá se s načtením schématu.</summary>
     public Model.SchemaSummary Summary { get; private set; } = Model.SchemaSummary.From(new DatabaseSchema());
 
+    private DatabaseSchema? _baseline;
+
+    /// <summary>
+    /// Verze, vůči které se schéma vizuálně porovnává, nebo <c>null</c>, když se
+    /// neporovnává nic.
+    /// </summary>
+    public DatabaseSchema? Baseline
+    {
+        get => _baseline;
+        set
+        {
+            _baseline = value;
+            PrepocitejOdvozene();
+            ZachovejKontext();
+        }
+    }
+
+    /// <summary>Migrace zvolená jako základ porovnání.</summary>
+    public string? BaselineMigration { get; set; }
+
+    /// <summary>
+    /// Vrstva změn nad schématem. Bez porovnání označuje všechno jako beze změny.
+    /// </summary>
+    public Model.SchemaOverlay Overlay { get; private set; } =
+        Model.SchemaOverlay.None(new DatabaseSchema());
+
+    /// <summary>
+    /// Schéma k zobrazení. Při porovnávání obsahuje i objekty, které zmizely —
+    /// jinak by nešlo ukázat, co ubylo.
+    /// </summary>
+    public DatabaseSchema DisplaySchema => Overlay.Schema;
+
+    /// <summary>Porovnává se schéma vůči jiné verzi?</summary>
+    public bool JeVizualniPorovnani => _baseline is not null;
+
+    /// <summary>
+    /// Přepočítá vše, co ze schématu vychází. Graf i souhrn se počítají ze zobrazeného
+    /// schématu, aby seznam tabulek i diagram viděly i duchy.
+    /// </summary>
+    private void PrepocitejOdvozene()
+    {
+        Overlay = _baseline is { } baseline
+            ? Model.SchemaOverlay.Build(baseline, _schema)
+            : Model.SchemaOverlay.None(_schema);
+
+        Graph = new Model.SchemaGraph(Overlay.Schema);
+        Summary = Model.SchemaSummary.From(Overlay.Schema);
+    }
+
     public Model.ViewerMeta Meta { get; set; } = new();
 
     public SchemaDiff? Diff { get; set; }
 
     public ViewerPane Pane { get; set; } = ViewerPane.Browser;
 
+    /// <summary>Porovnávaná starší verze v pohledu historie.</summary>
+    public string? CompareFrom { get; set; }
+
+    /// <summary>Porovnávaná novější verze v pohledu historie.</summary>
+    public string? CompareTo { get; set; }
+
     public DetailTab Tab { get; set; } = DetailTab.Columns;
 
     /// <summary>Vybraný pohled na schéma: <c>ef</c>, <c>live</c> nebo <c>merged</c>.</summary>
     public string Source { get; set; } = "merged";
+
+    /// <summary>
+    /// Migrace, ke které se schéma zobrazuje, nebo <c>null</c> pro aktuální stav.
+    /// </summary>
+    public string? SelectedMigration { get; set; }
+
+    /// <summary>Seznam migrací i s tím, co která změnila.</summary>
+    public IReadOnlyList<DbMigration> Migrations { get; set; } = [];
+
+    /// <summary>
+    /// Kouká se do historie, ne na aktuální schéma?
+    /// </summary>
+    /// <remarks>
+    /// Rozhoduje o tom, co v UI zmizí: data z historické verze číst nejde, protože
+    /// snapshot popisuje strukturu v minulosti, kdežto řádky existují jen tady a teď.
+    /// </remarks>
+    public bool IsHistorical => SelectedMigration is { Length: > 0 };
 
     public string Search { get; set; } = "";
 
@@ -97,7 +195,7 @@ public sealed class ViewerState
     /// <summary>Tabulky po použití všech filtrů.</summary>
     public IReadOnlyList<DbTable> FilteredTables()
     {
-        var tables = Schema.Tables;
+        var tables = DisplaySchema.Tables;
 
         if (SchemaName is { } schemaName)
         {
@@ -130,7 +228,7 @@ public sealed class ViewerState
         // ukazoval prázdno a nebylo by jasné proč.
         allowed.Add(selected);
 
-        return [.. Schema.Tables.Where(t => focused.Contains(t.Name) && allowed.Contains(t.Name))];
+        return [.. DisplaySchema.Tables.Where(t => focused.Contains(t.Name) && allowed.Contains(t.Name))];
     }
 
     /// <summary>Vazby vykreslené v diagramu.</summary>
@@ -143,7 +241,7 @@ public sealed class ViewerState
 
     /// <summary>Detail vybrané tabulky, nebo <c>null</c>.</summary>
     public DbTable? SelectedDetail() =>
-        SelectedTable is { } name ? Schema.FindTable(name) : null;
+        SelectedTable is { } name ? DisplaySchema.FindTable(name) : null;
 
     /// <summary>Přepne rozbalení uzlu v diagramu.</summary>
     public void ToggleExpanded(DbObjectName table)

@@ -1,0 +1,255 @@
+@*
+    Historie schématu podle EF migrací. Každá migrace ukazuje, co změnila, a dá se na ni
+    přepnout — prohlížečka pak zobrazí schéma tak, jak vypadalo v tom okamžiku.
+*@
+
+@if (Migrations.Count == 0)
+{
+    <p class="prazdno">
+        Aplikace nepoužívá EF migrace, takže historie schématu není z čeho sestavit.
+    </p>
+}
+else
+{
+    <div class="historie">
+
+        <header class="historie-lista">
+            <div class="porovnani">
+                @*
+                    Stejná slova jako v pruhu nahoře: „co se změnilo od X do Y".
+                    Dvě různá porovnání se dvěma různými popisky byla past.
+                *@
+                <label>
+                    Co se změnilo od
+                    <select value="@From" @onchange="ZmenOdAsync">
+                        <option value="">před první migrací</option>
+                        @foreach (var m in Migrations)
+                        {
+                            <option value="@m.Id">@Kratce(m.Id)</option>
+                        }
+                    </select>
+                </label>
+
+                <label>
+                    <span class="sipka">→</span> do
+                    <select value="@To" @onchange="ZmenDoAsync">
+                        @foreach (var m in Migrations)
+                        {
+                            <option value="@m.Id">@Kratce(m.Id)</option>
+                        }
+                    </select>
+                </label>
+
+                <button class="hlavni" disabled="@(To is null or "")" @onclick="PorovnejAsync">
+                    Porovnat
+                </button>
+
+                @if (Diff is not null)
+                {
+                    <button class="odkaz" @onclick="ZavriPorovnani">Zavřít porovnání</button>
+                }
+            </div>
+        </header>
+
+        @if (Diff is { } rozdil)
+        {
+            <section class="historie-diff">
+                <h3>
+                    Co se změnilo od <span class="mono">@(Kratce(From) ?? "začátku historie")</span>
+                    <span class="sipka">→</span> do <span class="mono">@Kratce(To)</span>
+                </h3>
+
+                <p class="smer-vysvetleni">
+                    Nálezy se čtou ve směru času: co je uvedené jako přibylé,
+                    v té starší verzi ještě nebylo.
+                </p>
+
+                <DiffPrehled Diff="rozdil" OnSelect="OnSelectTable" Historical="true" />
+            </section>
+        }
+
+        <ol class="casova-osa">
+            @foreach (var migrace in Migrations.Reverse())
+            {
+                var vybrana = migrace.Id == SelectedMigration;
+
+                <li class="@StavTridy(migrace) @(vybrana ? "vybrana" : "")">
+                    <div class="bod"></div>
+
+                    <div class="obsah">
+                        <header class="hlavicka">
+                            <span class="jmeno">@Kratce(migrace.Id)</span>
+                            <span class="odznak @StavTridy(migrace)">@StavPopis(migrace)</span>
+
+                            @if (migrace.HasSnapshot)
+                            {
+                                <button class="prepnout @(vybrana ? "aktivni" : "")"
+                                        title="Zobrazit schéma po této migraci"
+                                        @onclick="() => PrepniAsync(migrace.Id)">
+                                    @(vybrana ? "✓ zobrazeno" : "Zobrazit schéma")
+                                </button>
+                            }
+                            else
+                            {
+                                <span class="bez-snapshotu" title="Kód migrace v projektu není">
+                                    schéma není k dispozici
+                                </span>
+                            }
+                        </header>
+
+                        @if (migrace.Changes.Count == 0)
+                        {
+                            <p class="bez-zmen">
+                                @(migrace.HasSnapshot
+                                    ? "Migrace schéma nemění."
+                                    : "Migrace proběhla, ale její kód už v projektu není.")
+                            </p>
+                        }
+                        else
+                        {
+                            <ul class="zmeny">
+                                @foreach (var zmena in migrace.Changes)
+                                {
+                                    <li class="@ZmenaTridy(zmena.Kind)">
+                                        <span class="znak">@Znak(zmena.Kind)</span>
+                                        <span class="popis">@zmena.Description</span>
+
+                                        @if (zmena.Before is { } pred)
+                                        {
+                                            <span class="hodnota pred mono">@pred</span>
+                                            <span class="sipka">→</span>
+                                        }
+
+                                        @if (zmena.After is { } po)
+                                        {
+                                            <span class="hodnota po mono">@po</span>
+                                        }
+                                    </li>
+                                }
+                            </ul>
+
+                            @if (migrace.Changes.Any(static z => z.IsOpaque))
+                            {
+                                <p class="upozorneni">
+                                    Migrace obsahuje vlastní SQL. Co přesně udělalo, se z ní
+                                    vyčíst nedá — schéma po migraci to ale zachycuje.
+                                </p>
+                            }
+                        }
+                    </div>
+                </li>
+            }
+        </ol>
+    </div>
+}
+
+@code {
+    /// <summary>Migrace v pořadí, v jakém se aplikují.</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<DbMigration> Migrations { get; set; } = [];
+
+    /// <summary>Migrace, ke které je právě zobrazené schéma.</summary>
+    [Parameter]
+    public string? SelectedMigration { get; set; }
+
+    /// <summary>Výsledek porovnání dvou verzí, když nějaké běželo.</summary>
+    [Parameter]
+    public SchemaDiff? Diff { get; set; }
+
+    /// <summary>Starší z porovnávaných verzí.</summary>
+    [Parameter]
+    public string? From { get; set; }
+
+    /// <summary>Novější z porovnávaných verzí.</summary>
+    [Parameter]
+    public string? To { get; set; }
+
+    /// <summary>Přepnutí zobrazeného schématu na zadanou migraci.</summary>
+    [Parameter]
+    public EventCallback<string> OnSwitch { get; set; }
+
+    /// <summary>Požadavek na porovnání dvou verzí.</summary>
+    [Parameter]
+    public EventCallback<(string? From, string To)> OnCompare { get; set; }
+
+    /// <summary>Změna jedné ze stran porovnání.</summary>
+    [Parameter]
+    public EventCallback<(string? From, string? To)> OnRangeChange { get; set; }
+
+    /// <summary>Zavření výsledku porovnání.</summary>
+    [Parameter]
+    public EventCallback OnCloseDiff { get; set; }
+
+    /// <summary>Kliknutí na tabulku v nálezech.</summary>
+    [Parameter]
+    public EventCallback<DbObjectName> OnSelectTable { get; set; }
+
+    private Task PrepniAsync(string id) => OnSwitch.InvokeAsync(id);
+
+    private Task PorovnejAsync() =>
+        To is { Length: > 0 } cil ? OnCompare.InvokeAsync((From, cil)) : Task.CompletedTask;
+
+    private Task ZavriPorovnani() => OnCloseDiff.InvokeAsync();
+
+    private Task ZmenOdAsync(ChangeEventArgs e) =>
+        OnRangeChange.InvokeAsync((e.Value?.ToString(), To));
+
+    private Task ZmenDoAsync(ChangeEventArgs e) =>
+        OnRangeChange.InvokeAsync((From, e.Value?.ToString()));
+
+    /// <summary>
+    /// Jméno migrace bez časového razítka. Identifikátor začíná datem, které je pro
+    /// řazení nutné, ale v seznamu jen zabírá místo.
+    /// </summary>
+    internal static string? Kratce(string? migrationId)
+    {
+        if (migrationId is not { Length: > 0 })
+        {
+            return null;
+        }
+
+        var podtrzitko = migrationId.IndexOf('_', StringComparison.Ordinal);
+
+        return podtrzitko > 0 && podtrzitko < migrationId.Length - 1
+            ? migrationId[(podtrzitko + 1)..]
+            : migrationId;
+    }
+
+    internal static string StavTridy(DbMigration migrace) => migrace switch
+    {
+        { IsPending: true } => "ceka",
+        { AppliedInDatabase: true, PresentInAssembly: false } => "osirela",
+        _ => "aplikovana",
+    };
+
+    internal static string StavPopis(DbMigration migrace) => migrace switch
+    {
+        { IsPending: true } => "čeká na nasazení",
+        { AppliedInDatabase: true, PresentInAssembly: false } => "chybí v kódu",
+        _ => "aplikovaná",
+    };
+
+    /// <summary>Přibylo, ubylo, nebo se změnilo? Podle toho se změna obarví.</summary>
+    internal static string ZmenaTridy(SchemaChangeKind kind) => kind switch
+    {
+        SchemaChangeKind.CreateTable or SchemaChangeKind.AddColumn
+            or SchemaChangeKind.CreateIndex or SchemaChangeKind.AddForeignKey
+            or SchemaChangeKind.AddPrimaryKey => "pribylo",
+
+        SchemaChangeKind.DropTable or SchemaChangeKind.DropColumn
+            or SchemaChangeKind.DropIndex or SchemaChangeKind.DropForeignKey
+            or SchemaChangeKind.DropPrimaryKey => "ubylo",
+
+        SchemaChangeKind.Sql => "neznama",
+
+        _ => "zmeneno",
+    };
+
+    internal static string Znak(SchemaChangeKind kind) => ZmenaTridy(kind) switch
+    {
+        "pribylo" => "+",
+        "ubylo" => "−",
+        "neznama" => "?",
+        _ => "~",
+    };
+}

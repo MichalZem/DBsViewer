@@ -193,6 +193,19 @@ Uzly se dají rozbalit na všechny sloupce, plocha se posouvá tažením a přib
 **Rozdíly.** Nálezy porovnání modelu s databází, seskupené podle závažnosti. Tabulka
 s nálezem se zvýrazní i v seznamu a v diagramu, takže je vidět, kde je problém.
 
+**Historie.** Záložka *Historie* ukazuje časovou osu EF migrací a u každé to, co změnila —
+přidané sloupce, indexy, tabulky, změny typů. Tlačítkem **Zobrazit schéma** se prohlížečka
+přepne do minulosti: přehled, seznam tabulek i diagram pak ukazují stav po té migraci.
+Zpátky vede pruh nahoře.
+
+Dvě libovolné verze jde porovnat — nemusí spolu sousedit. Výsledek se čte ve směru času:
+„sloupec přibyl", ne „sloupec chybí v modelu".
+
+Čte se to ze snapshotů, které si EF ukládá ke každé migraci; DbsViewer nikam nic nezapisuje.
+Vyžaduje to EF migrace, jejichž kód je v projektu — migrace, která proběhla, ale její třída
+už zmizela, se ukáže jen se stavem *chybí v kódu*. Podrobnosti a omezení v
+[ADR-0014](docs/adr/0014-historie-schematu-z-migraci.md).
+
 **Data.** Záložka *Data* v detailu tabulky se načte sama, bez klikání. Mřížka umí
 stránkovat, řadit kliknutím na hlavičku (vzestupně → sestupně → bez řazení) a filtrovat
 políčkem pod každým sloupcem.
@@ -220,10 +233,12 @@ Všechny cesty jsou relativní k `RoutePrefix` (výchozí `/dbschema`).
 |---|---|---|
 | `GET` | `/` | Grafická prohlížečka (Blazor WebAssembly). |
 | `GET` | `/api/meta` | Co je v této konfiguraci k dispozici. Volej jako první. |
-| `GET` | `/api/schema` | Celé schéma. Parametr `source=ef\|live\|merged`, `refresh=true` obejde cache. |
+| `GET` | `/api/schema` | Celé schéma. `source=ef\|live\|merged`, `migration={id}` pro historickou verzi, `refresh=true` obejde cache. |
 | `GET` | `/api/schema/diff` | Rozdíly mezi EF modelem a databází. |
 | `GET` | `/api/tables/{schema}/{name}` | Detail jedné tabulky. |
 | `POST` | `/api/tables/{schema}/{name}/rows` | Stránka dat. Ve výchozím stavu vrací `403`. |
+| `GET` | `/api/migrations` | Migrace i s tím, co která změnila. |
+| `GET` | `/api/migrations/diff?from=&to=` | Rozdíl mezi dvěma verzemi historie. |
 | `POST` | `/api/refresh` | Zahodí cache. |
 
 **Prázdné schéma se v cestě zapisuje pomlčkou.** SQLite schémata nemá, takže detail tabulky
@@ -537,7 +552,8 @@ Ukázka vygenerované dokumentace je v [`docs/schema-ukazka.md`](docs/schema-uka
   `DeleteBehavior`, které se chová jinak než model tvrdí
 - **Odolnost** — načtení schématu nikdy nespadne, dílčí selhání skončí ve `warnings`
 - **Grafické UI** — přehled databáze, prohlížeč tabulek, ER diagram s focus modem,
-  přehled rozdílů, stránkovaná mřížka dat, export do Mermaid, DBML a Markdownu
+  přehled rozdílů, historie schématu podle migrací, stránkovaná mřížka dat,
+  export do Mermaid, DBML a Markdownu
 
 Zdroje dat:
 
