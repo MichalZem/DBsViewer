@@ -75,7 +75,47 @@ public class ErDiagramTests : TestContext
             .Add(x => x.SelectedTable, new DbObjectName(null, "Orders")));
 
         Assert.Single(component.FindAll(".uzel.vybrany"));
-        Assert.Single(component.FindAll(".hrana.zvyraznena"));
+
+        // Vazba vybrané tabulky zůstane plná; ostatní by zesvětlily. Tady je jediná,
+        // takže přihlušená není žádná.
+        Assert.Empty(component.FindAll(".hrana.prihlusena"));
+    }
+
+    [Fact]
+    public void Cizi_hrany_pri_vyberu_zesvetli()
+    {
+        // Různá tloušťka čar by se četla jako různá důležitost vazby, ne jako
+        // zvýraznění — proto se místo zesílení ostatní ztlumí.
+        var component = RenderComponent<ErDiagram>(p => p
+            .Add(x => x.Layout, Layout())
+            .Add(x => x.SelectedTable, new DbObjectName(null, "Neexistuje")));
+
+        Assert.Single(component.FindAll(".hrana.prihlusena"));
+    }
+
+    [Fact]
+    public void Bez_vyberu_se_neztlumi_nic()
+    {
+        var component = RenderComponent<ErDiagram>(p => p.Add(x => x.Layout, Layout()));
+
+        Assert.Empty(component.FindAll(".hrana.prihlusena"));
+    }
+
+    [Fact]
+    public void Vysvetlivky_jdou_rozbalit()
+    {
+        var component = RenderComponent<ErDiagram>(p => p.Add(x => x.Layout, Layout()));
+
+        Assert.DoesNotContain("CASCADE", component.Markup, StringComparison.Ordinal);
+
+        component.Find(".diagram-legenda .prepinac").Click();
+
+        Assert.Contains("CASCADE", component.Markup, StringComparison.Ordinal);
+        Assert.Contains("nepovinná vazba", component.Markup, StringComparison.Ordinal);
+
+        component.Find(".diagram-legenda .prepinac").Click();
+
+        Assert.DoesNotContain("CASCADE", component.Markup, StringComparison.Ordinal);
     }
 
     [Fact]

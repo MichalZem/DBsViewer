@@ -79,6 +79,13 @@ diagramem a orientace v něm by byla horší než v seznamu.
   zlomy působily tvrdě a splývaly s okraji tabulek. Hrot šipky má `markerUnits`
   na `userSpaceOnUse`, takže se nezvětšuje spolu s tloušťkou čáry — u zvýrazněné hrany
   jinak narostl do nepoměru.
+- **Všechny hrany mají stejnou tloušťku.** Vybraná tabulka se dřív zvýrazňovala silnější
+  čarou, jenže různá tloušťka se v ER diagramu čte jako různá důležitost vazby, ne jako
+  zvýraznění. Zvýrazňuje se proto opačně: ostatní hrany zesvětlí.
+- Popisek kardinality má obtah barvou plochy (`paint-order: stroke`), takže je čitelný
+  i tam, kde pod ním vede čára. Při kolizi se uhýbá **podél vlastní trasy**, ne kolmo —
+  popisek tak zůstane na své hraně a je jasné, ke které patří. Kolmo se uhne, až když
+  podél trasy volné místo není.
 - Layout se testuje jako čistá funkce: vrstvy, kolize uzlů, trasy hran i smyčky
   u self-reference.
 - Kvalita rozvržení je horší než u elkjs, hlavně u hustých grafů. Zmírňuje to focus mode,

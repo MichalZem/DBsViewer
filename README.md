@@ -180,9 +180,13 @@ uzlů a zatáčky se penalizují, takže vyjde co nejpřímější čára, kter�
 tabulkou. Vazby mířící do jedné tabulky mají každá vlastní kotvu, aby se šipky neslily
 do jednoho bodu.
 
+Vysvětlivky k typům čar jsou v levém dolním rohu diagramu, sbalené do štítku.
+
 **Focus mode** je zapnutý ve výchozím stavu a je to jediný způsob, jak udělat diagram
 se stovkou tabulek čitelný: vyber tabulku a posuvníkem urči, jak daleko od ní se má
-kreslit. Nula ukáže jen ji, tři už zachytí širší okolí.
+kreslit. Nula ukáže jen ji, tři už zachytí širší okolí. Zpátky na celé schéma vede
+tlačítko **← Celé schéma** — ve výřezu totiž není z diagramu poznat, že zbytek
+schématu vůbec existuje.
 
 Uzly se dají rozbalit na všechny sloupce, plocha se posouvá tažením a přibližuje kolečkem.
 

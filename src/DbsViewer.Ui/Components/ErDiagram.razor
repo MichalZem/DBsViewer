@@ -36,10 +36,15 @@ else
                 @foreach (var edge in Layout.Edges)
                 {
                     var relationship = edge.Relationship;
-                    var zvyrazneno = SelectedTable is not null
-                        && (relationship.From == SelectedTable || relationship.To == SelectedTable);
 
-                    <g class="hrana @DeleteClass(relationship.DeleteBehavior) @(zvyrazneno ? "zvyraznena" : "")">
+                    // Vybraná tabulka se odliší tím, že ostatní hrany zesvětlí. Dřív
+                    // se místo toho zesilovala čára, jenže různá tloušťka se čte jako
+                    // různá důležitost vazby, ne jako zvýraznění.
+                    var prihlusena = SelectedTable is not null
+                        && relationship.From != SelectedTable
+                        && relationship.To != SelectedTable;
+
+                    <g class="hrana @DeleteClass(relationship.DeleteBehavior) @(prihlusena ? "prihlusena" : "")">
                         <path d="@EdgePath.Build(edge.Points)"
                               fill="none"
                               marker-end="url(#sipka)"
@@ -101,10 +106,45 @@ else
             <button title="Původní velikost" @onclick="ResetView">⌂</button>
             <span class="zoom-hodnota">@((int)(_zoom * 100)) %</span>
         </div>
+
+        <div class="diagram-legenda @(_legendaOtevrena ? "" : "sbalena")">
+            @if (_legendaOtevrena)
+            {
+                <span class="nadpis">Vysvětlivky</span>
+
+                <span class="polozka">
+                    <span class="vzorek kaskada"></span>
+                    Mazání rodiče smaže i potomky (CASCADE)
+                </span>
+                <span class="polozka">
+                    <span class="vzorek setnull"></span>
+                    Mazání rodiče vynuluje cizí klíč (SET NULL)
+                </span>
+                <span class="polozka">
+                    <span class="vzorek restrict"></span>
+                    Mazání rodiče databáze odmítne
+                </span>
+                <span class="polozka">
+                    <span class="vzorek nepovinna"></span>
+                    Přerušovaně: nepovinná vazba (cizí klíč smí být NULL)
+                </span>
+                <span class="polozka">
+                    <span class="vzorek restrict"></span>
+                    Šipka míří na tabulku, na kterou se odkazuje
+                </span>
+
+                <span class="polozka">1:N, 1:1, N:M — kardinalita vazby</span>
+            }
+
+            <button class="prepinac" @onclick="() => _legendaOtevrena = !_legendaOtevrena">
+                @(_legendaOtevrena ? "Skrýt vysvětlivky" : "Vysvětlivky")
+            </button>
+        </div>
     </div>
 }
 
 @code {
+    private bool _legendaOtevrena;
     private double _panX;
     private double _panY;
     private double _zoom = 1;

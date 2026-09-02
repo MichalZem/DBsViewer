@@ -523,42 +523,131 @@ public static class DiagramLayout
         return SpreadLabels(edges);
     }
 
-    /// <summary>Nejmenší odstup dvou popisků, aby se nepřekrývaly.</summary>
+    /// <summary>Nejmenší vodorovný odstup dvou popisků, aby se nepřekrývaly.</summary>
     private const double LabelWidth = 44;
 
-    /// <summary>Řádkový posun, o který se kolidující popisek uhne.</summary>
-    private const double LabelLineHeight = 14;
+    /// <summary>Nejmenší svislý odstup dvou popisků.</summary>
+    private const double LabelLineHeight = 13;
 
     /// <summary>
-    /// Odsune popisky, které by se překrývaly.
+    /// O kolik se popisek posune podél trasy při hledání volného místa. Menší krok
+    /// nemá smysl — kratší posun by pořád kolidoval a jen by se zkoušel naprázdno.
+    /// </summary>
+    private const double LabelStep = LabelWidth;
+
+    /// <summary>Kolik míst podél trasy se zkusí, než se popisek uhne kolmo.</summary>
+    private const int LabelAttempts = 6;
+
+    /// <summary>
+    /// Rozmístí popisky kardinality tak, aby se nepřekrývaly.
     /// </summary>
     /// <remarks>
-    /// Umístění na trase samo o sobě nestačí: do jedné tabulky můžou mířit vazby zleva
-    /// i zprava a jejich popisky skončí na stejném místě — v diagramu se to projeví jako
-    /// slitý shluk typu „1:N:M". Kolize se proto po výpočtu dohledají a druhý popisek
-    /// se posune o řádek výš.
+    /// Do jedné tabulky můžou mířit vazby zleva i zprava a jejich popisky skončí na
+    /// stejném místě — v diagramu se to projeví jako slitý shluk typu „1:N:M".
+    ///
+    /// Kolize se řeší posunem **podél vlastní trasy**, ne kolmo na ni: popisek tak
+    /// zůstane na své hraně a je pořád jasné, ke které patří. Teprve když se podél
+    /// trasy volné místo nenajde, uhne se kolmo — to je poslední možnost, protože
+    /// odsazený popisek se hůř přiřazuje k čáře.
     /// </remarks>
     internal static List<DiagramEdge> SpreadLabels(List<DiagramEdge> edges)
     {
+        ArgumentNullException.ThrowIfNull(edges);
+
         var obsazene = new List<(double X, double Y)>();
         var result = new List<DiagramEdge>(edges.Count);
 
         // Pevné pořadí, aby se stejný diagram vykreslil pokaždé stejně.
         foreach (var edge in edges.OrderBy(static e => e.LabelAt.Y).ThenBy(static e => e.LabelAt.X))
         {
-            var at = edge.LabelAt;
-
-            while (obsazene.Any(o => Math.Abs(o.X - at.X) < LabelWidth
-                                     && Math.Abs(o.Y - at.Y) < LabelLineHeight))
-            {
-                at = (at.X, at.Y - LabelLineHeight);
-            }
-
-            obsazene.Add(at);
-            result.Add(edge with { LabelAt = at });
+            result.Add(edge with { LabelAt = VolneMisto(edge, obsazene) });
         }
 
         return result;
+    }
+
+    /// <summary>Najde pro popisek místo, kde nekoliduje s už umístěnými.</summary>
+    private static (double X, double Y) VolneMisto(
+        DiagramEdge edge,
+        List<(double X, double Y)> obsazene)
+    {
+        foreach (var at in Kandidati(edge.LabelAt, PopiskovyUsek(edge.Points)))
+        {
+            if (!Koliduje(at, obsazene))
+            {
+                obsazene.Add(at);
+                return at;
+            }
+        }
+
+        // Podél trasy je plno; uhneme kolmo, dokud se místo nenajde.
+        var nouzove = edge.LabelAt;
+
+        while (Koliduje(nouzove, obsazene))
+        {
+            nouzove = (nouzove.X, nouzove.Y - LabelLineHeight);
+        }
+
+        obsazene.Add(nouzove);
+        return nouzove;
+    }
+
+    private static bool Koliduje((double X, double Y) at, List<(double X, double Y)> obsazene) =>
+        obsazene.Exists(o => Math.Abs(o.X - at.X) < LabelWidth
+                             && Math.Abs(o.Y - at.Y) < LabelLineHeight);
+
+    /// <summary>
+    /// Místa podél trasy, kam popisek smí. První je to původní, další postupně dál
+    /// od šipky — směrem, kterým hrana přišla.
+    /// </summary>
+    private static IEnumerable<(double X, double Y)> Kandidati(
+        (double X, double Y) puvodni,
+        ((double X, double Y) Od, (double X, double Y) Do)? usek)
+    {
+        yield return puvodni;
+
+        if (usek is not { } u)
+        {
+            yield break;
+        }
+
+        var vodorovny = Math.Abs(u.Od.Y - u.Do.Y) < 0.5;
+        var delka = vodorovny ? Math.Abs(u.Do.X - u.Od.X) : Math.Abs(u.Do.Y - u.Od.Y);
+
+        // Směr od šipky zpět po hraně.
+        var smer = vodorovny
+            ? (u.Do.X > u.Od.X ? -1 : 1)
+            : (u.Do.Y > u.Od.Y ? -1 : 1);
+
+        for (var i = 1; i <= LabelAttempts; i++)
+        {
+            var posun = i * LabelStep;
+
+            // Za začátek úseku se popisek nedostane — patřil by pak k jiné části trasy.
+            if (posun > delka)
+            {
+                yield break;
+            }
+
+            yield return vodorovny
+                ? (puvodni.X + (smer * posun), puvodni.Y)
+                : (puvodni.X, puvodni.Y + (smer * posun));
+        }
+    }
+
+    /// <summary>Úsek trasy, na kterém popisek leží — poslední vodorovný před šipkou.</summary>
+    private static ((double X, double Y) Od, (double X, double Y) Do)? PopiskovyUsek(
+        IReadOnlyList<(double X, double Y)> points)
+    {
+        for (var i = points.Count - 1; i >= 1; i--)
+        {
+            if (Math.Abs(points[i - 1].Y - points[i].Y) < 0.5)
+            {
+                return (points[i - 1], points[i]);
+            }
+        }
+
+        return points.Count >= 2 ? (points[^2], points[^1]) : null;
     }
 
     private static double SideX(DiagramNode node, EdgeSide side) =>

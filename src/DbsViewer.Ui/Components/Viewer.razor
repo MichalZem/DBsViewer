@@ -134,6 +134,22 @@
                     @if (State.Pane == ViewerPane.Diagram)
                     {
                         <div class="diagram-nastroje">
+                            @if (JeVyrez)
+                            {
+                                @*
+                                    Ve výřezu není z diagramu poznat, že zbytek schématu
+                                    existuje. Cesta zpátky proto musí být vidět na první
+                                    pohled, ne schovaná v zaškrtávátku.
+                                *@
+                                <button class="hlavni zpet-na-schema" @onclick="ZobrazCeleSchemaAsync">
+                                    ← Celé schéma
+                                </button>
+
+                                <span class="vyrez-popis">
+                                    Výřez kolem <strong>@State.SelectedTable!.Value.Name</strong>
+                                </span>
+                            }
+
                             <label>
                                 <input type="checkbox"
                                        checked="@State.FocusEnabled"
@@ -151,6 +167,10 @@
 
                             <span class="pocet">
                                 @Cestina.Tabulky(DiagramTables.Count), @Cestina.Vazby(Layout.Edges.Count)
+                                @if (JeVyrez)
+                                {
+                                    <span class="z-celku">z @Cestina.Cislo(State.Schema.Tables.Count)</span>
+                                }
                             </span>
                         </div>
 
@@ -195,6 +215,19 @@
     private IReadOnlyList<DbTable> FilteredTables => State.FilteredTables();
 
     private IReadOnlyList<DbTable> DiagramTables => State.DiagramTables();
+
+    /// <summary>Kreslí se jen výřez kolem vybrané tabulky, ne celé schéma?</summary>
+    private bool JeVyrez => State.FocusEnabled && State.SelectedTable is not null;
+
+    /// <summary>
+    /// Vrátí diagram na celé schéma. Výběr tabulky zůstane — zvýrazní se v celku,
+    /// takže je vidět, odkud se člověk vrátil.
+    /// </summary>
+    private async Task ZobrazCeleSchemaAsync()
+    {
+        State.FocusEnabled = false;
+        await Task.CompletedTask;
+    }
 
     private IReadOnlyList<string> Schemas => SchemaFilter.Schemas(State.Schema.Tables);
 

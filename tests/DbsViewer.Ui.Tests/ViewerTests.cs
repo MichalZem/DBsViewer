@@ -538,6 +538,40 @@ public class ViewerTests : TestContext
             });
     }
 
+    [Fact]
+    public void Ve_vyrezu_je_cesta_zpet_na_cele_schema()
+    {
+        // Ve výřezu není z diagramu poznat, že zbytek schématu existuje — cesta zpátky
+        // proto musí být vidět, ne schovaná v zaškrtávátku.
+        var component = Render();
+        Zalozka(component, "Diagram");
+
+        Assert.Empty(component.FindAll(".zpet-na-schema"));
+
+        component.FindAll(".seznam li button").ElementAt(1).Click();
+
+        Assert.Single(component.FindAll(".zpet-na-schema"));
+        Assert.Contains("Výřez kolem", component.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Klik_na_cele_schema_zobrazi_vsechny_tabulky()
+    {
+        var component = Render();
+        Zalozka(component, "Diagram");
+        component.FindAll(".seznam li button").ElementAt(1).Click();
+
+        var veVyrezu = component.FindAll(".uzel").Count;
+
+        component.Find(".zpet-na-schema").Click();
+
+        Assert.True(component.FindAll(".uzel").Count > veVyrezu);
+        Assert.Empty(component.FindAll(".zpet-na-schema"));
+
+        // Výběr zůstane, takže je vidět, odkud se člověk vrátil.
+        Assert.Single(component.FindAll(".uzel.vybrany"));
+    }
+
     /// <summary>
     /// Klikne na záložku podle jejího názvu. Dřív se hledala podle pořadí, jenže to
     /// spadlo, jakmile mezi záložky přibyl Přehled.

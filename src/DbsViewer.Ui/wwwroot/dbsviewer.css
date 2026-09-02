@@ -358,9 +358,11 @@ button.odkaz {
 
 .diagram marker path { fill: var(--restrict); }
 
+/* Všechny hrany mají stejnou tloušťku — různá by se četla jako různá důležitost
+   vazby, ne jako zvýraznění. Vybraná tabulka se odliší tím, že ostatní zesvětlí. */
 .hrana path {
     stroke: var(--restrict);
-    stroke-width: 1.25;
+    stroke-width: 1.4;
     stroke-linejoin: round;
     stroke-linecap: round;
 }
@@ -368,16 +370,78 @@ button.odkaz {
 .hrana.kaskada path { stroke: var(--kaskada); }
 .hrana.setnull path { stroke: var(--setnull); }
 
-/* Nezvýrazněné hrany ustupují do pozadí, aby vynikla vybraná tabulka a její okolí. */
-.hrana { opacity: 0.75; }
-.hrana.zvyraznena { opacity: 1; }
-.hrana.zvyraznena path { stroke-width: 2; }
+.hrana { opacity: 0.9; }
+.hrana.prihlusena { opacity: 0.25; }
 
 .kardinalita {
     font-size: 10px;
-    fill: var(--text-3);
+    fill: var(--text-2);
     text-anchor: middle;
+
+    /* Popisek leží na čárách a překrýval se s nimi. Obtah barvou plochy udělá kolem
+       písmen mezeru, takže je čitelný, ať pod ním vede cokoli. */
+    paint-order: stroke;
+    stroke: var(--pozadi);
+    stroke-width: 3.5;
+    stroke-linejoin: round;
 }
+
+/* ---------- legenda diagramu ---------- */
+
+.diagram-legenda {
+    position: absolute;
+    left: 12px;
+    bottom: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 9px 12px;
+    background: var(--panel);
+    border: 1px solid var(--linka);
+    border-radius: 6px;
+    font-size: 11px;
+    color: var(--text-2);
+    max-width: 260px;
+}
+
+.diagram-legenda .nadpis {
+    font-weight: 600;
+    color: var(--text);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-size: 10px;
+}
+
+.diagram-legenda .polozka { display: flex; align-items: center; gap: 8px; }
+
+.diagram-legenda .vzorek {
+    flex: 0 0 26px;
+    height: 0;
+    border-top-width: 2px;
+    border-top-style: solid;
+}
+
+.diagram-legenda .vzorek.kaskada { border-color: var(--kaskada); }
+.diagram-legenda .vzorek.setnull { border-color: var(--setnull); }
+.diagram-legenda .vzorek.restrict { border-color: var(--restrict); }
+.diagram-legenda .vzorek.nepovinna { border-color: var(--restrict); border-top-style: dashed; }
+
+.diagram-legenda .prepinac {
+    align-self: flex-start;
+    margin-top: 2px;
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--akcent);
+    font: inherit;
+    font-size: 11px;
+    cursor: pointer;
+}
+
+.diagram-legenda .prepinac:hover { text-decoration: underline; }
+
+/* Sbalená legenda je jen štítek, aby nezabírala plochu diagramu. */
+.diagram-legenda.sbalena { padding: 5px 10px; }
 
 .uzel {
     height: 100%;
@@ -799,3 +863,23 @@ button.hlavni {
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
 }
+
+/* Cesta zpět z výřezu na celé schéma. Musí být vidět hned — ve výřezu není
+   z diagramu poznat, že zbytek schématu vůbec existuje. */
+.diagram-nastroje .zpet-na-schema {
+    background: var(--akcent);
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    padding: 3px 10px;
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.diagram-nastroje .zpet-na-schema:hover { filter: brightness(1.1); }
+
+.diagram-nastroje .vyrez-popis { color: var(--text-2); font-size: 12px; }
+.diagram-nastroje .vyrez-popis strong { color: var(--text); font-weight: 600; }
+.diagram-nastroje .z-celku { color: var(--text-3); }

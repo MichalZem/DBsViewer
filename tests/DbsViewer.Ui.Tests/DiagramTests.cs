@@ -429,26 +429,77 @@ public class DiagramLayoutTests
 
 
     [Fact]
-    public void Popisky_na_stejnem_miste_se_rozsunou()
+    public void Popisky_na_stejnem_miste_se_rozsunou_podel_trasy()
     {
-        // Tři popisky na jednom bodě; každý musí skončit jinde.
+        // Tři popisky na jednom bodě. Uhýbá se podél hrany, ne kolmo — popisek tak
+        // zůstane na své čáře a je pořád jasné, ke které patří.
         var edges = Enumerable
             .Range(0, 3)
             .Select(i => new DiagramEdge
             {
                 Relationship = Rel($"A{i}", "B"),
-                Points = [(0, 100), (100, 100)],
-                LabelAt = (100, 100),
+                Points = [(0, 100), (300, 100)],
+                LabelAt = (300, 100),
             })
             .ToList();
 
-        var rozsunute = DiagramLayout.SpreadLabels(edges);
-
-        var mista = rozsunute.Select(e => e.LabelAt).ToList();
+        var mista = DiagramLayout.SpreadLabels(edges).Select(e => e.LabelAt).ToList();
 
         Assert.Equal(3, mista.Distinct().Count());
-        Assert.Equal([100, 86, 72], mista.Select(m => m.Y));
+
+        // Všechny zůstaly na trase, jen postupně dál od šipky.
+        Assert.All(mista, m => Assert.Equal(100, m.Y));
+        Assert.Equal([300, 256, 212], mista.Select(m => m.X));
     }
+
+    [Fact]
+    public void Kratka_hrana_uhne_popiskem_kolmo()
+    {
+        // Na krátké trase není kam couvat, takže se popisek posune o řádek —
+        // poslední možnost, ale hrana o popisek nepřijde.
+        var edges = Enumerable
+            .Range(0, 2)
+            .Select(i => new DiagramEdge
+            {
+                Relationship = Rel($"A{i}", "B"),
+                Points = [(0, 100), (10, 100)],
+                LabelAt = (10, 100),
+            })
+            .ToList();
+
+        var mista = DiagramLayout.SpreadLabels(edges).Select(e => e.LabelAt).ToList();
+
+        Assert.Equal(2, mista.Distinct().Count());
+        Assert.Equal(10, mista[1].X);
+        Assert.True(mista[1].Y < mista[0].Y);
+    }
+
+    [Fact]
+    public void Svisla_hrana_uhyba_popiskem_svisle()
+    {
+        var edges = Enumerable
+            .Range(0, 2)
+            .Select(i => new DiagramEdge
+            {
+                Relationship = Rel($"A{i}", "B"),
+                Points = [(50, 0), (50, 300)],
+                LabelAt = (50, 300),
+            })
+            .ToList();
+
+        var mista = DiagramLayout.SpreadLabels(edges).Select(e => e.LabelAt).ToList();
+
+        Assert.Equal(50, mista[1].X);
+        Assert.Equal(256, mista[1].Y);
+    }
+
+    [Fact]
+    public void Rozsun_bez_hran_je_prazdny() =>
+        Assert.Empty(DiagramLayout.SpreadLabels([]));
+
+    [Fact]
+    public void Rozsun_null_je_chyba_argumentu() =>
+        Assert.Throws<ArgumentNullException>(() => DiagramLayout.SpreadLabels(null!));
 
 
     [Fact]
