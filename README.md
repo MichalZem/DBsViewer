@@ -11,6 +11,11 @@ builder.Services.AddDbsViewer<AppDbContext>();   // 1
 app.MapDbsViewer();                              // 2 → /dbschema
 ```
 
+[![ER diagram ukázkového e-shopu](docs/obrazky/diagram.png)](docs/obrazky/diagram.png)
+
+*ER diagram ukázkového modelu. Obrázky níže jsou z běžící prohlížečky, ne z návrhu —
+každý najdeš v kapitole [Co uvidíš](#co-uvidíš).*
+
 > **Stav:** hotové a použitelné. Prohlížečka má grafické UI s ER diagramem, HTTP API,
 > detekci rozdílů i náhled dat. Zbývá publikování na nuget.org — do té doby se balíčky
 > sestavují ze zdrojů, viz [instalace](#instalace-do-vlastní-aplikace).
@@ -166,10 +171,14 @@ Záložka **Odkazuje sem** je inverzní pohled na cizí klíče a odpovídá na 
 rozbije, když tuhle tabulku změním". V běžných nástrojích chybí, přitom je při zásahu
 do schématu nejužitečnější.
 
+[![Seznam tabulek a detail sloupců](docs/obrazky/tabulky.png)](docs/obrazky/tabulky.png)
+
 **Přehled** je vstupní obrazovka do cizí databáze: kolik je tabulek, sloupců, vazeb
 a indexů, které tabulky jsou největší a nejvíc propojené, jaké typy se používají — a sekce
 *Co stojí za pozornost* s tabulkami bez primárního klíče, cizími klíči bez indexu
 a tabulkami, které s ničím nesouvisí. Každé jméno je odkaz do detailu.
+
+[![Přehled databáze](docs/obrazky/prehled.png)](docs/obrazky/prehled.png)
 
 **ER diagram.** Tabulky jako uzly, vazby jako hrany s popiskem kardinality. Kaskády mají
 vlastní barvu — je to to, co člověk v cizím schématu hledá nejčastěji. Nepovinné vazby
@@ -181,6 +190,7 @@ tabulkou. Vazby mířící do jedné tabulky mají každá vlastní kotvu, aby s
 do jednoho bodu.
 
 Vysvětlivky k typům čar jsou v levém dolním rohu diagramu, sbalené do štítku.
+Jak diagram vypadá celý, je vidět [na obrázku v úvodu](#dbsviewer).
 
 **Focus mode** je zapnutý ve výchozím stavu a je to jediný způsob, jak udělat diagram
 se stovkou tabulek čitelný: vyber tabulku a posuvníkem urči, jak daleko od ní se má
@@ -190,13 +200,22 @@ schématu vůbec existuje.
 
 Uzly se dají rozbalit na všechny sloupce, plocha se posouvá tažením a přibližuje kolečkem.
 
+[![Focus mode — výřez kolem vybrané tabulky](docs/obrazky/diagram-focus.png)](docs/obrazky/diagram-focus.png)
+
 **Rozdíly.** Nálezy porovnání modelu s databází, seskupené podle závažnosti. Tabulka
 s nálezem se zvýrazní i v seznamu a v diagramu, takže je vidět, kde je problém.
+
+[![Rozdíly mezi EF modelem a databází](docs/obrazky/rozdily.png)](docs/obrazky/rozdily.png)
+
+*Chybějící sloupec je chyba, přebytečná tabulka jen varování — legacy objekt vedle
+EF modelu je běžný stav, ne porucha.*
 
 **Historie.** Záložka *Historie* ukazuje časovou osu EF migrací a u každé to, co změnila —
 přidané sloupce, indexy, tabulky, změny typů. Tlačítkem **Zobrazit schéma** se prohlížečka
 přepne do minulosti: přehled, seznam tabulek i diagram pak ukazují stav po té migraci.
 Zpátky vede pruh nahoře.
+
+[![Historie schématu z EF migrací](docs/obrazky/historie.png)](docs/obrazky/historie.png)
 
 Dvě libovolné verze jde porovnat — nemusí spolu sousedit. Výsledek se čte ve směru času:
 „sloupec přibyl", ne „sloupec chybí v modelu".
@@ -218,6 +237,11 @@ jen bez čísel stránek.
 
 Filtr hledá text kdekoli v hodnotě, i nad čísly a daty. Zástupné znaky `%` a `_` se
 escapují — kdo hledá „100%", hledá opravdu „100%".
+
+[![Náhled dat s filtrem](docs/obrazky/data.png)](docs/obrazky/data.png)
+
+*Filtr `Brno` nad sloupcem `BillingCity`: ze 120 řádků zbylo 15 a počet přepočítala
+databáze, ne prohlížečka.*
 
 **Export.** Schéma jde stáhnout jako Mermaid, DBML nebo Markdown dokumentaci —
 souborem, který se dá commitnout do repozitáře.
