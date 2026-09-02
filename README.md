@@ -1,147 +1,112 @@
 # DbsViewer
 
+**English** · [Čeština](README.cs.md)
+
 [![Build a publikace](https://github.com/MichalZem/DBsViewer/actions/workflows/build-a-publikace.yml/badge.svg)](https://github.com/MichalZem/DBsViewer/actions/workflows/build-a-publikace.yml)
 
-Prohlížečka databázového schématu, kterou přidáš do jakékoli EF Core aplikace. Dvěma řádky
-v `Program.cs` dostaneš přehled tabulek, sloupců, indexů, klíčů a vazeb — plus detekci rozdílů
-mezi tím, co si EF myslí, a tím, co v databázi opravdu je.
+A database schema viewer you drop into any EF Core application. Two lines in `Program.cs`
+give you an overview of tables, columns, indexes, keys and relationships — plus detection
+of the differences between what EF believes and what the database actually contains.
 
 ```csharp
 builder.Services.AddDbsViewer<AppDbContext>();   // 1
 app.MapDbsViewer();                              // 2 → /dbschema
 ```
 
-[![ER diagram ukázkového e-shopu](docs/obrazky/diagram.png)](docs/obrazky/diagram.png)
+[![ER diagram of the sample e-shop](docs/obrazky/diagram.png)](docs/obrazky/diagram.png)
 
-*ER diagram ukázkového modelu. Obrázky níže jsou z běžící prohlížečky, ne z návrhu —
-každý najdeš v kapitole [Co uvidíš](#co-uvidíš).*
+*ER diagram of the sample model. The images below come from the running viewer, not from
+a mockup — each one belongs to the [What you'll see](#what-youll-see) chapter.*
 
-> **Stav:** hotové a použitelné. Prohlížečka má grafické UI s ER diagramem, HTTP API,
-> detekci rozdílů i náhled dat. Zbývá publikování na nuget.org — do té doby se balíčky
-> sestavují ze zdrojů, viz [instalace](#instalace-do-vlastní-aplikace).
+> **Note on language:** the project itself is Czech. The viewer's user interface, the
+> command-line output, the diff messages and the architecture decision records are all
+> written in Czech; this README is the English translation of [`README.cs.md`](README.cs.md).
+> The API — option names, endpoints, JSON properties — is English.
+
+> **Status:** released on nuget.org. The viewer has a graphical UI with an ER diagram,
+> an HTTP API, drift detection, schema history and a data preview. The latest stable
+> version is [`0.3.0`](https://www.nuget.org/packages/DbsViewer.Server); every push to
+> `main` additionally produces a prerelease. See [installation](#installing-into-your-own-application).
 
 ---
 
-## Instalace do vlastní aplikace
+## Installing into your own application
 
-Tahle kapitola je psaná tak, aby se podle ní dalo postupovat bez znalosti zbytku projektu.
+This chapter is written so that you can follow it without knowing the rest of the project.
 
-### Předpoklady
+### Prerequisites
 
 | | |
 |---|---|
-| .NET SDK | 10.0 nebo novější |
+| .NET SDK | 10.0 or newer |
 | EF Core | 10.x |
-| Databáze | Microsoft SQL Server nebo SQLite |
-| Typ aplikace | jakákoli na ASP.NET Core — Web API, MVC, Blazor Server i Blazor WASM host |
+| Database | Microsoft SQL Server or SQLite |
+| Application type | anything on ASP.NET Core — Web API, MVC, Blazor Server, Blazor WASM host |
 
-PostgreSQL a jiné databáze podporované nejsou.
+PostgreSQL and other databases are not supported.
 
-### Krok 1: získej balíčky
-
-Až bude balíček na nuget.org, stačí:
+### Step 1: install the package
 
 ```bash
 dotnet add package DbsViewer.Server
 ```
 
-Do té doby, nebo když chceš nejnovější vývojovou verzi, si balíčky sestav ze zdrojů:
+That's all — the remaining packages (`DbsViewer.Abstractions`, `EfCore`, `Relational`,
+`SqlServer`, `Sqlite`, `Analysis`) come along as dependencies. The Blazor UI is embedded
+directly in `DbsViewer.Server`, so you don't need any other source of files.
+
+If you want the latest development build, reach for a prerelease from `main`:
 
 ```bash
-git clone https://github.com/MichalZem/DBsViewer.git
-cd DBsViewer
-
-# Blazor UI se publikuje zvlášť — serverový balíček jeho výstup vkládá do sebe.
-# Bez tohoto kroku balení rovnou selže a řekne ti to.
-dotnet publish src/DbsViewer.Ui -c Release -o artifacts/ui
-
-# vytvoří .nupkg soubory do artifacts/packages/
-for p in Abstractions EfCore Relational SqlServer Sqlite Analysis Server; do
-  dotnet pack src/DbsViewer.$p -c Release -o artifacts/packages
-done
+dotnet add package DbsViewer.Server --prerelease
 ```
 
-Ve Windows PowerShell:
+Building from source is described in the [Development](#development) chapter — you don't
+need it for ordinary use.
 
-```powershell
-dotnet publish src/DbsViewer.Ui -c Release -o artifacts/ui
-
-'Abstractions','EfCore','Relational','SqlServer','Sqlite','Analysis','Server' | ForEach-Object {
-  dotnet pack "src/DbsViewer.$_" -c Release -o artifacts/packages
-}
-```
-
-Vznikne sedm balíčků. Instalovat budeš **jen `DbsViewer.Server`** — ostatní se přitáhnou
-jako jeho závislosti.
-
-### Krok 2: přidej zdroj balíčků do své aplikace
-
-Do složky své aplikace (vedle `.csproj` nebo `.sln`) přidej `NuGet.config`:
-
-```xml
-<?xml version="1.0" encoding="utf-8"?>
-<configuration>
-  <packageSources>
-    <clear />
-    <add key="dbsviewer-local" value="C:\cesta\k\DBsViewer\artifacts\packages" />
-    <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
-  </packageSources>
-</configuration>
-```
-
-Cestu k `artifacts/packages` uprav podle toho, kam jsi repozitář naklonoval. Musí být
-absolutní, nebo relativní vůči umístění `NuGet.config`.
-
-### Krok 3: nainstaluj balíček
-
-```bash
-dotnet add package DbsViewer.Server --version 0.1.0-alpha
-```
-
-Verze se musí uvést explicitně, protože jde o předběžné vydání.
-
-### Krok 4: zapoj do `Program.cs`
+### Step 2: wire it into `Program.cs`
 
 ```csharp
-using DbsViewer.Server;              // ← přidej tento using
+using DbsViewer.Server;              // ← add this using
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddDbContext<AppDbContext>(o => o.UseSqlite("Data Source=app.db"));
-builder.Services.AddDbsViewer<AppDbContext>();     // ← 1. řádek
+builder.Services.AddDbsViewer<AppDbContext>();     // ← line 1
 
 var app = builder.Build();
 
-app.MapDbsViewer();                                // ← 2. řádek
+app.MapDbsViewer();                                // ← line 2
 
 app.Run();
 ```
 
-Typový parametr `AddDbsViewer<T>` je tvůj `DbContext`. Nic dalšího konfigurovat nemusíš —
-providera (SQL Server nebo SQLite) si komponenta zjistí sama a živou introspekci zapne
-automaticky.
+The type parameter of `AddDbsViewer<T>` is your `DbContext`. There is nothing else to
+configure — the component determines the provider (SQL Server or SQLite) on its own and
+enables live introspection automatically.
 
-**Pořadí volání:** `MapDbsViewer()` musí být volané po `app.Build()`. Pokud aplikace používá
-`UseAuthentication()` a `UseAuthorization()`, patří `MapDbsViewer()` až za ně.
+**Call order:** `MapDbsViewer()` must be called after `app.Build()`. If the application
+uses `UseAuthentication()` and `UseAuthorization()`, then `MapDbsViewer()` belongs after them.
 
-### Krok 5: ověř
+### Step 3: verify
 
-Spusť aplikaci a otevři v prohlížeči:
+Run the application and open in a browser:
 
 ```
 http://localhost:<port>/dbschema
 ```
 
-Uvidíš prohlížečku: nahoře přepínač mezi přehledem, seznamem tabulek, ER diagramem
-a rozdíly. V seznamu je vlevo hledání, vpravo detail se záložkami.
+You'll see the viewer: at the top a switch between the overview, the table list, the ER
+diagram and the differences. In the list, search is on the left and the detail with its
+tabs on the right.
 
-Když chceš ověřit jen API:
+If you only want to check the API:
 
 ```
 http://localhost:<port>/dbschema/api/meta
 ```
 
-Odpověď vypadá takhle:
+The response looks like this:
 
 ```json
 {
@@ -152,124 +117,132 @@ Odpověď vypadá takhle:
   "canPreviewData": false,
   "showRowCounts": false,
   "groups": {},
-  "dataPreviewMaxRows": 100
+  "dataPreviewMaxRows": 100,
+  "canBrowseHistory": false
 }
 ```
 
-Když se vrátí `404`, aplikace nejspíš neběží ve vývojovém prostředí — ve výchozím nastavení
-je prohlížečka dostupná **jen v Development**. Viz [Bezpečnost](#bezpečnost).
+If you get a `404`, the application probably isn't running in the development environment —
+by default the viewer is available **only in Development**. See [Security](#security).
 
 ---
 
-## Co uvidíš
+## What you'll see
 
-**Prohlížeč tabulek.** Vlevo seznam s hledáním, které prochází názvy tabulek **i sloupců** —
-sloupec je často to jediné, co člověk zná. Vpravo detail se záložkami *Sloupce, Indexy,
-Cizí klíče, Odkazuje sem, Data*.
+**Table browser.** On the left a list with a search box that matches table names **and
+column names** — a column is often the only thing a person knows. On the right the detail
+with tabs *Sloupce (Columns), Indexy (Indexes), Cizí klíče (Foreign keys), Odkazuje sem
+(Referenced by), Data*.
 
-Záložka **Odkazuje sem** je inverzní pohled na cizí klíče a odpovídá na otázku „co se
-rozbije, když tuhle tabulku změním". V běžných nástrojích chybí, přitom je při zásahu
-do schématu nejužitečnější.
+The **Odkazuje sem** (Referenced by) tab is the inverse view of foreign keys and answers
+the question "what breaks if I change this table". Common tools don't have it, yet it is
+the most useful thing when you touch a schema.
 
-[![Seznam tabulek a detail sloupců](docs/obrazky/tabulky.png)](docs/obrazky/tabulky.png)
+[![Table list and column detail](docs/obrazky/tabulky.png)](docs/obrazky/tabulky.png)
 
-**Přehled** je vstupní obrazovka do cizí databáze: kolik je tabulek, sloupců, vazeb
-a indexů, které tabulky jsou největší a nejvíc propojené, jaké typy se používají — a sekce
-*Co stojí za pozornost* s tabulkami bez primárního klíče, cizími klíči bez indexu
-a tabulkami, které s ničím nesouvisí. Každé jméno je odkaz do detailu.
+**Overview** is the entry screen into an unfamiliar database: how many tables, columns,
+relationships and indexes there are, which tables are the largest and the most connected,
+which types are used — and a *Co stojí za pozornost* (Worth attention) section listing
+tables without a primary key, foreign keys without an index and tables that relate to
+nothing. Every name is a link into the detail.
 
-[![Přehled databáze](docs/obrazky/prehled.png)](docs/obrazky/prehled.png)
+[![Database overview](docs/obrazky/prehled.png)](docs/obrazky/prehled.png)
 
-**ER diagram.** Tabulky jako uzly, vazby jako hrany s popiskem kardinality. Kaskády mají
-vlastní barvu — je to to, co člověk v cizím schématu hledá nejčastěji. Nepovinné vazby
-jsou přerušované, vazba N:M je jedna hrana místo dvou přes vazební tabulku.
+**ER diagram.** Tables as nodes, relationships as edges labelled with cardinality. Cascades
+get their own colour — that is what people look for most often in an unfamiliar schema.
+Optional relationships are dashed, and an N:M relationship is a single edge instead of two
+through the join table.
 
-Hrany se vedou kolem tabulek, ne přes ně: trasa se hledá po mřížce v odstupu od okrajů
-uzlů a zatáčky se penalizují, takže vyjde co nejpřímější čára, která nikde nemizí pod
-tabulkou. Vazby mířící do jedné tabulky mají každá vlastní kotvu, aby se šipky neslily
-do jednoho bodu.
+Edges are routed around tables, not across them: the route is searched on a grid at a
+distance from the node borders and turns are penalised, so the result is the straightest
+possible line that never disappears underneath a table. Relationships pointing into the
+same table each get their own anchor so the arrowheads don't merge into one point.
 
-Vysvětlivky k typům čar jsou v levém dolním rohu diagramu, sbalené do štítku.
-Jak diagram vypadá celý, je vidět [na obrázku v úvodu](#dbsviewer).
+The legend for the line types sits in the bottom-left corner of the diagram, collapsed
+into a chip. What the whole diagram looks like is visible [in the image at the top](#dbsviewer).
 
-**Focus mode** je zapnutý ve výchozím stavu a je to jediný způsob, jak udělat diagram
-se stovkou tabulek čitelný: vyber tabulku a posuvníkem urči, jak daleko od ní se má
-kreslit. Nula ukáže jen ji, tři už zachytí širší okolí. Zpátky na celé schéma vede
-tlačítko **← Celé schéma** — ve výřezu totiž není z diagramu poznat, že zbytek
-schématu vůbec existuje.
+**Focus mode** is on by default and it is the only way to make a diagram with a hundred
+tables readable: pick a table and use the slider to say how far around it should be drawn.
+Zero shows just that table, three already captures the wider neighbourhood. The
+**← Celé schéma** (Whole schema) button leads back to the full picture — inside a cut-out
+there is no way to tell from the diagram that the rest of the schema even exists.
 
-Uzly se dají rozbalit na všechny sloupce, plocha se posouvá tažením a přibližuje kolečkem.
+Nodes can be expanded to all their columns, the canvas pans by dragging and zooms with
+the wheel.
 
-[![Focus mode — výřez kolem vybrané tabulky](docs/obrazky/diagram-focus.png)](docs/obrazky/diagram-focus.png)
+[![Focus mode — cut-out around the selected table](docs/obrazky/diagram-focus.png)](docs/obrazky/diagram-focus.png)
 
-**Rozdíly.** Nálezy porovnání modelu s databází, seskupené podle závažnosti. Tabulka
-s nálezem se zvýrazní i v seznamu a v diagramu, takže je vidět, kde je problém.
+**Differences.** The findings of comparing the model against the database, grouped by
+severity. A table with a finding is highlighted in the list and in the diagram too, so it
+is visible where the problem is.
 
-[![Rozdíly mezi EF modelem a databází](docs/obrazky/rozdily.png)](docs/obrazky/rozdily.png)
+[![Differences between the EF model and the database](docs/obrazky/rozdily.png)](docs/obrazky/rozdily.png)
 
-*Chybějící sloupec je chyba, přebytečná tabulka jen varování — legacy objekt vedle
-EF modelu je běžný stav, ne porucha.*
+*A missing column is an error, an extra table only a warning — a legacy object next to the
+EF model is a normal state, not a fault.*
 
-**Historie.** Záložka *Historie* ukazuje časovou osu EF migrací a u každé to, co změnila —
-přidané sloupce, indexy, tabulky, změny typů. Tlačítkem **Zobrazit schéma** se prohlížečka
-přepne do minulosti: přehled, seznam tabulek i diagram pak ukazují stav po té migraci.
-Zpátky vede pruh nahoře.
+**History.** The *Historie* (History) tab shows a timeline of EF migrations and, for each
+one, what it changed — added columns, indexes, tables, type changes. The **Zobrazit schéma**
+(Show schema) button switches the viewer into the past: the overview, the table list and
+the diagram then show the state after that migration. The bar at the top leads back.
 
-[![Historie schématu z EF migrací](docs/obrazky/historie.png)](docs/obrazky/historie.png)
+[![Schema history from EF migrations](docs/obrazky/historie.png)](docs/obrazky/historie.png)
 
-Dvě libovolné verze jde porovnat — nemusí spolu sousedit. Výsledek se čte ve směru času:
-„sloupec přibyl", ne „sloupec chybí v modelu".
+Any two versions can be compared — they don't have to be adjacent. The result reads in the
+direction of time: "a column was added", not "a column is missing from the model".
 
-Čte se to ze snapshotů, které si EF ukládá ke každé migraci; DbsViewer nikam nic nezapisuje.
-Vyžaduje to EF migrace, jejichž kód je v projektu — migrace, která proběhla, ale její třída
-už zmizela, se ukáže jen se stavem *chybí v kódu*. Podrobnosti a omezení v
-[ADR-0014](docs/adr/0014-historie-schematu-z-migraci.md).
+It is read from the snapshots EF stores with every migration; DbsViewer never writes
+anything anywhere. It requires EF migrations whose code is present in the project — a
+migration that ran but whose class is gone shows up only with the state *chybí v kódu*
+(missing in code). Details and limits in
+[ADR-0014](docs/adr/0014-historie-schematu-z-migraci.md) (Czech).
 
-**Data.** Záložka *Data* v detailu tabulky se načte sama, bez klikání. Mřížka umí
-stránkovat, řadit kliknutím na hlavičku (vzestupně → sestupně → bez řazení) a filtrovat
-políčkem pod každým sloupcem.
+**Data.** The *Data* tab in the table detail loads by itself, without clicking. The grid
+can page, sort by clicking the header (ascending → descending → unsorted) and filter with
+the box under each column.
 
-Všechno tohle dělá **databáze**, ne prohlížečka: `LIMIT`/`OFFSET` respektive
-`OFFSET`/`FETCH`, `ORDER BY` a `WHERE` s parametry. Do paměti se nikdy nenačte víc než
-jedna stránka, takže mřížka funguje stejně nad deseti řádky jako nad miliony. Celkový
-počet se počítá `COUNT(*)`; když dotaz nedoběhne do časového limitu, stránkuje se dál,
-jen bez čísel stránek.
+All of this is done by the **database**, not by the viewer: `LIMIT`/`OFFSET` respectively
+`OFFSET`/`FETCH`, `ORDER BY` and a parameterised `WHERE`. No more than one page is ever
+loaded into memory, so the grid works the same over ten rows as over millions. The total
+count is computed with `COUNT(*)`; when that query doesn't finish within the timeout,
+paging continues, just without page numbers.
 
-Filtr hledá text kdekoli v hodnotě, i nad čísly a daty. Zástupné znaky `%` a `_` se
-escapují — kdo hledá „100%", hledá opravdu „100%".
+The filter looks for text anywhere in the value, including over numbers and dates. The
+wildcards `%` and `_` are escaped — someone searching for "100%" really is searching for
+"100%".
 
-[![Náhled dat s filtrem](docs/obrazky/data.png)](docs/obrazky/data.png)
+[![Data preview with a filter](docs/obrazky/data.png)](docs/obrazky/data.png)
 
-*Filtr `Brno` nad sloupcem `BillingCity`: ze 120 řádků zbylo 15 a počet přepočítala
-databáze, ne prohlížečka.*
+*The `Brno` filter over the `BillingCity` column: 15 rows left out of 120, and the count
+was recomputed by the database, not by the viewer.*
 
-**Export.** Schéma jde stáhnout jako Mermaid, DBML nebo Markdown dokumentaci —
-souborem, který se dá commitnout do repozitáře.
+**Export.** The schema can be downloaded as Mermaid, DBML or Markdown documentation — as
+a file you can commit into the repository.
 
 ---
 
 ## HTTP API
 
-UI všechno volá přes tohle API, takže se dá použít i samostatně.
-Všechny cesty jsou relativní k `RoutePrefix` (výchozí `/dbschema`).
+The UI calls everything through this API, so it can be used on its own as well.
+All paths are relative to `RoutePrefix` (`/dbschema` by default).
 
-| Metoda | Cesta | Vrací |
+| Method | Path | Returns |
 |---|---|---|
-| `GET` | `/` | Grafická prohlížečka (Blazor WebAssembly). |
-| `GET` | `/api/meta` | Co je v této konfiguraci k dispozici. Volej jako první. |
-| `GET` | `/api/schema` | Celé schéma. `source=ef\|live\|merged`, `migration={id}` pro historickou verzi, `refresh=true` obejde cache. |
-| `GET` | `/api/schema/diff` | Rozdíly mezi EF modelem a databází. |
-| `GET` | `/api/tables/{schema}/{name}` | Detail jedné tabulky. |
-| `POST` | `/api/tables/{schema}/{name}/rows` | Stránka dat. Ve výchozím stavu vrací `403`. |
-| `GET` | `/api/migrations` | Migrace i s tím, co která změnila. |
-| `GET` | `/api/migrations/diff?from=&to=` | Rozdíl mezi dvěma verzemi historie. |
-| `POST` | `/api/refresh` | Zahodí cache. |
+| `GET` | `/` | The graphical viewer (Blazor WebAssembly). |
+| `GET` | `/api/meta` | What is available in this configuration. Call it first. |
+| `GET` | `/api/schema` | The whole schema. `source=ef\|live\|merged`, `migration={id}` for a historical version, `refresh=true` bypasses the cache. |
+| `GET` | `/api/schema/diff` | Differences between the EF model and the database. |
+| `GET` | `/api/tables/{schema}/{name}` | Detail of a single table. |
+| `POST` | `/api/tables/{schema}/{name}/rows` | A page of data. Returns `403` by default. |
+| `GET` | `/api/migrations` | Migrations together with what each of them changed. |
+| `GET` | `/api/migrations/diff?from=&to=` | Difference between two versions of the history. |
+| `POST` | `/api/refresh` | Drops the cache. |
 
-**Prázdné schéma se v cestě zapisuje pomlčkou.** SQLite schémata nemá, takže detail tabulky
-je `/api/tables/-/Customers`. U SQL Serveru `/api/tables/dbo/Customers`.
+**An empty schema is written as a dash in the path.** SQLite has no schemas, so a table
+detail is `/api/tables/-/Customers`. On SQL Server it is `/api/tables/dbo/Customers`.
 
-**Data chodí POSTem, ne GETem.** Hledaná hodnota je obsah databáze a v adrese by skončila
-v historii prohlížeče i v logu serveru. Tělo požadavku:
+**Data goes over POST, not GET.** The searched value is database content and in the URL it
+would end up in the browser history and in the server log. The request body:
 
 ```json
 {
@@ -283,21 +256,21 @@ v historii prohlížeče i v logu serveru. Tělo požadavku:
 }
 ```
 
-Operátory: `Contains`, `Equals`, `StartsWith`, `EndsWith`, `GreaterThan`, `LessThan`,
-`IsNull`, `IsNotNull`. Odpověď nese `rows`, `totalRows`, `pageCount` a `hasMore`.
+Operators: `Contains`, `Equals`, `StartsWith`, `EndsWith`, `GreaterThan`, `LessThan`,
+`IsNull`, `IsNotNull`. The response carries `rows`, `totalRows`, `pageCount` and `hasMore`.
 
-### Pohledy na schéma
+### Views of the schema
 
-| `source` | Co vrací |
+| `source` | What it returns |
 |---|---|
-| `ef` | Jen EF model. Zná navigace, CLR typy, komentáře, dědičnost. Nesahá do databáze. |
-| `live` | Jen skutečnost v databázi. Zná reálné indexy, defaulty, computed sloupce, počty řádků. |
-| `merged` | Obojí sloučené. **Výchozí**, když jsou oba zdroje k dispozici. |
+| `ef` | The EF model only. Knows navigations, CLR types, comments, inheritance. Doesn't touch the database. |
+| `live` | Only what is really in the database. Knows the actual indexes, defaults, computed columns, row counts. |
+| `merged` | Both merged together. **The default** when both sources are available. |
 
-Pravidlo slučování: *databáze má pravdu o tom, co v ní je; model má pravdu o záměru.*
-Podrobně v [ADR-0009](docs/adr/0009-databaze-ma-pravdu-o-sobe.md).
+The merging rule: *the database is right about what is in it; the model is right about
+the intent.* In detail in [ADR-0009](docs/adr/0009-databaze-ma-pravdu-o-sobe.md) (Czech).
 
-### Tvar odpovědi `/api/schema`
+### Shape of the `/api/schema` response
 
 ```json
 {
@@ -362,19 +335,20 @@ Podrobně v [ADR-0009](docs/adr/0009-databaze-ma-pravdu-o-sobe.md).
 }
 ```
 
-Klíčové vlastnosti tvaru:
+Key properties of the shape:
 
-- **`relationships` není totéž co `foreignKeys`.** Jsou odvozené pro vykreslení: vztah N:M
-  přes vazební tabulku je jedna hrana s `cardinality: "ManyToMany"` a vyplněným
-  `viaJoinTable`, ne dva cizí klíče. Podrobně v [ADR-0007](docs/adr/0007-vztahy-ne-cizi-klice.md).
-- **`cardinality`** nabývá hodnot `OneToOne`, `OneToMany`, `ManyToMany`.
-- **`isIdentifying`** znamená, že cizí klíč je součástí primárního klíče.
-- **`warnings`** obsahuje texty toho, co se nepodařilo načíst. Načtení schématu nikdy
-  nespadne — dílčí selhání skončí tady.
-- Enumy se serializují **jako text**, ne jako číslo. Vlastnosti jsou v `camelCase`.
-- Prázdné a `null` hodnoty se v odpovědi vynechávají.
+- **`relationships` is not the same thing as `foreignKeys`.** They are derived for drawing:
+  an N:M relationship through a join table is a single edge with `cardinality: "ManyToMany"`
+  and a filled-in `viaJoinTable`, not two foreign keys. In detail in
+  [ADR-0007](docs/adr/0007-vztahy-ne-cizi-klice.md) (Czech).
+- **`cardinality`** takes the values `OneToOne`, `OneToMany`, `ManyToMany`.
+- **`isIdentifying`** means the foreign key is part of the primary key.
+- **`warnings`** contains the texts of whatever could not be read. Reading the schema never
+  fails — a partial failure ends up here.
+- Enums are serialised **as text**, not as a number. Properties are in `camelCase`.
+- Empty and `null` values are omitted from the response.
 
-### Tvar odpovědi `/api/schema/diff`
+### Shape of the `/api/schema/diff` response
 
 ```json
 {
@@ -395,50 +369,51 @@ Klíčové vlastnosti tvaru:
 }
 ```
 
-Nálezy jsou seřazené od nejzávažnějších. `severity` je `Error`, `Warning` nebo `Info`.
-Druhy nálezů (`kind`) pokrývají chybějící tabulky a sloupce na obou stranách, neshody typů,
-nullability, délek, defaultů, klíčů, indexů, cizích klíčů a stavu migrací.
+Findings are ordered from the most severe. `severity` is `Error`, `Warning` or `Info`.
+The kinds of findings (`kind`) cover missing tables and columns on both sides, mismatches
+of types, nullability, lengths, defaults, keys, indexes, foreign keys and migration state.
+The `message` is in Czech, like the rest of the user-facing text.
 
 ---
 
-## Konfigurace
+## Configuration
 
-Vše volitelné. Bez konfigurace platí bezpečné výchozí hodnoty.
+Everything is optional. Without configuration, safe defaults apply.
 
 ```csharp
 builder.Services.AddDbsViewer<AppDbContext>(options =>
 {
-    // Kde prohlížečka běží
-    options.RoutePrefix = "/_db";                  // výchozí "/dbschema"
+    // Where the viewer runs
+    options.RoutePrefix = "/_db";                  // default "/dbschema"
     options.Title = "Eshop — schéma";
 
-    // Kde je dostupná
-    options.EnabledIn = HostEnv.Development | HostEnv.Staging;   // výchozí jen Development
-    options.RequireAuthorization("DbSchemaAdmins");              // mimo Development povinné
+    // Where it is available
+    options.EnabledIn = HostEnv.Development | HostEnv.Staging;   // default: Development only
+    options.RequireAuthorization("DbSchemaAdmins");              // mandatory outside Development
 
-    // Co se čte
-    options.IncludeLiveDatabase = true;            // výchozí true
-    options.ShowRowCounts = true;                  // výchozí false
-    options.CacheFor = TimeSpan.FromMinutes(10);   // výchozí 5 minut, Zero cache vypne
+    // What gets read
+    options.IncludeLiveDatabase = true;            // default true
+    options.ShowRowCounts = true;                  // default false
+    options.CacheFor = TimeSpan.FromMinutes(10);   // default 5 minutes, Zero disables the cache
 
-    // Co se zobrazuje
+    // What gets displayed
     options.HideTables.Add("__EFMigrationsHistory");
-    options.HideTables.Add("AspNetUser*");         // podporuje *
-    options.IncludeSchemas.Add("dbo");             // prázdné = všechna schémata
-    options.Groups["Sklad"] = "Warehouse*";        // skupiny pro filtr v UI
+    options.HideTables.Add("AspNetUser*");         // supports *
+    options.IncludeSchemas.Add("dbo");             // empty = all schemas
+    options.Groups["Sklad"] = "Warehouse*";        // groups for the filter in the UI
 
-    // Náhled dat — viz Bezpečnost
-    options.DataPreview.Enabled = true;            // výchozí false
-    options.DataPreview.MaxRows = 50;              // strop velikosti stránky; výchozí 100, tvrdý strop 1000
-    options.DataPreview.CommandTimeoutSeconds = 15; // výchozí 30; chrání hlavně COUNT(*)
-    options.DataPreview.MaskColumns.Add("Email");  // výchozí *Password*, *Secret*, *Token*
+    // Data preview — see Security
+    options.DataPreview.Enabled = true;            // default false
+    options.DataPreview.MaxRows = 50;              // page size cap; default 100, hard cap 1000
+    options.DataPreview.CommandTimeoutSeconds = 15; // default 30; protects mainly COUNT(*)
+    options.DataPreview.MaskColumns.Add("Email");  // default *Password*, *Secret*, *Token*
     options.DataPreview.AllowedTables.Add("Order*");
 });
 ```
 
-### Bez `DbContext`
+### Without a `DbContext`
 
-Pro cizí nebo legacy databázi, ke které nemáš EF model:
+For a foreign or legacy database you have no EF model for:
 
 ```csharp
 using DbsViewer.SqlServer;
@@ -448,90 +423,92 @@ builder.Services.AddDbsViewer(
     options => options.Title = "Legacy databáze");
 ```
 
-Diff ani sloučený pohled v tomhle režimu nejsou — chybí model, se kterým by se porovnávalo.
-`/api/meta` to hlásí v poli `views`.
+There is neither a diff nor a merged view in this mode — the model to compare against is
+missing. `/api/meta` reports that in the `views` field.
 
 ---
 
-## Bezpečnost
+## Security
 
-Schéma databáze je citlivá informace. Výchozí hodnoty jsou proto restriktivní a některá
-pravidla se **nedají obejít konfigurací**. Odůvodnění v [ADR-0006](docs/adr/0006-bezpecnostni-defaulty.md).
+A database schema is sensitive information. The defaults are therefore restrictive and
+some rules **cannot be worked around by configuration**. The reasoning is in
+[ADR-0006](docs/adr/0006-bezpecnostni-defaulty.md) (Czech).
 
-| Pravidlo | Chování |
+| Rule | Behaviour |
 |---|---|
-| Dostupnost | Jen v `Development`. Jinde je nutné explicitní `EnabledIn`. |
-| Autorizace | Mimo Development je policy **povinná**. Bez ní aplikace **nenastartuje** — `MapDbsViewer()` vyhodí výjimku. |
-| Zápis | Žádný endpoint nespouští DDL ani DML. Read-only je vlastnost API, ne přepínač. |
-| Náhled dat | Vypnutý. Zapnutí je samostatné rozhodnutí nezávislé na zpřístupnění schématu. |
-| Náhled dat v produkci | Aplikace nenastartuje, dokud nenastavíš `DataPreview.AllowInProduction = true`. |
-| Uživatelské SQL | Nepřijímá se nikdy. Jméno tabulky se ověřuje proti načtenému schématu a teprve pak escapuje. |
-| Audit | Každý náhled dat se loguje na úrovni `Information` — kdo, která tabulka, kolik řádků. |
+| Availability | Only in `Development`. Anywhere else an explicit `EnabledIn` is required. |
+| Authorization | Outside Development a policy is **mandatory**. Without one the application **won't start** — `MapDbsViewer()` throws. |
+| Writes | No endpoint runs DDL or DML. Read-only is a property of the API, not a switch. |
+| Data preview | Off. Turning it on is a separate decision, independent of exposing the schema. |
+| Data preview in production | The application won't start until you set `DataPreview.AllowInProduction = true`. |
+| User SQL | Never accepted. A table name is validated against the loaded schema and only then escaped. |
+| Audit | Every data preview is logged at the `Information` level — who, which table, how many rows. |
 
-Pád při startu je záměr. Varování v logu by nikdo nepřečetl včas; výjimka nastane
-v nasazovacím pipeline, ne v provozu.
+Failing at startup is intentional. A warning in the log would not be read in time; the
+exception happens in the deployment pipeline, not in production.
 
-Doporučený provoz: v Development zapnuto úplně, ve Staging schéma a diff za autorizací,
-v produkci buď vůbec, nebo jen schéma pro úzkou roli a náhled dat nikdy. Nastavení náhledu
-dat drž v konfiguraci prostředí, ne v kódu, aby se nedalo zapnout omylem při nasazení.
+Recommended operation: fully enabled in Development, schema and diff behind authorization
+in Staging, in production either not at all or only the schema for a narrow role and the
+data preview never. Keep the data preview settings in environment configuration, not in
+code, so that it cannot be turned on by accident during a deployment.
 
 ---
 
-## Řešení potíží
+## Troubleshooting
 
-| Příznak | Příčina a náprava |
+| Symptom | Cause and remedy |
 |---|---|
-| `404` na `/dbschema/api/meta` | Aplikace neběží v `Development`. Nastav `EnabledIn` a autorizační policy, nebo spusť s `ASPNETCORE_ENVIRONMENT=Development`. |
-| Výjimka při startu, „autorizační policy" | Prohlížečka je povolená mimo Development bez policy. Zavolej `RequireAuthorization("…")`, nebo omez `EnabledIn` na `HostEnv.Development`. |
-| Výjimka při startu, „náhled dat" | Náhled dat v produkci. Buď ho vypni, nebo nastav `DataPreview.AllowInProduction = true`. |
-| „není zaregistrovaná čtečka živé databáze" | Provider není SQL Server ani SQLite. Nastav `IncludeLiveDatabase = false`. |
-| `views` obsahuje jen `["ef"]` | Živá introspekce se nezapnula. Zkontroluj `IncludeLiveDatabase` a providera. |
-| `403` na `/rows` | Náhled dat je vypnutý nebo tabulka není ve whitelistu. |
-| Změny v databázi se neprojeví | Cache. Zavolej `POST /api/refresh`, přidej `?refresh=true`, nebo sniž `CacheFor`. |
-| Balíček se nenašel | Zkontroluj cestu v `NuGet.config` a že v `artifacts/packages` opravdu jsou `.nupkg` soubory. Po přebalení stejné verze vyčisti cache: `dotnet nuget locals global-packages --clear`. |
+| `404` on `/dbschema/api/meta` | The application isn't running in `Development`. Set `EnabledIn` and an authorization policy, or run with `ASPNETCORE_ENVIRONMENT=Development`. |
+| Exception at startup, "autorizační policy" | The viewer is enabled outside Development without a policy. Call `RequireAuthorization("…")`, or restrict `EnabledIn` to `HostEnv.Development`. |
+| Exception at startup, "náhled dat" | The data preview in production. Either turn it off or set `DataPreview.AllowInProduction = true`. |
+| "není zaregistrovaná čtečka živé databáze" | The provider is neither SQL Server nor SQLite. Set `IncludeLiveDatabase = false`. |
+| `views` contains only `["ef"]` | Live introspection didn't turn on. Check `IncludeLiveDatabase` and the provider. |
+| `403` on `/rows` | The data preview is off, or the table isn't on the whitelist. |
+| Database changes don't show up | The cache. Call `POST /api/refresh`, add `?refresh=true`, or lower `CacheFor`. |
+| The package wasn't found | Prereleases aren't offered without `--prerelease`. When building from source, check the path in `NuGet.config` and that `artifacts/packages` really does contain `.nupkg` files; after repacking the same version, clear the cache: `dotnet nuget locals global-packages --clear`. |
 
 ---
 
-## Bez aplikace: nástroj z příkazové řádky
+## Without an application: the command-line tool
 
-Schéma jde vypsat i bez zapojení do aplikace. Nástroj se instaluje jako `dotnet tool`:
+The schema can also be dumped without wiring anything into an application. The tool
+installs as a `dotnet tool`:
 
 ```bash
-dotnet pack tools/DbsViewer.Dump -c Release -o artifacts/packages
-dotnet tool install -g DbsViewer.Tool --version 0.1.0-alpha --add-source ./artifacts/packages
+dotnet tool install -g DbsViewer.Tool
 ```
 
-Potom:
+Then:
 
 ```bash
-# ukázkový model z repozitáře
+# the sample model from the repository
 dbsview
 
-# živá databáze
+# a live database
 dbsview --sqlite ./app.db --rows
 dbsview --sqlserver "Server=.;Database=Eshop;Trusted_Connection=True"
 
-# drift mezi EF modelem a databází
+# drift between the EF model and the database
 dbsview --diff ./app.db
 
-# dokumentace schématu do repozitáře
+# schema documentation into the repository
 dbsview --sqlite ./app.db --export docs/schema.md --format markdown
 dbsview --sqlite ./app.db --export docs/schema.mmd --format mermaid
 
-# JSON na disk
+# JSON to disk
 dbsview --json schema.json
 
-# nápověda
+# help
 dbsview --help
 ```
 
-Bez instalace jde spustit i přímo ze zdrojů:
+Without installing, it can also be run straight from source:
 
 ```bash
 dotnet run --project tools/DbsViewer.Dump -- --help
 ```
 
-Výpis:
+The output (the tool speaks Czech, like the rest of the project):
 
 ```
 Databáze  : main
@@ -555,44 +532,45 @@ Tabulek   : 10, vztahů: 8
   N:M  Tags ← Products via ProductTags  onDelete=Cascade
 ```
 
-Režim `--diff` vrací **kód 2**, když najde chybu, takže se dá použít jako kontrola v CI:
+The `--diff` mode returns **exit code 2** when it finds an error, so it can be used as a
+check in CI:
 
 ```yaml
 - name: Kontrola driftu databáze
   run: dbsview --diff "${{ secrets.CONNECTION_STRING }}"
 ```
 
-Ukázka vygenerované dokumentace je v [`docs/schema-ukazka.md`](docs/schema-ukazka.md).
+A sample of the generated documentation is in [`docs/schema-ukazka.md`](docs/schema-ukazka.md).
 
 ---
 
-## Co komponenta umí
+## What the component can do
 
-- **Tabulky a pohledy** včetně komentářů, computed sloupců, defaultů, collation, check constraintů
-- **Vztahy, ne cizí klíče** — 1:1, 1:N i N:M se sbalenou vazební tabulkou, identifikující
-  vztahy, self-reference
-- **Celý EF model** — TPH dědičnost, owned types, shadow properties, vlastní schémata
-- **Detekci driftu** — neaplikovaná migrace, ručně přidaný index, sloupec navíc,
-  `DeleteBehavior`, které se chová jinak než model tvrdí
-- **Odolnost** — načtení schématu nikdy nespadne, dílčí selhání skončí ve `warnings`
-- **Grafické UI** — přehled databáze, prohlížeč tabulek, ER diagram s focus modem,
-  přehled rozdílů, historie schématu podle migrací, stránkovaná mřížka dat,
-  export do Mermaid, DBML a Markdownu
+- **Tables and views** including comments, computed columns, defaults, collation, check constraints
+- **Relationships, not foreign keys** — 1:1, 1:N and N:M with the join table collapsed,
+  identifying relationships, self-references
+- **The whole EF model** — TPH inheritance, owned types, shadow properties, custom schemas
+- **Drift detection** — an unapplied migration, a manually added index, an extra column,
+  a `DeleteBehavior` that behaves differently from what the model claims
+- **Resilience** — reading the schema never fails, a partial failure ends up in `warnings`
+- **A graphical UI** — database overview, table browser, ER diagram with focus mode,
+  overview of differences, schema history by migration, a paged data grid,
+  export to Mermaid, DBML and Markdown
 
-Zdroje dat:
+Data sources:
 
-| Zdroj | Ví navíc |
+| Source | Knows in addition |
 |---|---|
-| **EF Core model** | navigace, N:M přes skip-navigace, CLR typy, `DeleteBehavior`, owned types, TPH |
-| **Živá databáze** | skutečné indexy včetně `INCLUDE` a filtrovaných, computed sloupce, defaulty, odhad počtu řádků |
+| **EF Core model** | navigations, N:M through skip navigations, CLR types, `DeleteBehavior`, owned types, TPH |
+| **Live database** | the real indexes including `INCLUDE` and filtered ones, computed columns, defaults, an estimate of the row count |
 
 ---
 
-## Vývoj
+## Development
 
 ```bash
-# V Debugu stačí samotný build. Release potřebuje napřed publikované UI,
-# protože serverový balíček ho vkládá do assembly.
+# In Debug a plain build is enough. Release needs the UI published first,
+# because the server package embeds it into the assembly.
 dotnet build
 
 cd tests/DbsViewer.EfCore.Tests && dotnet test
@@ -602,109 +580,139 @@ cd tests/DbsViewer.Ui.Tests && dotnet test
 cd tests/DbsViewer.Tool.Tests && dotnet test
 ```
 
-Blazor UI se do serverového balíčku vkládá jen v `Release` — v `Debug` by publish UI
-zdržoval každý build. Vynutit jde přes `-p:EmbedDbsViewerUi=true`, ale pak musí být UI
-publikované do `artifacts/ui`:
+The Blazor UI is embedded into the server package only in `Release` — in `Debug` publishing
+the UI would slow down every build. It can be forced with `-p:EmbedDbsViewerUi=true`, but
+then the UI must be published into `artifacts/ui`:
 
 ```bash
 dotnet publish src/DbsViewer.Ui -c Release -o artifacts/ui
 dotnet build -c Release
 ```
 
-Publikuje se samostatným příkazem schválně. Dokud to obstarával MSBuild target, stavěl
-`DbsViewer.Ui` souběžně s tím, jak ho stavělo řešení (je v něm kvůli testům), a build
-padal na zamčených mezisouborech — na CI spolehlivě, na slabším stroji jen občas.
-Když publikované UI chybí, build to řekne rovnou; balíček bez UI nikdy nevznikne.
+Publishing is a separate command on purpose. As long as an MSBuild target handled it,
+`DbsViewer.Ui` was being built concurrently with the solution building it (it is in the
+solution because of the tests), and the build kept failing on locked intermediate files —
+reliably on CI, only occasionally on a slower machine. When the published UI is missing,
+the build says so right away; a package without the UI can never come into existence.
 
-Testy vynucují **100% pokrytí řádků a metod** — build selže, když pokrytí klesne.
-Odůvodnění v [ADR-0005](docs/adr/0005-stoprocentni-pokryti.md). Report končí
-v `artifacts/coverage/`.
+Packages from source — for trying out a change in another application before it reaches
+nuget.org:
 
-Architektonická rozhodnutí a jejich důvody jsou v [`docs/adr/`](docs/adr/README.md).
-Pravidla pro práci na projektu v [`CLAUDE.md`](CLAUDE.md).
+```bash
+dotnet publish src/DbsViewer.Ui -c Release -o artifacts/ui
 
-### Struktura
+for p in Abstractions EfCore Relational SqlServer Sqlite Analysis Server; do
+  dotnet pack src/DbsViewer.$p -c Release -o artifacts/packages
+done
+dotnet pack tools/DbsViewer.Dump -c Release -o artifacts/packages
+```
 
-| Projekt | Účel |
+The target application then needs `artifacts/packages` as a package source — either
+`dotnet add package DbsViewer.Server --source <path>`, or a `NuGet.config` next to its
+`.csproj`:
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <packageSources>
+    <clear />
+    <add key="dbsviewer-local" value="C:\path\to\DBsViewer\artifacts\packages" />
+    <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
+  </packageSources>
+</configuration>
+```
+
+The tests enforce **100% line and method coverage** — the build fails when coverage drops.
+The reasoning is in [ADR-0005](docs/adr/0005-stoprocentni-pokryti.md) (Czech). The report
+ends up in `artifacts/coverage/`.
+
+Architecture decisions and their reasons are in [`docs/adr/`](docs/adr/README.md) (Czech).
+The rules for working on the project are in [`CLAUDE.md`](CLAUDE.md) (Czech).
+
+### Structure
+
+| Project | Purpose |
 |---|---|
-| `src/DbsViewer.Abstractions` | Datový model, kontrakty, odvozovací funkce. Bez závislostí. |
-| `src/DbsViewer.EfCore` | Čtení schématu z EF modelu |
-| `src/DbsViewer.Relational` | Sdílená vrstva živé introspekce |
-| `src/DbsViewer.SqlServer` | Introspekce SQL Serveru nad `sys.*` |
-| `src/DbsViewer.Sqlite` | Introspekce SQLite nad `PRAGMA` |
-| `src/DbsViewer.Analysis` | Slučování a porovnání schémat |
-| `src/DbsViewer.Server` | `AddDbsViewer`, `MapDbsViewer`, HTTP API, hosting UI — **tohle se instaluje** |
-| `src/DbsViewer.Ui` | Blazor WASM prohlížečka, embedovaná do serverového balíčku |
-| `samples/DbsViewer.SampleShop` | Ukázkový model pro testy |
-| `tools/DbsViewer.Dump` | `dotnet tool dbsview` — výpis schématu, diff a export |
-| `tests/*` | Testy s vynuceným pokrytím |
+| `src/DbsViewer.Abstractions` | Data model, contracts, derivation functions. No dependencies. |
+| `src/DbsViewer.EfCore` | Reading the schema from the EF model |
+| `src/DbsViewer.Relational` | Shared layer of live introspection |
+| `src/DbsViewer.SqlServer` | SQL Server introspection over `sys.*` |
+| `src/DbsViewer.Sqlite` | SQLite introspection over `PRAGMA` |
+| `src/DbsViewer.Analysis` | Merging and comparing schemas |
+| `src/DbsViewer.Server` | `AddDbsViewer`, `MapDbsViewer`, HTTP API, hosting of the UI — **this is what you install** |
+| `src/DbsViewer.Ui` | The Blazor WASM viewer, embedded into the server package |
+| `samples/DbsViewer.SampleShop` | Sample model for the tests |
+| `samples/DbsViewer.SampleMigrations` | Model with real EF migrations — for the schema history |
+| `tools/DbsViewer.Dump` | `dotnet tool dbsview` — schema dump, diff and export |
+| `tests/*` | Tests with enforced coverage |
 
-### Etapy
+### Stages
 
-| # | Etapa | Stav |
+| # | Stage | Status |
 |---|---|---|
-| 01 | Datový model, čtení z EF modelu | ✅ hotovo |
-| 02 | Živá introspekce, slučování, diff engine | ✅ hotovo |
-| 03 | `AddDbsViewer` / `MapDbsViewer`, HTTP API, autorizace, náhled dat | ✅ hotovo |
-| 04 | Blazor WASM UI, embedding do balíčku | ✅ hotovo |
-| 05 | ER diagram, focus mode, export | ✅ hotovo |
-| 06 | Diff a náhled dat v UI | ✅ hotovo |
-| 07 | `dotnet tool`, statický snapshot | ✅ hotovo |
-| — | Publikování na nuget.org | ⬜ |
+| 01 | Data model, reading from the EF model | ✅ done |
+| 02 | Live introspection, merging, diff engine | ✅ done |
+| 03 | `AddDbsViewer` / `MapDbsViewer`, HTTP API, authorization, data preview | ✅ done |
+| 04 | Blazor WASM UI, embedding into the package | ✅ done |
+| 05 | ER diagram, focus mode, export | ✅ done |
+| 06 | Diff and data preview in the UI | ✅ done |
+| 07 | `dotnet tool`, static snapshot | ✅ done |
+| — | Publishing to nuget.org | ✅ done |
 
-## Vydávání
+## Releasing
 
-Publikaci na NuGet obstarává [GitHub Actions](.github/workflows/build-a-publikace.yml).
+Publishing to NuGet is handled by [GitHub Actions](.github/workflows/build-a-publikace.yml).
 
-| Co uděláš | Co se stane |
+| What you do | What happens |
 |---|---|
-| Push na `main` | Kompilace, testy a vydání **předběžné** verze, například `0.2.1-alpha.0.7` |
-| `git tag v1.2.3 && git push origin v1.2.3` | Totéž plus vydání **stabilní** verze `1.2.3` a release na GitHubu |
-| Pull request | Jen kompilace a testy, nic se nepublikuje |
+| Push to `main` | Compilation, tests and the release of a **prerelease** version, for example `0.2.1-alpha.0.7` |
+| `git tag v1.2.3 && git push origin v1.2.3` | The same plus the release of the **stable** version `1.2.3` and a GitHub release |
+| Pull request | Only compilation and tests, nothing gets published |
 
-Verzi určuje **poslední git tag**, ne číslo v souboru — obstarává to
-[MinVer](https://github.com/adamralph/minver). Po tagu `v1.2.3` dostane každý další
-commit verzi `1.2.4-alpha.0.N`, takže se dvě sestavení nikdy neperou o stejné číslo.
+The version is determined by the **last git tag**, not by a number in a file — that is
+handled by [MinVer](https://github.com/adamralph/minver). After the tag `v1.2.3`, every
+further commit gets the version `1.2.4-alpha.0.N`, so two builds never fight over the
+same number.
 
-### Co je potřeba nastavit
+### What needs to be set up
 
-Publikuje se přes **Trusted Publishing**, takže v repozitáři neleží žádný klíč
-k NuGetu. Běh si od GitHubu vyžádá podepsaný OIDC token a vymění ho na nuget.org
-za dočasný klíč platný hodinu.
+Publishing goes through **Trusted Publishing**, so no NuGet key is stored in the
+repository. The run asks GitHub for a signed OIDC token and exchanges it on nuget.org for
+a temporary key valid for an hour.
 
-**1. Politika na nuget.org** — přihlaš se, klikni na své jméno → *Trusted Publishing*
-a přidej politiku:
+**1. A policy on nuget.org** — sign in, click your name → *Trusted Publishing* and add a
+policy:
 
-| Pole | Hodnota |
+| Field | Value |
 |---|---|
 | Repository Owner | `MichalZem` |
 | Repository | `DBsViewer` |
 | Workflow File | `build-a-publikace.yml` |
-| Environment | nechat prázdné |
+| Environment | leave empty |
 
-**2. Proměnná v repozitáři** — *Settings → Secrets and variables → Actions → Variables*:
+**2. A variable in the repository** — *Settings → Secrets and variables → Actions → Variables*:
 
-| Proměnná | K čemu | Povinné |
+| Variable | What for | Required |
 |---|---|---|
-| `NUGET_USER` | Uživatelské jméno na nuget.org (**ne e-mail**) | Ano, jinak se publikace přeskočí |
+| `NUGET_USER` | The user name on nuget.org (**not the e-mail**) | Yes, otherwise publishing is skipped |
 
-Případně z příkazové řádky: `gh variable set NUGET_USER --body "<jméno>"`.
+Alternatively from the command line: `gh variable set NUGET_USER --body "<name>"`.
 
-Volitelně ještě tajemství `TEST_SQL_PASSWORD` (heslo testovacího SQL Serveru
-v kontejneru) — bez něj se použije výchozí hodnota.
+Optionally also the secret `TEST_SQL_PASSWORD` (the password of the test SQL Server in the
+container) — without it a default value is used.
 
-Bez `NUGET_USER` workflow **neselže** — jen přeskočí publikaci a nechá balíčky
-v artefaktech běhu, odkud se dají stáhnout ručně. Stejně se zachová i ve forku,
-který na politiku nedosáhne.
+Without `NUGET_USER` the workflow **doesn't fail** — it merely skips publishing and leaves
+the packages in the run's artifacts, from where they can be downloaded manually. It behaves
+the same way in a fork, which cannot reach the policy.
 
-### Proč běží na CI SQL Server
+### Why SQL Server runs on CI
 
-Integrační testy potřebují skutečnou databázi: mapování řádků se testuje čtečkou v paměti,
-ale spouštění dotazů nad `sys.*` jinak ověřit nejde. Bez nich klesne pokrytí
-`DbsViewer.SqlServer` pod práh a build právem selže. Workflow proto spouští
-SQL Server v kontejneru; lokálně stačí jakákoli instance a připojení se dá přesměrovat
-proměnnou `DBSVIEWER_TEST_SQLSERVER`.
+The integration tests need a real database: row mapping is tested with an in-memory reader,
+but running queries over `sys.*` cannot be verified any other way. Without them the
+coverage of `DbsViewer.SqlServer` drops below the threshold and the build rightly fails.
+The workflow therefore runs SQL Server in a container; locally any instance will do and
+the connection can be redirected with the `DBSVIEWER_TEST_SQLSERVER` variable.
 
-## Licence
+## License
 
 MIT

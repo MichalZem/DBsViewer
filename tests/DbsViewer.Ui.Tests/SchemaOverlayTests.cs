@@ -391,6 +391,27 @@ public class SchemaOverlayTests
         Assert.Equal(ZmenaStav.Ubylo, overlay.Sloupec(N("Stara"), "Email"));
     }
 
+    [Fact]
+    public void Zmizela_vazba_do_neexistujici_tabulky_se_nekresli()
+    {
+        // Vazba na tabulku, kterou ani jedno schéma nezná — třeba proto, že ji
+        // schoval filtr. V diagramu by čára vedla nikam, takže se zahodí.
+        var tabulky = new[] { Tabulka("Clanky", Sloupec("Id")) };
+
+        var stara = new DatabaseSchema
+        {
+            Tables = tabulky,
+            Relationships = [Vazba("Clanky", "Skryta")],
+        };
+
+        var nova = new DatabaseSchema { Tables = tabulky };
+
+        var overlay = SchemaOverlay.Build(stara, nova);
+
+        Assert.Empty(overlay.Schema.Relationships);
+        Assert.Equal(ZmenaStav.Beze, overlay.Vazba(Vazba("Clanky", "Skryta")));
+    }
+
     // ---------- souhrn ----------
 
     [Fact]

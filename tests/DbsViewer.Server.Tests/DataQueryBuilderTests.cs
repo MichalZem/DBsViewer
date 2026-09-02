@@ -85,6 +85,20 @@ public class DataQueryBuilderTests
     }
 
     [Fact]
+    public void Klic_ze_sloupcu_mimo_tabulku_spadne_na_nahradni_razeni()
+    {
+        // Primární klíč, jehož sloupce v tabulce nejsou — schéma se dá načíst po částech
+        // a klíč může přežít sloupec, který zmizel. Do dotazu se smí dostat jen jméno
+        // ze schématu, takže zbude náhradní řazení.
+        var table = Table("Id") with { PrimaryKey = new DbPrimaryKey { Columns = ["Zmizely"] } };
+
+        Assert.Contains(
+            "ORDER BY (SELECT NULL)",
+            DataQueryBuilder.BuildPage(table, new DataQuery(), isSqlite: false).Sql,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Tabulka_bez_klice_ma_v_SqlServeru_nahradni_razeni()
     {
         // SQL Server bez ORDER BY nepovolí OFFSET/FETCH, takže něco stát musí.

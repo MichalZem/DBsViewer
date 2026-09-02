@@ -34,6 +34,62 @@ Prakticky to znamená: nedosažitelný kód se nepíše. Když ho potřebuješ (
 kontraktem EF), vytáhni ho do pojmenovaného helperu a označ
 `[ExcludeFromCodeCoverage(Justification = "…")]` s odůvodněním. Nikdy nesnižuj práh.
 
+### README je součást změny, ne úklid po ní
+
+README popisuje stav, který **právě platí**. Zastaralé README je horší než žádné —
+čtenář podle něj postupuje a narazí.
+
+Ke každé změně proto projdi, co v README přestalo platit, a oprav to ve stejném commitu:
+
+| Když změníš | Zkontroluj v README |
+|---|---|
+| Chování UI | kapitolu *Co uvidíš* **a snímky obrazovky** v `docs/obrazky/` |
+| HTTP API | tabulku endpointů, tvar odpovědi i ukázková těla požadavků |
+| `DbsViewerOptions` | kapitolu *Konfigurace* a *Bezpečnost* |
+| Přepínače `dbsview` | kapitolu *Bez aplikace: nástroj z příkazové řádky* |
+| Strukturu řešení | tabulku *Struktura* v README i seznam v tomhle souboru |
+| Postup vydání | kapitolu *Vydávání* |
+| Cokoli v README | **obě jazykové verze** — `README.md` i `README.cs.md` |
+
+Zvlášť hlídej tvrzení, která **stárnou sama od sebe**, i když se kódu nedotkneš:
+čísla verzí, „zbývá udělat", stav publikace na nuget.org, počet testů. Než takové tvrzení
+necháš být, ověř ho — publikované verze zjistíš z
+`https://api.nuget.org/v3-flatcontainer/dbsviewer.server/index.json`, počet testů z výpisu
+`dotnet test`. Co ověřit nejde, do README nepiš.
+
+Totéž platí pro *Stav a další kroky* na konci tohoto souboru a pro
+[`docs/README-balicek.md`](docs/README-balicek.md), který se ukazuje na nuget.org.
+
+### README se udržuje česky i anglicky
+
+`README.md` je **anglicky**, [`README.cs.md`](README.cs.md) **česky**. Nejsou to dva
+dokumenty, ale dvě jazykové verze téhož — stejné kapitoly, stejné pořadí, stejný obsah.
+Anglická je hlavní, protože ji GitHub ukazuje jako první; nahoře obou je řádek, kterým
+se přepne na tu druhou.
+
+Každá změna README jde **do obou verzí ve stejném commitu**. Změnit jen jednu je stejná
+chyba jako nechat README zastarat — čtenář v druhém jazyce dostane jiný projekt.
+
+Nepřekládá se to, co je skutečný výstup programu: výpis `dbsview`, texty nálezů diffu,
+`title` v ukázkové odpovědi, popisky v UI. Ty se v anglické verzi citují česky tak, jak
+opravdu vypadají, a doplní se překlad v závorce. Stejně tak odkazy do `docs/adr/` —
+ADR jsou česky a v anglické verzi se to u odkazu poznamená.
+
+### Snímky obrazovky se pořizují z běžící aplikace
+
+Obrázky v `docs/obrazky/` jsou skutečné snímky prohlížečky, ne kresby. Když se změní
+vzhled nebo rozvržení UI, přefoť dotčené snímky — nikdy je nepřekresluj ručně.
+
+Postup, kterým vznikly: dočasný hostitel (mimo řešení, po nafocení smazaný) nad
+`samples/DbsViewer.SampleShop` se seedovanými daty a záměrným driftem proti EF modelu
+(přejmenovaný sloupec, tabulka navíc, zahozený index), historie nad
+`samples/DbsViewer.SampleMigrations`. Serverový balíček musí mít vložené UI, takže build
+potřebuje `-p:EmbedDbsViewerUi=true` a předtím publikované UI v `artifacts/ui`.
+
+Pravidla pro snímky: šířka 1440 px, výška oříznutá na obsah (žádné pruhy prázdna),
+databáze na cestě bez uživatelského jména a bez cest do repozitáře, data smyšlená.
+V README se obrázek vkládá jako odkaz na sebe sama, aby šel otevřít v plné velikosti.
+
 ### Architektonická rozhodnutí patří do ADR
 
 Než změníš něco, co je drahé vrátit, přečti si [`docs/adr/`](docs/adr/README.md).
@@ -231,13 +287,19 @@ Viz [ADR-0011](docs/adr/0011-parovani-podle-sloupcu.md).
 
 **Všech sedm etap je hotových.** Datový model, čtení z EF modelu, živá introspekce obou
 providerů, slučování, diff engine, HTTP API s autorizací a cache, Blazor WASM prohlížečka
-s přehledem databáze, ER diagramem a focus modem, náhled dat, export a `dotnet tool`.
-**1251 testů**, 100 % pokrytí řádků a metod ve všech pěti sadách.
+s přehledem databáze, ER diagramem a focus modem, historie schématu z migrací, náhled dat,
+export a `dotnet tool`. **1254 testů** (EfCore 229, Relational 245, Server 247, Tool 51,
+Ui 482), 100 % pokrytí řádků a metod ve všech pěti sadách.
 
-Vydáno jako `0.1.0` na NuGetu; publikuje se přes Trusted Publishing z tagu `v*`.
+Vydáno na NuGetu, poslední stabilní verze je `0.3.0` — všech osm balíčků včetně
+`DbsViewer.Tool`. Publikuje se přes Trusted Publishing z tagu `v*`.
 
 Ověřeno end-to-end: balíčky se zabalí, nainstalují do čerstvé Web API aplikace, dvěma
-řádky zapojí a prohlížečka se všemi 47 soubory UI se servíruje z embedded resources.
+řádky zapojí a prohlížečka se servíruje z embedded resources.
+
+Snímky obrazovky pro README jsou v `docs/obrazky/`; pravidla pro jejich přefocení jsou
+mezi nepřekročitelnými pravidly výš. README je ve dvou jazycích — `README.md` anglicky,
+`README.cs.md` česky — a udržuje se v obou zároveň.
 
 Publikaci obstarává GitHub Actions: push na `main` vydá předběžnou verzi, tag `v*`
 stabilní. Publikuje se přes **Trusted Publishing** (OIDC), takže v repozitáři neleží

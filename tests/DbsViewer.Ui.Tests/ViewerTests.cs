@@ -93,6 +93,17 @@ public class ViewerTests : TestContext
     }
 
     [Fact]
+    public void Prepnuti_na_prehled_ukaze_souhrn_databaze()
+    {
+        var component = Render();
+
+        Zalozka(component, "Přehled");
+
+        Assert.NotEmpty(component.FindAll(".prehled-cisla .karta"));
+        Assert.Contains("Co stojí za pozornost", component.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Prepnuti_na_diagram_vykresli_uzly()
     {
         var component = Render();
