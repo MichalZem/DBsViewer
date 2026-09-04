@@ -163,6 +163,25 @@ public sealed class DataPreviewOptions
     /// </summary>
     public bool AllowInProduction { get; set; }
 
+    /// <summary>
+    /// Povolit úpravu hodnot v existujících řádcích. Vyžaduje zapnutý náhled dat.
+    /// </summary>
+    /// <remarks>
+    /// Zápis je samostatné rozhodnutí nad rámec čtení: prohlížečka se tím z nástroje,
+    /// který se jen dívá, mění v nástroj, kterým jde databázi rozbít. Nové řádky se
+    /// nevkládají a struktura se nemění — jen hodnoty a mazání celých řádků.
+    /// </remarks>
+    public bool AllowUpdate { get; set; }
+
+    /// <summary>Povolit mazání řádků. Vyžaduje zapnutý náhled dat.</summary>
+    public bool AllowDelete { get; set; }
+
+    /// <summary>
+    /// Když je neprázdné, zapisovat jde jen do uvedených tabulek. Podporuje zástupný
+    /// znak <c>*</c>. Prázdný seznam znamená „všechny, do kterých se smí koukat".
+    /// </summary>
+    public IList<string> EditableTables { get; } = new List<string>();
+
     /// <summary>Tvrdý strop počtu řádků. Nedá se přenastavit.</summary>
     public const int HardRowLimit = 1000;
 
@@ -194,6 +213,34 @@ public sealed class DataPreviewOptions
         }
 
         foreach (var pattern in AllowedTables)
+        {
+            if (GlobPattern.IsMatch(table.Name, pattern) || GlobPattern.IsMatch(table.Qualified, pattern))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>Smí se do této tabulky zapisovat?</summary>
+    /// <remarks>
+    /// Zápis nikdy nesahá dál než čtení: co není povolené prohlížet, není povolené
+    /// ani měnit. Teprve nad tím se uplatní vlastní whitelist pro zápis.
+    /// </remarks>
+    public bool IsEditable(DbObjectName table)
+    {
+        if (!IsAllowed(table))
+        {
+            return false;
+        }
+
+        if (EditableTables.Count == 0)
+        {
+            return true;
+        }
+
+        foreach (var pattern in EditableTables)
         {
             if (GlobPattern.IsMatch(table.Name, pattern) || GlobPattern.IsMatch(table.Qualified, pattern))
             {

@@ -20,6 +20,12 @@ public sealed record ViewerMeta
 
     public bool CanPreviewData { get; init; }
 
+    /// <summary>Smí se v mřížce upravovat hodnoty?</summary>
+    public bool CanEditData { get; init; }
+
+    /// <summary>Smí se v mřížce mazat řádky?</summary>
+    public bool CanDeleteData { get; init; }
+
     public bool ShowRowCounts { get; init; }
 
     public IReadOnlyDictionary<string, string> Groups { get; init; } =
@@ -79,6 +85,35 @@ public sealed record DataQuery
 
     /// <summary>Filtry nad sloupci. Spojují se přes AND.</summary>
     public IReadOnlyList<DataFilter> Filters { get; init; } = [];
+}
+
+/// <summary>Hodnota jednoho sloupce v požadavku na zápis.</summary>
+/// <param name="Column">Jméno sloupce.</param>
+/// <param name="Value">Hodnota jako text. <c>null</c> znamená SQL NULL.</param>
+public sealed record DataValue(string Column, string? Value);
+
+/// <summary>Požadavek na úpravu řádku. Odpovídá serverovému <c>DataUpdate</c>.</summary>
+public sealed record DataUpdate
+{
+    /// <summary>Hodnoty primárního klíče, které řádek identifikují.</summary>
+    public IReadOnlyList<DataValue> Key { get; init; } = [];
+
+    /// <summary>Nové hodnoty měněných sloupců.</summary>
+    public IReadOnlyList<DataValue> Values { get; init; } = [];
+}
+
+/// <summary>Požadavek na smazání řádku. Odpovídá serverovému <c>DataDelete</c>.</summary>
+public sealed record DataDelete
+{
+    /// <summary>Hodnoty primárního klíče, které řádek identifikují.</summary>
+    public IReadOnlyList<DataValue> Key { get; init; } = [];
+}
+
+/// <summary>Výsledek zápisu. Odpovídá serverovému <c>DataChangeResult</c>.</summary>
+public sealed record RowChange
+{
+    /// <summary>Kolik řádků se změnilo.</summary>
+    public int Affected { get; init; }
 }
 
 /// <summary>Stránka dat tabulky. Odpovídá <c>/api/tables/…/rows</c>.</summary>
@@ -165,6 +200,20 @@ public sealed class DbsViewerClient(HttpClient http)
             ?? new RowPreview();
     }
 
+    /// <summary>Uloží nové hodnoty jednoho řádku.</summary>
+    public Task<RowChange> UpdateRowAsync(
+        DbObjectName table,
+        DataUpdate update,
+        CancellationToken cancellationToken = default) =>
+        WriteAsync<DataUpdate, RowChange>(RowsUrl(table, "update"), update, cancellationToken);
+
+    /// <summary>Smaže jeden řádek.</summary>
+    public Task<RowChange> DeleteRowAsync(
+        DbObjectName table,
+        DataDelete delete,
+        CancellationToken cancellationToken = default) =>
+        WriteAsync<DataDelete, RowChange>(RowsUrl(table, "delete"), delete, cancellationToken);
+
     /// <summary>Seznam migrací i s tím, co která změnila.</summary>
     public Task<IReadOnlyList<DbMigration>> GetMigrationsAsync(
         CancellationToken cancellationToken = default) =>
@@ -213,6 +262,63 @@ public sealed class DbsViewerClient(HttpClient http)
     /// Prázdné schéma se v cestě zapisuje pomlčkou — segment URL nesmí být prázdný
     /// a SQLite schémata nemá.
     /// </summary>
+    /// <summary>Cesta k zápisové operaci nad řádky tabulky.</summary>
+    private static string RowsUrl(DbObjectName table, string operation) =>
+        $"api/tables/{SchemaSegment(table)}/{Uri.EscapeDataString(table.Name)}/rows/{operation}";
+
+    /// <summary>
+    /// Zápis. Na rozdíl od čtení se z odmítnuté odpovědi vytáhne zpráva serveru.
+    /// </summary>
+    /// <remarks>
+    /// U zápisu je důvod odmítnutí to jediné, co uživateli pomůže — „cizí klíč brání
+    /// smazání" se z čísla 400 vyčíst nedá. Server ji posílá v poli <c>chyba</c>.
+    /// </remarks>
+    private async Task<TResult> WriteAsync<TRequest, TResult>(
+        string url,
+        TRequest request,
+        CancellationToken cancellationToken)
+        where TResult : new()
+    {
+        var response = await http
+            .PostAsJsonAsync(url, request, Json, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new DbsViewerClientException(
+                await ReadErrorAsync(response, cancellationToken).ConfigureAwait(false));
+        }
+
+        return await response.Content
+            .ReadFromJsonAsync<TResult>(Json, cancellationToken)
+            .ConfigureAwait(false)
+            ?? new TResult();
+    }
+
+    /// <summary>Zpráva serveru, a když žádná nedorazila, popis stavového kódu.</summary>
+    internal static async Task<string> ReadErrorAsync(
+        HttpResponseMessage response,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var chyba = await response.Content
+                .ReadFromJsonAsync<ServerError>(Json, cancellationToken)
+                .ConfigureAwait(false);
+
+            if (chyba?.Chyba is { Length: > 0 } zprava)
+            {
+                return zprava;
+            }
+        }
+        catch (JsonException)
+        {
+            // Tělo není JSON — pak zbývá jen stavový kód.
+        }
+
+        return DescribeFailure(response.StatusCode);
+    }
+
     internal static string SchemaSegment(DbObjectName table) =>
         table.Schema is { Length: > 0 } schema ? Uri.EscapeDataString(schema) : "-";
 
@@ -251,6 +357,12 @@ public sealed class DbsViewerClient(HttpClient http)
             "Server požadavku nerozuměl. Zkontroluj zvolený pohled.",
         _ => $"Server odpověděl chybou {(int)status}.",
     };
+}
+
+/// <summary>Odmítnutá odpověď serveru. Zpráva je česky a míří rovnou do UI.</summary>
+internal sealed record ServerError
+{
+    public string? Chyba { get; init; }
 }
 
 /// <summary>Chyba při komunikaci se serverem, se zprávou určenou uživateli.</summary>

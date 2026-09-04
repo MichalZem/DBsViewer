@@ -388,6 +388,70 @@ public class ViewerTests : TestContext
     }
 
     [Fact]
+    public async Task Zapis_bez_vybrane_tabulky_se_neposila()
+    {
+        var component = Render();
+        string? chyba = null;
+
+        await component.InvokeAsync(async () =>
+            chyba = await component.Instance.UpdateRowAsync(new DataUpdate()));
+
+        Assert.Equal("Není vybraná žádná tabulka.", chyba);
+        Assert.Equal(0, _server.WriteCalls);
+    }
+
+    [Fact]
+    public async Task Uprava_radku_dojde_na_server()
+    {
+        var component = Render();
+        component.FindAll(".seznam li button").ElementAt(0).Click();
+
+        string? chyba = null;
+
+        await component.InvokeAsync(async () => chyba = await component.Instance.UpdateRowAsync(
+            new DataUpdate
+            {
+                Key = [new DataValue("Id", "1")],
+                Values = [new DataValue("Email", "novy@x.cz")],
+            }));
+
+        Assert.Null(chyba);
+        Assert.Equal(1, _server.WriteCalls);
+    }
+
+    [Fact]
+    public async Task Smazani_radku_dojde_na_server()
+    {
+        var component = Render();
+        component.FindAll(".seznam li button").ElementAt(0).Click();
+
+        string? chyba = null;
+
+        await component.InvokeAsync(async () => chyba = await component.Instance.DeleteRowAsync(
+            new DataDelete { Key = [new DataValue("Id", "1")] }));
+
+        Assert.Null(chyba);
+        Assert.Equal(1, _server.WriteCalls);
+    }
+
+    [Fact]
+    public async Task Odmitnuty_zapis_se_vrati_jako_hlaska_ne_jako_vyjimka()
+    {
+        // Mřížka podle hlášky pozná, že má nechat rozepsané hodnoty na místě.
+        _server.FailWrite = true;
+
+        var component = Render();
+        component.FindAll(".seznam li button").ElementAt(0).Click();
+
+        string? chyba = null;
+
+        await component.InvokeAsync(async () => chyba = await component.Instance.DeleteRowAsync(
+            new DataDelete { Key = [new DataValue("Id", "1")] }));
+
+        Assert.Equal(DbsViewerClient.DescribeFailure(HttpStatusCode.Forbidden), chyba);
+    }
+
+    [Fact]
     public void Filtr_schematu_se_ukaze_jen_pri_vice_schematech()
     {
         var component = Render();
@@ -464,6 +528,10 @@ public class ViewerTests : TestContext
         public int DiffCalls { get; private set; }
 
         public int RowCalls { get; private set; }
+
+        public int WriteCalls { get; private set; }
+
+        public bool FailWrite { get; set; }
 
         public int RefreshCalls { get; private set; }
 
@@ -555,6 +623,14 @@ public class ViewerTests : TestContext
                         SourceKind = SchemaSourceKind.MigrationSnapshot,
                     })
                     : Json(SchemaOverride ?? Vzorek.Schema());
+            }
+
+            if (url.Contains("/rows/update", StringComparison.Ordinal)
+                || url.Contains("/rows/delete", StringComparison.Ordinal))
+            {
+                WriteCalls++;
+
+                return FailWrite ? Deny() : Json(new RowChange { Affected = 1 });
             }
 
             if (url.Contains("/rows", StringComparison.Ordinal))

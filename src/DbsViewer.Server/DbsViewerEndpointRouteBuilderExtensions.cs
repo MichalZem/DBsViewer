@@ -247,11 +247,74 @@ public static class DbsViewerEndpointRouteBuilderExtensions
             }
         });
 
+        // Zápis má vlastní cesty, ne PUT a DELETE nad /rows: obě operace potřebují tělo
+        // s hodnotami klíče a tělo u DELETE se přenáší nespolehlivě.
+        api.MapPost("/tables/{schema}/{name}/rows/update", (
+            DataPreviewService preview,
+            HttpContext context,
+            string schema,
+            string name,
+            CancellationToken cancellationToken) =>
+            WriteAsync<DataUpdate>(
+                context,
+                new DbObjectName(NormalizeSchema(schema), name),
+                (table, update, user, token) => preview.UpdateAsync(table, update ?? new DataUpdate(), user, token),
+                cancellationToken));
+
+        api.MapPost("/tables/{schema}/{name}/rows/delete", (
+            DataPreviewService preview,
+            HttpContext context,
+            string schema,
+            string name,
+            CancellationToken cancellationToken) =>
+            WriteAsync<DataDelete>(
+                context,
+                new DbObjectName(NormalizeSchema(schema), name),
+                (table, delete, user, token) => preview.DeleteAsync(table, delete ?? new DataDelete(), user, token),
+                cancellationToken));
+
         api.MapPost("/refresh", async (SchemaProvider provider, CancellationToken cancellationToken) =>
         {
             await provider.InvalidateAsync(cancellationToken).ConfigureAwait(false);
             return Results.NoContent();
         });
+    }
+
+    /// <summary>
+    /// Společný průběh zápisu: přečte tělo, zavolá službu a přeloží odmítnutí na stavový kód.
+    /// </summary>
+    /// <remarks>
+    /// Rozlišují se dvě odmítnutí. <see cref="DataRequestException"/> je vadný požadavek —
+    /// uživatel může hodnotu opravit a zkusit znovu, takže <c>400</c> a zpráva do mřížky.
+    /// <see cref="InvalidOperationException"/> je zakázaná operace, na které se opakováním
+    /// nic nezmění, takže <c>403</c>.
+    /// </remarks>
+    private static async Task<IResult> WriteAsync<TRequest>(
+        HttpContext context,
+        DbObjectName table,
+        Func<DbObjectName, TRequest?, string?, CancellationToken, Task<DataChangeResult>> write,
+        CancellationToken cancellationToken)
+        where TRequest : class
+    {
+        try
+        {
+            var request = await context.Request
+                .ReadFromJsonAsync<TRequest>(DbsViewerJson.Compact, cancellationToken)
+                .ConfigureAwait(false);
+
+            var result = await write(table, request, context.User.Identity?.Name, cancellationToken)
+                .ConfigureAwait(false);
+
+            return Json(result);
+        }
+        catch (DataRequestException ex)
+        {
+            return Results.BadRequest(new { chyba = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.Json(new { chyba = ex.Message }, statusCode: StatusCodes.Status403Forbidden);
+        }
     }
 
     /// <summary>V cestě se prázdné schéma zapisuje pomlčkou, protože segment nesmí být prázdný.</summary>
@@ -305,6 +368,12 @@ public sealed record DbsViewerMeta
 
     public required bool CanPreviewData { get; init; }
 
+    /// <summary>Smí se v mřížce upravovat hodnoty?</summary>
+    public bool CanEditData { get; init; }
+
+    /// <summary>Smí se v mřížce mazat řádky?</summary>
+    public bool CanDeleteData { get; init; }
+
     public required bool ShowRowCounts { get; init; }
 
     /// <summary>Pojmenované skupiny tabulek pro filtr v UI.</summary>
@@ -325,6 +394,8 @@ public sealed record DbsViewerMeta
         Views = [.. provider.AvailableViews.Select(static v => v.ToString().ToLowerInvariant())],
         CanDiff = provider.CanDiff,
         CanPreviewData = options.DataPreview.Enabled,
+        CanEditData = options.DataPreview is { Enabled: true, AllowUpdate: true },
+        CanDeleteData = options.DataPreview is { Enabled: true, AllowDelete: true },
         ShowRowCounts = options.ShowRowCounts,
         Groups = new Dictionary<string, string>(options.Groups, StringComparer.Ordinal),
         DataPreviewMaxRows = options.DataPreview.MaxRows,

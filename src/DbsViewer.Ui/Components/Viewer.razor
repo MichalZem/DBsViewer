@@ -293,7 +293,11 @@
                                      PreviewError="@_previewChyba"
                                      OnTabChange="OnTabChanged"
                                      OnSelect="SelectAsync"
-                                     OnLoadRows="LoadRowsAsync" />
+                                     CanEditData="State.Meta.CanEditData && !State.IsHistorical"
+                                     CanDeleteData="State.Meta.CanDeleteData && !State.IsHistorical"
+                                     OnLoadRows="LoadRowsAsync"
+                                     OnUpdateRow="UpdateRowAsync"
+                                     OnDeleteRow="DeleteRowAsync" />
                     }
                 </main>
             }
@@ -415,6 +419,35 @@
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             State.Error = Describe(ex);
+        }
+    }
+
+    /// <summary>
+    /// Uloží změněné hodnoty řádku. Vrací hlášku pro mřížku, ne výjimku — mřížka podle ní
+    /// pozná, jestli má políčka zavřít, nebo nechat rozepsaná.
+    /// </summary>
+    internal Task<string?> UpdateRowAsync(DataUpdate update) =>
+        ZapisAsync(table => Client.UpdateRowAsync(table, update, _cancellation.Token));
+
+    /// <summary>Smaže řádek. Vrací hlášku pro mřížku, nebo <c>null</c> při úspěchu.</summary>
+    internal Task<string?> DeleteRowAsync(DataDelete delete) =>
+        ZapisAsync(table => Client.DeleteRowAsync(table, delete, _cancellation.Token));
+
+    private async Task<string?> ZapisAsync(Func<DbObjectName, Task<RowChange>> operace)
+    {
+        if (State.SelectedTable is not { } table)
+        {
+            return "Není vybraná žádná tabulka.";
+        }
+
+        try
+        {
+            await operace(table);
+            return null;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return Describe(ex);
         }
     }
 

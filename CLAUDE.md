@@ -228,10 +228,16 @@ dva cizí klíče na různé tabulky, takže `ToDictionary` by shodilo diff u le
 **Bezpečnostní defaulty jsou restriktivní** a mimo Development komponenta bez autorizace
 nenastartuje. Viz [ADR-0006](docs/adr/0006-bezpecnostni-defaulty.md).
 
-**Uživatelské SQL se nepřijímá nikdy.** Náhled dat umí stránkovat, řadit a filtrovat,
-ale jména tabulek a sloupců se **ověřují proti načtenému schématu** a do dotazu jde jméno
-ze schématu, ne to z požadavku; hodnoty jdou výhradně přes `DbParameter`. Skládá to
-`DataQueryBuilder` — jediné místo, kde se SQL staví z něčeho, co přišlo zvenčí.
+**Uživatelské SQL se nepřijímá nikdy.** Náhled dat umí stránkovat, řadit, filtrovat
+a měnit řádky, ale jména tabulek a sloupců se **ověřují proti načtenému schématu** a do
+dotazu jde jméno ze schématu, ne to z požadavku; hodnoty jdou výhradně přes `DbParameter`.
+Skládá to `DataQueryBuilder` — jediné místo, kde se SQL staví z něčeho, co přišlo zvenčí.
+
+**Zápis jde jen po jednom řádku a jen podle celého primárního klíče.** Tabulka bez klíče,
+pohled ani zamaskovaný klíč se neupravují a zápis, který se nedotkl právě jednoho řádku,
+je chyba. Co se smí měnit, je napsané jednou v `RowEditing` v `Abstractions` — používá to
+server i UI, aby prohlížečka nenabízela to, co server odmítne.
+Viz [ADR-0015](docs/adr/0015-editace-radku.md).
 
 **Stránkuje, řadí a filtruje databáze, ne prohlížečka.** Načíst tabulku celou a krájet
 ji až v UI by u milionů řádků neprošlo. Bez `ORDER BY` navíc není stránkování stabilní,
@@ -287,11 +293,12 @@ Viz [ADR-0011](docs/adr/0011-parovani-podle-sloupcu.md).
 
 **Všech sedm etap je hotových.** Datový model, čtení z EF modelu, živá introspekce obou
 providerů, slučování, diff engine, HTTP API s autorizací a cache, Blazor WASM prohlížečka
-s přehledem databáze, ER diagramem a focus modem, historie schématu z migrací, náhled dat,
-export a `dotnet tool`. **1254 testů** (EfCore 229, Relational 245, Server 247, Tool 51,
-Ui 482), 100 % pokrytí řádků a metod ve všech pěti sadách.
+s přehledem databáze, ER diagramem a focus modem, historie schématu z migrací, náhled dat
+včetně úpravy a mazání řádků, export a `dotnet tool`. **1373 testů** (EfCore 257,
+Relational 245, Server 305, Tool 51, Ui 515), 100 % pokrytí řádků a metod ve všech pěti
+sadách.
 
-Vydáno na NuGetu, poslední stabilní verze je `0.3.0` — všech osm balíčků včetně
+Vydáno na NuGetu, poslední stabilní verze je `0.4.0` — všech osm balíčků včetně
 `DbsViewer.Tool`. Publikuje se přes Trusted Publishing z tagu `v*`.
 
 Ověřeno end-to-end: balíčky se zabalí, nainstalují do čerstvé Web API aplikace, dvěma

@@ -148,6 +148,40 @@ public class DataPreviewOptionsTests
     }
 
     [Fact]
+    public void Zapis_nesaha_dal_nez_cteni()
+    {
+        var options = new DataPreviewOptions { Enabled = true };
+        options.AllowedTables.Add("Order*");
+
+        // Co se nesmí prohlížet, to se nesmí ani měnit — whitelist zápisu je až nad tím.
+        Assert.False(options.IsEditable(new DbObjectName("dbo", "Customers")));
+        Assert.True(options.IsEditable(new DbObjectName("dbo", "Orders")));
+    }
+
+    [Fact]
+    public void Whitelist_zapisu_omezi_povolene_tabulky()
+    {
+        var options = new DataPreviewOptions { Enabled = true };
+        options.EditableTables.Add("Order*");
+
+        Assert.True(options.IsEditable(new DbObjectName("dbo", "Orders")));
+        Assert.False(options.IsEditable(new DbObjectName("dbo", "Customers")));
+
+        // Prohlížet se přitom smí obojí.
+        Assert.True(options.IsAllowed(new DbObjectName("dbo", "Customers")));
+    }
+
+    [Fact]
+    public void Whitelist_zapisu_umi_i_kvalifikovane_jmeno()
+    {
+        var options = new DataPreviewOptions { Enabled = true };
+        options.EditableTables.Add("sales.*");
+
+        Assert.True(options.IsEditable(new DbObjectName("sales", "Orders")));
+        Assert.False(options.IsEditable(new DbObjectName("dbo", "Orders")));
+    }
+
+    [Fact]
     public void Vychozi_maskovani_chrani_hesla_a_tokeny()
     {
         var options = new DataPreviewOptions();

@@ -224,7 +224,9 @@ else
                 break;
 
             default:
-                <DataNahled Table="Table" Preview="Preview" Error="@PreviewError" OnLoad="OnLoadRows" />
+                <DataNahled Table="Table" Preview="Preview" Error="@PreviewError"
+                            CanEdit="CanEditData" CanDelete="CanDeleteData"
+                            OnLoad="OnLoadRows" OnUpdate="OnUpdateRow" OnDelete="OnDeleteRow" />
                 break;
         }
     </div>
@@ -322,6 +324,22 @@ else
 
     [Parameter]
     public EventCallback<DataQuery> OnLoadRows { get; set; }
+
+    /// <summary>Smí se v mřížce upravovat hodnoty?</summary>
+    [Parameter]
+    public bool CanEditData { get; set; }
+
+    /// <summary>Smí se v mřížce mazat řádky?</summary>
+    [Parameter]
+    public bool CanDeleteData { get; set; }
+
+    /// <summary>Uložení změn řádku. Vrací hlášku o chybě, nebo <c>null</c> při úspěchu.</summary>
+    [Parameter]
+    public Func<DataUpdate, Task<string?>>? OnUpdateRow { get; set; }
+
+    /// <summary>Smazání řádku. Vrací hlášku o chybě, nebo <c>null</c> při úspěchu.</summary>
+    [Parameter]
+    public Func<DataDelete, Task<string?>>? OnDeleteRow { get; set; }
 
     internal static string TabLabel(DetailTab tab) => tab switch
     {

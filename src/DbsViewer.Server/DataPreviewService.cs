@@ -53,15 +53,19 @@ public sealed record DataPreview
 }
 
 /// <summary>
-/// Read-only náhled řádků tabulky.
+/// Náhled řádků tabulky a jejich úprava.
 /// </summary>
 /// <remarks>
-/// Tahle třída jako jediná v celém DbsVieweru čte obsah, ne strukturu, a je tedy
+/// Tahle třída jako jediná v celém DbsVieweru sahá na obsah, ne na strukturu, a je tedy
 /// nejcitlivější částí komponenty. Platí pro ni pravidla z
 /// <see href="../../docs/adr/0006-bezpecnostni-defaulty.md">ADR-0006</see>:
 /// vypnuto ve výchozím stavu, whitelist tabulek, maskování sloupců, tvrdý strop řádků
 /// a povinný audit log. Uživatelské SQL se nikdy nepřijímá — jméno tabulky se ověřuje
 /// proti načtenému schématu a teprve pak escapuje.
+///
+/// Zápis je nad rámec čtení vypnutý zvlášť a řídí se
+/// <see href="../../docs/adr/0015-editace-radku.md">ADR-0015</see>: mění se jen hodnoty
+/// existujícího řádku adresovaného primárním klíčem, nikdy víc řádků najednou.
 /// </remarks>
 public sealed class DataPreviewService(
     SchemaProvider schemaProvider,
@@ -80,6 +84,99 @@ public sealed class DataPreviewService(
         string? user = null,
         CancellationToken cancellationToken = default)
     {
+        var known = await ResolveAsync(table, cancellationToken).ConfigureAwait(false);
+        var connection = GetConnection();
+        var effective = Normalize(query ?? new DataQuery());
+
+        logger.LogInformation(
+            "DbsViewer: náhled dat tabulky {Table}, stránka {Page} po {PageSize}, "
+            + "řazení {Sort}, filtrů {Filters}, uživatel {User}.",
+            known.Qualified,
+            effective.Page,
+            effective.PageSize,
+            effective.SortColumn ?? "(výchozí)",
+            effective.Filters.Count,
+            user ?? "(neznámý)");
+
+        return await ReadAsync(connection, known, effective, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Upraví hodnoty v jednom řádku.</summary>
+    /// <param name="table">Tabulka, ověřuje se proti načtenému schématu.</param>
+    /// <param name="update">Klíč řádku a nové hodnoty měněných sloupců.</param>
+    /// <param name="user">Kdo zapisuje — zapíše se do audit logu.</param>
+    /// <param name="cancellationToken">Zrušení operace.</param>
+    public async Task<DataChangeResult> UpdateAsync(
+        DbObjectName table,
+        DataUpdate update,
+        string? user = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(update);
+
+        var known = await ResolveAsync(table, cancellationToken).ConfigureAwait(false);
+
+        GuardWrite(table, options.DataPreview.AllowUpdate, "Úprava dat", "DataPreview.AllowUpdate");
+
+        var connection = GetConnection();
+        var query = DataQueryBuilder.BuildUpdate(
+            known,
+            update,
+            MaskedColumns(known),
+            IsSqlite(connection));
+
+        // Loguje se před zápisem a bez hodnot: co se měnilo, patří do auditu, ale obsah
+        // databáze do logu nepatří.
+        logger.LogInformation(
+            "DbsViewer: úprava řádku tabulky {Table}, sloupce {Columns}, uživatel {User}.",
+            known.Qualified,
+            string.Join(", ", update.Values.Select(static v => v.Column)),
+            user ?? "(neznámý)");
+
+        return await WriteAsync(connection, query, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Smaže jeden řádek.</summary>
+    /// <param name="table">Tabulka, ověřuje se proti načtenému schématu.</param>
+    /// <param name="delete">Klíč mazaného řádku.</param>
+    /// <param name="user">Kdo maže — zapíše se do audit logu.</param>
+    /// <param name="cancellationToken">Zrušení operace.</param>
+    public async Task<DataChangeResult> DeleteAsync(
+        DbObjectName table,
+        DataDelete delete,
+        string? user = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(delete);
+
+        var known = await ResolveAsync(table, cancellationToken).ConfigureAwait(false);
+
+        GuardWrite(table, options.DataPreview.AllowDelete, "Mazání dat", "DataPreview.AllowDelete");
+
+        var connection = GetConnection();
+        var query = DataQueryBuilder.BuildDelete(
+            known,
+            delete,
+            MaskedColumns(known),
+            IsSqlite(connection));
+
+        logger.LogInformation(
+            "DbsViewer: mazání řádku tabulky {Table}, uživatel {User}.",
+            known.Qualified,
+            user ?? "(neznámý)");
+
+        return await WriteAsync(connection, query, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Ověří, že se z tabulky vůbec smí číst, a najde ji ve schématu.
+    /// </summary>
+    /// <remarks>
+    /// Společné pro čtení i zápis: jméno tabulky se nikdy nebere z požadavku přímo,
+    /// musí sedět na načtené schéma.
+    /// </remarks>
+    private async Task<DbTable> ResolveAsync(DbObjectName table, CancellationToken cancellationToken)
+    {
         if (!options.DataPreview.Enabled)
         {
             throw new InvalidOperationException(
@@ -97,24 +194,77 @@ public sealed class DataPreviewService(
         var schema = await schemaProvider.GetAsync(view, cancellationToken: cancellationToken)
             .ConfigureAwait(false);
 
-        // Jméno tabulky se nikdy nebere z požadavku přímo — musí sedět na načtené schéma.
-        var known = schema.FindTable(table)
+        return schema.FindTable(table)
             ?? throw new InvalidOperationException($"Tabulka {table} ve schématu není.");
+    }
 
-        var connection = GetConnection();
-        var effective = Normalize(query ?? new DataQuery());
+    /// <summary>Zápis je vypnutý, dokud ho někdo vědomě nezapne — a jen tam, kde smí.</summary>
+    private void GuardWrite(DbObjectName table, bool allowed, string action, string option)
+    {
+        if (!allowed)
+        {
+            throw new InvalidOperationException(
+                $"{action} je vypnutá. Zapíná se přes {option} a je to vědomé rozhodnutí "
+                + "dovolit prohlížečce měnit obsah databáze.");
+        }
 
-        logger.LogInformation(
-            "DbsViewer: náhled dat tabulky {Table}, stránka {Page} po {PageSize}, "
-            + "řazení {Sort}, filtrů {Filters}, uživatel {User}.",
-            known.Qualified,
-            effective.Page,
-            effective.PageSize,
-            effective.SortColumn ?? "(výchozí)",
-            effective.Filters.Count,
-            user ?? "(neznámý)");
+        if (!options.DataPreview.IsEditable(table))
+        {
+            throw new InvalidOperationException(
+                $"Zápis do tabulky {table} není povolený. Zkontroluj DataPreview.EditableTables.");
+        }
+    }
 
-        return await ReadAsync(connection, known, effective, cancellationToken).ConfigureAwait(false);
+    /// <summary>Sloupce, jejichž hodnoty se maskují.</summary>
+    private List<string> MaskedColumns(DbTable table) =>
+    [
+        .. table.Columns
+            .Where(c => options.DataPreview.IsMasked(c.Name))
+            .Select(static c => c.Name),
+    ];
+
+    /// <summary>
+    /// Provede zápis a ověří, že se dotkl právě jednoho řádku.
+    /// </summary>
+    /// <remarks>
+    /// Nula znamená, že řádek mezitím zmizel nebo se změnil jeho klíč. Mřížka tak
+    /// nikdy netvrdí „uloženo", když se ve skutečnosti nic nestalo.
+    /// </remarks>
+    private async Task<DataChangeResult> WriteAsync(
+        DbConnection connection,
+        BuiltQuery query,
+        CancellationToken cancellationToken)
+    {
+        await using var scope = await ConnectionScope
+            .OpenAsync(connection, ownsConnection: false, cancellationToken)
+            .ConfigureAwait(false);
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = query.Sql;
+        command.CommandType = CommandType.Text;
+        command.CommandTimeout = options.DataPreview.CommandTimeoutSeconds;
+        DataQueryBuilder.Bind(command, query.Parameters);
+
+        int affected;
+
+        try
+        {
+            affected = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (DbException ex)
+        {
+            // Zpráva databáze je to nejužitečnější, co se dá uživateli říct — cizí klíč,
+            // NOT NULL, check constraint. Prohlížečka je za autorizací, takže ji ukážeme.
+            throw new DataRequestException($"Databáze zápis odmítla: {ex.Message}", ex);
+        }
+
+        if (affected == 0)
+        {
+            throw new DataRequestException(
+                "Řádek se nenašel. Nejspíš ho mezitím někdo smazal nebo změnil jeho klíč.");
+        }
+
+        return new DataChangeResult { Affected = affected };
     }
 
     /// <summary>
@@ -138,11 +288,7 @@ public sealed class DataPreviewService(
         DataQuery query,
         CancellationToken cancellationToken)
     {
-        var masked = table.Columns
-            .Where(c => options.DataPreview.IsMasked(c.Name))
-            .Select(static c => c.Name)
-            .ToList();
-
+        var masked = MaskedColumns(table);
         var maskedSet = new HashSet<string>(masked, StringComparer.OrdinalIgnoreCase);
         var isSqlite = IsSqlite(connection);
 

@@ -64,6 +64,129 @@ public static class DataQueryBuilder
             parametry);
     }
 
+    /// <summary>Sestaví UPDATE jednoho řádku.</summary>
+    /// <param name="table">Tabulka z načteného schématu.</param>
+    /// <param name="update">Klíč řádku a nové hodnoty.</param>
+    /// <param name="maskedColumns">Zamaskované sloupce — do těch se nezapisuje.</param>
+    /// <param name="isSqlite">Skládá se dotaz pro SQLite, nebo pro SQL Server?</param>
+    /// <exception cref="DataRequestException">Požadavek neodpovídá schématu.</exception>
+    public static BuiltQuery BuildUpdate(
+        DbTable table,
+        DataUpdate update,
+        IReadOnlyCollection<string> maskedColumns,
+        bool isSqlite)
+    {
+        ArgumentNullException.ThrowIfNull(table);
+        ArgumentNullException.ThrowIfNull(update);
+        ArgumentNullException.ThrowIfNull(maskedColumns);
+
+        if (update.Values.Count == 0)
+        {
+            throw new DataRequestException("Požadavek nemění žádný sloupec.");
+        }
+
+        var parametry = new List<object>();
+        var sety = new List<string>();
+        var videne = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var hodnota in update.Values)
+        {
+            var sloupec = FindColumn(table, hodnota.Column)
+                ?? throw new DataRequestException(
+                    $"Sloupec {hodnota.Column} v tabulce {table.Qualified} není.");
+
+            if (RowEditing.ReadOnlyReason(sloupec, maskedColumns) is { } duvod)
+            {
+                throw new DataRequestException($"Sloupec {sloupec.Name} se měnit nedá — {duvod}.");
+            }
+
+            // Dvakrát tentýž sloupec by dal SET a = 1, a = 2. SQL Server to odmítne
+            // a SQLite tiše vezme první — ani jedno není odpověď, kterou chceme dát.
+            if (!videne.Add(sloupec.Name))
+            {
+                throw new DataRequestException($"Sloupec {sloupec.Name} je v požadavku dvakrát.");
+            }
+
+            sety.Add($"{QuoteColumn(sloupec.Name, isSqlite)} = @p{parametry.Count}");
+            parametry.Add(DataValueConverter.ToParameter(sloupec, hodnota.Value));
+        }
+
+        var where = BuildKeyWhere(table, update.Key, maskedColumns, parametry, isSqlite);
+
+        return new BuiltQuery(
+            $"UPDATE {QuoteName(table.Name, isSqlite)} SET {string.Join(", ", sety)}{where}",
+            parametry);
+    }
+
+    /// <summary>Sestaví DELETE jednoho řádku.</summary>
+    /// <param name="table">Tabulka z načteného schématu.</param>
+    /// <param name="delete">Klíč mazaného řádku.</param>
+    /// <param name="maskedColumns">Zamaskované sloupce — zamaskovaný klíč řádek neurčí.</param>
+    /// <param name="isSqlite">Skládá se dotaz pro SQLite, nebo pro SQL Server?</param>
+    /// <exception cref="DataRequestException">Požadavek neodpovídá schématu.</exception>
+    public static BuiltQuery BuildDelete(
+        DbTable table,
+        DataDelete delete,
+        IReadOnlyCollection<string> maskedColumns,
+        bool isSqlite)
+    {
+        ArgumentNullException.ThrowIfNull(table);
+        ArgumentNullException.ThrowIfNull(delete);
+        ArgumentNullException.ThrowIfNull(maskedColumns);
+
+        var parametry = new List<object>();
+        var where = BuildKeyWhere(table, delete.Key, maskedColumns, parametry, isSqlite);
+
+        return new BuiltQuery(
+            $"DELETE FROM {QuoteName(table.Name, isSqlite)}{where}",
+            parametry);
+    }
+
+    /// <summary>
+    /// Klauzule WHERE nad primárním klíčem.
+    /// </summary>
+    /// <remarks>
+    /// Jediný způsob, jak se při zápisu adresuje řádek. Klíč musí být kompletní: kdyby
+    /// stačila jeho část, u složeného klíče by <c>UPDATE</c> sáhl na víc řádků, než
+    /// uživatel v mřížce označil.
+    /// </remarks>
+    internal static string BuildKeyWhere(
+        DbTable table,
+        IReadOnlyList<DataValue> key,
+        IReadOnlyCollection<string> maskedColumns,
+        List<object> parameters,
+        bool isSqlite)
+    {
+        if (!RowEditing.CanIdentifyRows(table, maskedColumns))
+        {
+            throw new DataRequestException(
+                $"V {table.Qualified} se řádek jednoznačně určit nedá, takže se do ní nezapisuje. "
+                + "Zápis potřebuje tabulku s primárním klíčem, jehož hodnoty nejsou zamaskované.");
+        }
+
+        var podminky = new List<string>();
+
+        foreach (var jmeno in table.PrimaryKey!.Columns)
+        {
+            // Sloupec tu vždycky je — CanIdentifyRows to ověřilo.
+            var sloupec = FindColumn(table, jmeno)!;
+
+            var hodnota = key.FirstOrDefault(v =>
+                string.Equals(v.Column, jmeno, StringComparison.OrdinalIgnoreCase))
+                ?? throw new DataRequestException($"V požadavku chybí hodnota klíče {jmeno}.");
+
+            if (hodnota.Value is null)
+            {
+                throw new DataRequestException($"Hodnota klíče {jmeno} je prázdná.");
+            }
+
+            podminky.Add($"{QuoteColumn(sloupec.Name, isSqlite)} = @p{parameters.Count}");
+            parameters.Add(DataValueConverter.ToParameter(sloupec, hodnota.Value));
+        }
+
+        return " WHERE " + string.Join(" AND ", podminky);
+    }
+
     /// <summary>
     /// Klauzule ORDER BY. Vrací ji vždy — bez řazení není stránkování stabilní
     /// a SQL Server bez něj OFFSET/FETCH ani nepovolí.

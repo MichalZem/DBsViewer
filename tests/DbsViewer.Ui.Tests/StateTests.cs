@@ -516,6 +516,80 @@ public class DbsViewerClientTests
     }
 
     [Fact]
+    public async Task Uprava_radku_jde_na_vlastni_cestu()
+    {
+        var handler = new StubHandler(HttpStatusCode.OK, Json(new RowChange { Affected = 1 }));
+        var client = new DbsViewerClient(
+            new HttpClient(handler) { BaseAddress = new Uri("http://test/dbschema/") });
+
+        var vysledek = await client.UpdateRowAsync(
+            Vzorek.N("Orders"),
+            new DataUpdate
+            {
+                Key = [new DataValue("Id", "1")],
+                Values = [new DataValue("Number", "A-2")],
+            });
+
+        Assert.Equal(HttpMethod.Post, handler.LastMethod);
+        Assert.EndsWith("api/tables/-/Orders/rows/update", handler.LastUrl, StringComparison.Ordinal);
+        Assert.Equal(1, vysledek.Affected);
+    }
+
+    [Fact]
+    public async Task Smazani_radku_jde_na_vlastni_cestu()
+    {
+        var handler = new StubHandler(HttpStatusCode.OK, Json(new RowChange { Affected = 1 }));
+        var client = new DbsViewerClient(
+            new HttpClient(handler) { BaseAddress = new Uri("http://test/dbschema/") });
+
+        await client.DeleteRowAsync(
+            new DbObjectName("sales", "Orders"),
+            new DataDelete { Key = [new DataValue("Id", "1")] });
+
+        Assert.EndsWith("api/tables/sales/Orders/rows/delete", handler.LastUrl, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Prazdna_odpoved_na_zapis_znamena_nula_radku()
+    {
+        var client = Client(HttpStatusCode.OK, "null");
+
+        var vysledek = await client.DeleteRowAsync(
+            Vzorek.N("Orders"),
+            new DataDelete { Key = [new DataValue("Id", "1")] });
+
+        Assert.Equal(0, vysledek.Affected);
+    }
+
+    [Fact]
+    public async Task Odmitnuty_zapis_nese_zpravu_serveru()
+    {
+        // U zápisu je důvod to jediné, co uživateli pomůže — číslo 400 mu neřekne nic.
+        var client = Client(HttpStatusCode.BadRequest, "{\"chyba\":\"Databáze zápis odmítla: cizí klíč.\"}");
+
+        var chyba = await Assert.ThrowsAsync<DbsViewerClientException>(() =>
+            client.UpdateRowAsync(
+                Vzorek.N("Orders"),
+                new DataUpdate { Key = [new DataValue("Id", "1")], Values = [new DataValue("Number", "A")] }));
+
+        Assert.Equal("Databáze zápis odmítla: cizí klíč.", chyba.Message);
+    }
+
+    [Theory]
+    [InlineData("{}")]
+    [InlineData("{\"chyba\":\"\"}")]
+    [InlineData("tohle není JSON")]
+    public async Task Bez_zpravy_serveru_zbyde_popis_stavoveho_kodu(string telo)
+    {
+        var client = Client(HttpStatusCode.Forbidden, telo);
+
+        var chyba = await Assert.ThrowsAsync<DbsViewerClientException>(() =>
+            client.DeleteRowAsync(Vzorek.N("Orders"), new DataDelete { Key = [new DataValue("Id", "1")] }));
+
+        Assert.Equal(DbsViewerClient.DescribeFailure(HttpStatusCode.Forbidden), chyba.Message);
+    }
+
+    [Fact]
     public void Prazdne_schema_se_v_ceste_zapise_pomlckou()
     {
         Assert.Equal("-", DbsViewerClient.SchemaSegment(new DbObjectName(null, "T")));

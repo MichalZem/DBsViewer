@@ -27,7 +27,8 @@ není potřeba.
 - **ER diagram** s pan &amp; zoom a focus modem, kreslený v Blazoru bez JavaScriptu
 - **Tabulky, sloupce, indexy, klíče**, computed sloupce, defaulty, collation, komentáře
 - **Historie schématu** z EF migrací — pohled na to, jak schéma vypadalo dřív
-- **Náhled dat** se stránkováním, řazením a filtrováním v databázi
+- **Náhled dat** se stránkováním, řazením a filtrováním v databázi, volitelně
+  i s úpravou a mazáním řádků
 - **Export dokumentace** do Markdownu, Mermaidu a DBML
 - **`dotnet tool dbsview`** pro výpis a diff z příkazové řádky
 
@@ -36,7 +37,8 @@ Podporované databáze: **Microsoft SQL Server** a **SQLite**.
 ## Bezpečnost
 
 Mimo `Development` se komponenta bez nastavené autorizace **vůbec nespustí** — schéma
-databáze je citlivá informace. Náhled dat je ve výchozím stavu vypnutý.
+databáze je citlivá informace. Náhled dat je ve výchozím stavu vypnutý a úprava dat
+je nad rámec toho vypnutá zvlášť.
 
 ## Dokumentace
 

@@ -19,8 +19,9 @@ app.MapDbsViewer();                              // 2 → /dbschema
 každý najdeš v kapitole [Co uvidíš](#co-uvidíš).*
 
 > **Stav:** vydané na nuget.org. Prohlížečka má grafické UI s ER diagramem, HTTP API,
-> detekci rozdílů, historii schématu i náhled dat. Poslední stabilní verze je
-> [`0.3.0`](https://www.nuget.org/packages/DbsViewer.Server); z každého pushe na `main`
+> detekci rozdílů, historii schématu i náhled dat s volitelnou editací řádků.
+> Poslední stabilní verze je
+> [`0.4.0`](https://www.nuget.org/packages/DbsViewer.Server); z každého pushe na `main`
 > vzniká navíc předběžná verze. Viz [instalace](#instalace-do-vlastní-aplikace).
 
 ---
@@ -197,6 +198,25 @@ jen bez čísel stránek.
 Filtr hledá text kdekoli v hodnotě, i nad čísly a daty. Zástupné znaky `%` a `_` se
 escapují — kdo hledá „100%", hledá opravdu „100%".
 
+**Úprava řádků.** Když je zapnuté `DataPreview.AllowUpdate` nebo `AllowDelete`, dostane
+každý řádek tlačítka *Upravit* a *Smazat*. Úprava přepne řádek do políček; u sloupce, který
+smí být prázdný, je navíc zaškrtávátko `NULL`. Posílají se jen sloupce, které se opravdu
+změnily. Mazání se potvrzuje přímo v řádku — prohlížečka nikdy neotevře dialog prohlížeče.
+
+Řádek se adresuje vždy **kompletním primárním klíčem** a zápis se musí dotknout právě
+jednoho řádku. Tabulka bez primárního klíče, pohled i tabulka se zamaskovaným klíčem
+zůstávají jen ke čtení a mřížka to napíše, místo aby nabídla tlačítka, která by stejně
+selhala. Totéž platí pro jednotlivé sloupce: primární klíč, sloupce generované databází,
+počítané, binární a zamaskované se měnit nedají a bublinová nápověda u buňky říká proč.
+Co odmítne databáze (cizí klíč, `NOT NULL`, check constraint), se ukáže vlastní hláškou
+nad mřížkou a rozepsané hodnoty zůstanou na místě. Odůvodnění v
+[ADR-0015](docs/adr/0015-editace-radku.md).
+
+[![Úprava řádku v mřížce](docs/obrazky/data-editace.png)](docs/obrazky/data-editace.png)
+
+*Rozepsaný řádek: `Id` zůstalo textem, protože se přes něj řádek adresuje, a u sloupců,
+které smí být prázdné, přibylo zaškrtávátko `NULL`.*
+
 [![Náhled dat s filtrem](docs/obrazky/data.png)](docs/obrazky/data.png)
 
 *Filtr `Brno` nad sloupcem `BillingCity`: ze 120 řádků zbylo 15 a počet přepočítala
@@ -220,6 +240,8 @@ Všechny cesty jsou relativní k `RoutePrefix` (výchozí `/dbschema`).
 | `GET` | `/api/schema/diff` | Rozdíly mezi EF modelem a databází. |
 | `GET` | `/api/tables/{schema}/{name}` | Detail jedné tabulky. |
 | `POST` | `/api/tables/{schema}/{name}/rows` | Stránka dat. Ve výchozím stavu vrací `403`. |
+| `POST` | `/api/tables/{schema}/{name}/rows/update` | Nové hodnoty jednoho řádku. Ve výchozím stavu vrací `403`. |
+| `POST` | `/api/tables/{schema}/{name}/rows/delete` | Smaže jeden řádek. Ve výchozím stavu vrací `403`. |
 | `GET` | `/api/migrations` | Migrace i s tím, co která změnila. |
 | `GET` | `/api/migrations/diff?from=&to=` | Rozdíl mezi dvěma verzemi historie. |
 | `POST` | `/api/refresh` | Zahodí cache. |
@@ -244,6 +266,24 @@ v historii prohlížeče i v logu serveru. Tělo požadavku:
 
 Operátory: `Contains`, `Equals`, `StartsWith`, `EndsWith`, `GreaterThan`, `LessThan`,
 `IsNull`, `IsNotNull`. Odpověď nese `rows`, `totalRows`, `pageCount` a `hasMore`.
+
+**Zápis nese celý primární klíč.** `key` určuje řádek, `values` říká, co se mění;
+`null` znamená SQL NULL. Sáhne se jen na vyjmenované sloupce.
+
+```json
+{
+  "key": [ { "column": "Id", "value": "42" } ],
+  "values": [
+    { "column": "DisplayName", "value": "Jan Novák" },
+    { "column": "Note", "value": null }
+  ]
+}
+```
+
+Mazání má stejné tělo bez `values`. Obojí odpoví `{ "affected": 1 }`. Odmítnutý požadavek
+vrátí `400` a v poli `chyba` větu česky (hodnota, která do sloupce nepatří, sloupec, který
+se měnit nedá, řádek, který už neexistuje, nebo chyba samotné databáze); operace, která
+není povolená vůbec, vrátí `403`.
 
 ### Pohledy na schéma
 
@@ -392,6 +432,11 @@ builder.Services.AddDbsViewer<AppDbContext>(options =>
     options.DataPreview.CommandTimeoutSeconds = 15; // výchozí 30; chrání hlavně COUNT(*)
     options.DataPreview.MaskColumns.Add("Email");  // výchozí *Password*, *Secret*, *Token*
     options.DataPreview.AllowedTables.Add("Order*");
+
+    // Úprava řádků — viz Bezpečnost
+    options.DataPreview.AllowUpdate = true;        // výchozí false
+    options.DataPreview.AllowDelete = true;        // výchozí false
+    options.DataPreview.EditableTables.Add("Order*"); // prázdné = vše, co smí náhled dat
 });
 ```
 
@@ -421,18 +466,20 @@ pravidla se **nedají obejít konfigurací**. Odůvodnění v [ADR-0006](docs/ad
 |---|---|
 | Dostupnost | Jen v `Development`. Jinde je nutné explicitní `EnabledIn`. |
 | Autorizace | Mimo Development je policy **povinná**. Bez ní aplikace **nenastartuje** — `MapDbsViewer()` vyhodí výjimku. |
-| Zápis | Žádný endpoint nespouští DDL ani DML. Read-only je vlastnost API, ne přepínač. |
+| Změny schématu | Žádný endpoint nespouští DDL. To je vlastnost API, ne přepínač. |
+| Úprava dat | Vypnutá, a je nad rámec náhledu dat. Mění hodnoty v jednom řádku adresovaném kompletním primárním klíčem, nebo ten řádek smaže — nic víc. Žádné vkládání, žádné hromadné operace. |
 | Náhled dat | Vypnutý. Zapnutí je samostatné rozhodnutí nezávislé na zpřístupnění schématu. |
 | Náhled dat v produkci | Aplikace nenastartuje, dokud nenastavíš `DataPreview.AllowInProduction = true`. |
 | Uživatelské SQL | Nepřijímá se nikdy. Jméno tabulky se ověřuje proti načtenému schématu a teprve pak escapuje. |
-| Audit | Každý náhled dat se loguje na úrovni `Information` — kdo, která tabulka, kolik řádků. |
+| Audit | Každý náhled dat i každý zápis se loguje na úrovni `Information` — kdo, která tabulka a u zápisu které sloupce. Hodnoty se nelogují nikdy. |
 
 Pád při startu je záměr. Varování v logu by nikdo nepřečetl včas; výjimka nastane
 v nasazovacím pipeline, ne v provozu.
 
 Doporučený provoz: v Development zapnuto úplně, ve Staging schéma a diff za autorizací,
-v produkci buď vůbec, nebo jen schéma pro úzkou roli a náhled dat nikdy. Nastavení náhledu
-dat drž v konfiguraci prostředí, ne v kódu, aby se nedalo zapnout omylem při nasazení.
+v produkci buď vůbec, nebo jen schéma pro úzkou roli a náhled dat — natož úpravy — nikdy.
+Nastavení náhledu dat drž v konfiguraci prostředí, ne v kódu, aby se nedalo zapnout omylem
+při nasazení.
 
 ---
 
@@ -446,6 +493,8 @@ dat drž v konfiguraci prostředí, ne v kódu, aby se nedalo zapnout omylem př
 | „není zaregistrovaná čtečka živé databáze" | Provider není SQL Server ani SQLite. Nastav `IncludeLiveDatabase = false`. |
 | `views` obsahuje jen `["ef"]` | Živá introspekce se nezapnula. Zkontroluj `IncludeLiveDatabase` a providera. |
 | `403` na `/rows` | Náhled dat je vypnutý nebo tabulka není ve whitelistu. |
+| `403` na `/rows/update` | Úprava je vypnutá (`AllowUpdate`, `AllowDelete`), nebo tabulka není v `EditableTables`. |
+| Mřížka nenabízí tlačítka úprav | Tabulka nemá primární klíč, je to pohled, nebo je klíč zamaskovaný — poznámka nad mřížkou říká co z toho. |
 | Změny v databázi se neprojeví | Cache. Zavolej `POST /api/refresh`, přidej `?refresh=true`, nebo sniž `CacheFor`. |
 | Balíček se nenašel | Předběžné verze se bez `--prerelease` nenabízejí. Když stavíš ze zdrojů, zkontroluj cestu v `NuGet.config` a že v `artifacts/packages` opravdu jsou `.nupkg` soubory; po přebalení stejné verze vyčisti cache: `dotnet nuget locals global-packages --clear`. |
 
@@ -534,8 +583,8 @@ Ukázka vygenerované dokumentace je v [`docs/schema-ukazka.md`](docs/schema-uka
   `DeleteBehavior`, které se chová jinak než model tvrdí
 - **Odolnost** — načtení schématu nikdy nespadne, dílčí selhání skončí ve `warnings`
 - **Grafické UI** — přehled databáze, prohlížeč tabulek, ER diagram s focus modem,
-  přehled rozdílů, historie schématu podle migrací, stránkovaná mřížka dat,
-  export do Mermaid, DBML a Markdownu
+  přehled rozdílů, historie schématu podle migrací, stránkovaná mřížka dat s volitelnou
+  úpravou a mazáním řádků, export do Mermaid, DBML a Markdownu
 
 Zdroje dat:
 

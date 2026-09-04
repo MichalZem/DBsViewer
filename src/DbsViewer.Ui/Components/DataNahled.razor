@@ -1,6 +1,10 @@
 @*
     Mřížka dat tabulky. Stránkuje, řadí i filtruje databáze — do prohlížečky se přenáší
     vždy jen jedna stránka, takže mřížka funguje stejně nad deseti řádky jako nad miliony.
+
+    Když to server povolí, dá se v mřížce i zapisovat: hodnoty se upraví přímo v řádku
+    a mazání se potvrzuje druhým kliknutím v témže řádku. Prohlížečka nikdy nenabídne to,
+    co by server odmítl — o tom, co se smí měnit, rozhoduje sdílené RowEditing.
 *@
 
 @if (Error is { } chyba)
@@ -53,10 +57,25 @@ else
             </div>
         </header>
 
+        @if (ChybaZapisu is { } zapis)
+        {
+            <p class="chyba zapis-chyba">
+                @zapis
+                <button class="odkaz" @onclick="SkryjChybu" title="Skrýt hlášku">Zavřít</button>
+            </p>
+        }
+
         @if (Preview is { MaskedColumns.Count: > 0 })
         {
             <p class="poznamka-maskovani">
                 Zamaskované sloupce: @string.Join(", ", Preview.MaskedColumns)
+            </p>
+        }
+
+        @if (JeZapisNabidnuty && Table is { } tabulka && !KlicJednoznacny)
+        {
+            <p class="poznamka-maskovani">
+                Zapisovat se tu nedá — @DuvodBezKlice(tabulka).
             </p>
         }
 
@@ -66,6 +85,10 @@ else
                 <table class="mrizka data">
                     <thead>
                         <tr class="hlavicky">
+                            @if (JsouAkce)
+                            {
+                                <th class="akce" title="Úpravy řádku"></th>
+                            }
                             @foreach (var column in Sloupce)
                             {
                                 <th class="@(IsMasked(column) ? "maskovany" : "")">
@@ -78,6 +101,10 @@ else
                             }
                         </tr>
                         <tr class="filtry">
+                            @if (JsouAkce)
+                            {
+                                <th class="akce"></th>
+                            }
                             @foreach (var column in Sloupce)
                             {
                                 <th>
@@ -91,12 +118,79 @@ else
                         </tr>
                     </thead>
                     <tbody class="@(Nacita ? "nacita" : "")">
-                        @foreach (var row in Radky)
+                        @for (var r = 0; r < Radky.Count; r++)
                         {
-                            <tr>
-                                @foreach (var value in row)
+                            var radek = r;
+                            var row = Radky[radek];
+
+                            <tr class="@StavRadku(radek)">
+                                @if (JsouAkce)
                                 {
-                                    <td class="@(value is null ? "nullova" : "")">@(value ?? "NULL")</td>
+                                    <td class="akce">
+                                        @if (EditovanyRadek == radek)
+                                        {
+                                            <button class="odkaz ulozit" title="Uložit změny"
+                                                    @onclick="() => UlozAsync(radek)">Uložit</button>
+                                            <button class="odkaz" title="Zahodit změny"
+                                                    @onclick="Zrus">Zrušit</button>
+                                        }
+                                        else if (MazanyRadek == radek)
+                                        {
+                                            <span class="potvrzeni">Smazat?</span>
+                                            <button class="odkaz nebezpecne" title="Opravdu smazat"
+                                                    @onclick="() => SmazAsync(radek)">Ano</button>
+                                            <button class="odkaz" @onclick="Zrus">Ne</button>
+                                        }
+                                        else
+                                        {
+                                            @if (MuzeUpravovat)
+                                            {
+                                                <button class="odkaz" title="Upravit řádek"
+                                                        @onclick="() => ZacniUpravu(radek)">Upravit</button>
+                                            }
+                                            @if (MuzeMazat)
+                                            {
+                                                <button class="odkaz nebezpecne" title="Smazat řádek"
+                                                        @onclick="() => ZacniMazani(radek)">Smazat</button>
+                                            }
+                                        }
+                                    </td>
+                                }
+
+                                @for (var c = 0; c < Math.Min(row.Count, Sloupce.Count); c++)
+                                {
+                                    var sloupec = Sloupce[c];
+                                    var hodnota = row[c];
+
+                                    @if (EditovanyRadek == radek && DuvodNeeditovatelnosti(sloupec) is null)
+                                    {
+                                        <td class="upravovana">
+                                            <input class="hodnota"
+                                                   value="@(Upravovana(sloupec) ?? "")"
+                                                   disabled="@(Upravovana(sloupec) is null)"
+                                                   aria-label="@sloupec"
+                                                   @onchange="e => ZmenHodnotu(sloupec, e.Value?.ToString())" />
+
+                                            @if (JeNullovatelny(sloupec))
+                                            {
+                                                <label class="null-prepinac" title="Uložit NULL">
+                                                    <input type="checkbox"
+                                                           checked="@(Upravovana(sloupec) is null)"
+                                                           @onchange="e => PrepniNull(sloupec, e.Value is true)" />
+                                                    NULL
+                                                </label>
+                                            }
+                                        </td>
+                                    }
+                                    else if (EditovanyRadek == radek)
+                                    {
+                                        <td class="neupravitelna @(hodnota is null ? "nullova" : "")"
+                                            title="@DuvodNeeditovatelnosti(sloupec)">@(hodnota ?? "NULL")</td>
+                                    }
+                                    else
+                                    {
+                                        <td class="@(hodnota is null ? "nullova" : "")">@(hodnota ?? "NULL")</td>
+                                    }
                                 }
                             </tr>
                         }
@@ -149,6 +243,9 @@ else
 
     private Dictionary<string, string> Filtry { get; } = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>Rozepsané hodnoty upravovaného řádku. Hodnota <c>null</c> znamená NULL.</summary>
+    private Dictionary<string, string?> Editace { get; } = new(StringComparer.OrdinalIgnoreCase);
+
     private int Stranka { get; set; }
 
     private int PageSize { get; set; } = 50;
@@ -161,6 +258,15 @@ else
 
     private DbObjectName? NactenaTabulka { get; set; }
 
+    /// <summary>Index upravovaného řádku na aktuální stránce.</summary>
+    private int? EditovanyRadek { get; set; }
+
+    /// <summary>Index řádku, u kterého se čeká na potvrzení smazání.</summary>
+    private int? MazanyRadek { get; set; }
+
+    /// <summary>Proč se poslední zápis nepovedl. Mřížka zůstane, hláška je nad ní.</summary>
+    private string? ChybaZapisu { get; set; }
+
     [Parameter]
     public DbTable? Table { get; set; }
 
@@ -170,9 +276,31 @@ else
     [Parameter]
     public string? Error { get; set; }
 
+    /// <summary>Povolil server úpravu hodnot?</summary>
+    [Parameter]
+    public bool CanEdit { get; set; }
+
+    /// <summary>Povolil server mazání řádků?</summary>
+    [Parameter]
+    public bool CanDelete { get; set; }
+
     /// <summary>Načtení stránky. Komponenta si sama neví, jak volat server.</summary>
     [Parameter]
     public EventCallback<DataQuery> OnLoad { get; set; }
+
+    /// <summary>
+    /// Uložení změn. Vrací chybovou hlášku, nebo <c>null</c>, když se zápis povedl.
+    /// </summary>
+    /// <remarks>
+    /// Není to <c>EventCallback</c> schválně: mřížka musí vědět, jak zápis dopadl,
+    /// aby políčka zavřela až po úspěchu a jinak rozepsané hodnoty neztratila.
+    /// </remarks>
+    [Parameter]
+    public Func<DataUpdate, Task<string?>>? OnUpdate { get; set; }
+
+    /// <summary>Smazání řádku. Vrací chybovou hlášku, nebo <c>null</c> při úspěchu.</summary>
+    [Parameter]
+    public Func<DataDelete, Task<string?>>? OnDelete { get; set; }
 
     private bool MaFiltr => Filtry.Count > 0;
 
@@ -186,6 +314,19 @@ else
             : Table?.Columns.Select(static c => c.Name).ToList() ?? [];
 
     private IReadOnlyList<IReadOnlyList<string?>> Radky => Preview?.Rows ?? [];
+
+    /// <summary>Nabízí konfigurace zápis, ať už v téhle tabulce půjde, nebo ne?</summary>
+    private bool JeZapisNabidnuty => (CanEdit && OnUpdate is not null) || (CanDelete && OnDelete is not null);
+
+    /// <summary>Dá se řádek jednoznačně adresovat? Bez toho se nezapisuje vůbec.</summary>
+    private bool KlicJednoznacny =>
+        Table is { } tabulka && RowEditing.CanIdentifyRows(tabulka, Preview?.MaskedColumns);
+
+    private bool MuzeUpravovat => CanEdit && OnUpdate is not null && KlicJednoznacny;
+
+    private bool MuzeMazat => CanDelete && OnDelete is not null && KlicJednoznacny;
+
+    private bool JsouAkce => MuzeUpravovat || MuzeMazat;
 
     /// <summary>
     /// Data se načtou hned při zobrazení a znovu při přepnutí na jinou tabulku.
@@ -202,6 +343,7 @@ else
         Filtry.Clear();
         SloupecRazeni = null;
         RaditSestupne = false;
+        ChybaZapisu = null;
 
         await NactiAsync(0);
     }
@@ -212,6 +354,10 @@ else
         {
             return;
         }
+
+        // Rozepsaná úprava platí pro řádky, které jsou právě v mřížce. Po načtení jiných
+        // by seděla na jiná data, takže se zahodí.
+        Zrus();
 
         Stranka = Math.Max(stranka, 0);
         Nacita = true;
@@ -298,4 +444,155 @@ else
     private bool IsMasked(string column) =>
         Preview is not null
         && Preview.MaskedColumns.Contains(column, StringComparer.OrdinalIgnoreCase);
+
+    // ---------- zápis ----------
+
+    /// <summary>Proč se v téhle tabulce nedá adresovat řádek.</summary>
+    internal static string DuvodBezKlice(DbTable table) => table switch
+    {
+        { IsView: true } => "pohled se přes prohlížečku neupravuje",
+        { PrimaryKey: null or { Columns.Count: 0 } } => "tabulka nemá primární klíč",
+        _ => "primární klíč není v mřížce celý čitelný",
+    };
+
+    /// <summary>Proč se hodnota sloupce nedá měnit, nebo <c>null</c>, když měnit jde.</summary>
+    internal string? DuvodNeeditovatelnosti(string column) =>
+        Table?.FindColumn(column) is { } sloupec
+            ? RowEditing.ReadOnlyReason(sloupec, Preview?.MaskedColumns)
+            : "sloupec ve schématu není";
+
+    private bool JeNullovatelny(string column) => Table?.FindColumn(column) is { IsNullable: true };
+
+    private string StavRadku(int radek) =>
+        EditovanyRadek == radek ? "upravuje-se" : MazanyRadek == radek ? "maze-se" : "";
+
+    /// <summary>Rozepsaná hodnota sloupce. <c>null</c> znamená NULL.</summary>
+    private string? Upravovana(string column) => Editace.GetValueOrDefault(column);
+
+    private void SkryjChybu() => ChybaZapisu = null;
+
+    private void ZacniUpravu(int radek)
+    {
+        Zrus();
+        EditovanyRadek = radek;
+
+        var row = Radky[radek];
+
+        for (var i = 0; i < Math.Min(row.Count, Sloupce.Count); i++)
+        {
+            if (DuvodNeeditovatelnosti(Sloupce[i]) is null)
+            {
+                Editace[Sloupce[i]] = row[i];
+            }
+        }
+    }
+
+    private void ZacniMazani(int radek)
+    {
+        Zrus();
+        MazanyRadek = radek;
+    }
+
+    /// <summary>Zahodí rozepsanou úpravu i čekající potvrzení mazání.</summary>
+    private void Zrus()
+    {
+        EditovanyRadek = null;
+        MazanyRadek = null;
+        Editace.Clear();
+    }
+
+    private void ZmenHodnotu(string column, string? value) => Editace[column] = value ?? "";
+
+    /// <summary>
+    /// Přepnutí na NULL a zpátky. Zpátky se vrací prázdný řetězec, ne původní hodnota —
+    /// ta už je pryč a tichý návrat k ní by uživatele mátl.
+    /// </summary>
+    private void PrepniNull(string column, bool naNull) => Editace[column] = naNull ? null : "";
+
+    private async Task UlozAsync(int radek)
+    {
+        var row = Radky[radek];
+        var zmeny = new List<DataValue>();
+
+        for (var i = 0; i < Math.Min(row.Count, Sloupce.Count); i++)
+        {
+            var sloupec = Sloupce[i];
+
+            // Posílají se jen skutečné změny. Přepsat celý řádek by zbytečně rozhýbalo
+            // triggery i sloupce, na které uživatel nesáhl.
+            if (Editace.TryGetValue(sloupec, out var nova) && nova != row[i])
+            {
+                zmeny.Add(new DataValue(sloupec, nova));
+            }
+        }
+
+        if (zmeny.Count == 0)
+        {
+            Zrus();
+            return;
+        }
+
+        await ZapisAsync(row, klic => OnUpdate!(new DataUpdate { Key = klic, Values = zmeny }));
+    }
+
+    private async Task SmazAsync(int radek) =>
+        await ZapisAsync(Radky[radek], klic => OnDelete!(new DataDelete { Key = klic }));
+
+    /// <summary>
+    /// Společný průběh zápisu: sestaví klíč, zavolá server a po úspěchu načte stránku
+    /// znovu — v databázi mohly zafungovat triggery i výchozí hodnoty.
+    /// </summary>
+    private async Task ZapisAsync(
+        IReadOnlyList<string?> row,
+        Func<IReadOnlyList<DataValue>, Task<string?>> operace)
+    {
+        var klic = Klic(row);
+
+        if (klic.Count == 0)
+        {
+            ChybaZapisu = "Řádek se nedá jednoznačně určit, takže se s ním nedá nic dělat.";
+            return;
+        }
+
+        ChybaZapisu = await operace(klic);
+
+        if (ChybaZapisu is null)
+        {
+            Zrus();
+            await NactiAsync(Stranka);
+        }
+    }
+
+    /// <summary>Hodnoty primárního klíče řádku. Prázdný seznam znamená „nejde určit".</summary>
+    private IReadOnlyList<DataValue> Klic(IReadOnlyList<string?> row)
+    {
+        var klic = new List<DataValue>();
+
+        foreach (var jmeno in Table?.PrimaryKey?.Columns ?? [])
+        {
+            var index = IndexSloupce(jmeno);
+
+            if (index < 0 || index >= row.Count)
+            {
+                return [];
+            }
+
+            klic.Add(new DataValue(jmeno, row[index]));
+        }
+
+        return klic;
+    }
+
+    private int IndexSloupce(string column)
+    {
+        for (var i = 0; i < Sloupce.Count; i++)
+        {
+            if (string.Equals(Sloupce[i], column, StringComparison.OrdinalIgnoreCase))
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
 }

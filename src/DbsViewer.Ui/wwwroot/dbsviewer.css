@@ -833,6 +833,74 @@ button.hlavni {
 /* Během načítání data zšednou, ale nezmizí — mřížka pod rukama neposkočí. */
 .mrizka.data tbody.nacita { opacity: 0.45; transition: opacity 120ms ease; }
 
+/* ---------- úpravy řádků ---------- */
+
+/* Sloupec s tlačítky je vlevo, aby zůstal na očích i u široké tabulky. */
+.mrizka.data th.akce,
+.mrizka.data td.akce {
+    white-space: nowrap;
+    width: 1%;
+    border-right: 1px solid var(--linka);
+}
+
+.mrizka.data td.akce .odkaz { font-size: 12px; margin-right: 6px; }
+.mrizka.data td.akce .odkaz:last-child { margin-right: 0; }
+.mrizka.data .odkaz.nebezpecne { color: var(--chyba); }
+.mrizka.data .odkaz.ulozit { font-weight: 600; }
+
+.mrizka.data td.akce .potvrzeni {
+    color: var(--chyba);
+    font-size: 12px;
+    margin-right: 6px;
+}
+
+.mrizka.data tr.upravuje-se { background: var(--akcent-svetly); }
+.mrizka.data tr.maze-se { background: var(--chyba-svetla); }
+
+/* Nezměnitelná hodnota se v rozepsaném řádku odliší, aby bylo vidět proč. */
+.mrizka.data td.neupravitelna { color: var(--text-3); }
+
+/* Políčko a přepínač NULL pod ním — vedle sebe by se do buňky nevešly. */
+.mrizka.data td.upravovana { min-width: 130px; }
+
+.mrizka.data td.upravovana input.hodnota {
+    display: block;
+    width: 100%;
+    min-width: 90px;
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--akcent);
+    border-radius: 3px;
+    padding: 1px 4px;
+    font: inherit;
+}
+
+.mrizka.data td.upravovana input.hodnota:disabled {
+    border-color: var(--linka);
+    color: var(--text-3);
+}
+
+.mrizka.data .null-prepinac {
+    display: inline-flex;
+    margin-top: 2px;
+    align-items: center;
+    gap: 3px;
+    color: var(--text-2);
+    font-size: 11px;
+}
+
+.zapis-chyba {
+    background: var(--chyba-svetla);
+    border: 1px solid var(--chyba);
+    border-radius: 4px;
+    padding: 5px 8px;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
 .strankovani {
     display: flex;
     align-items: center;
