@@ -184,6 +184,14 @@ public class ShopSchemaTests(ShopSchemaFixture fixture) : IClassFixture<ShopSche
     }
 
     [Fact]
+    public void Nullable_sloupec_nese_citelny_CLR_typ()
+    {
+        // Assembly-qualified jméno by prosáklo až do odpovědi HTTP API a měnilo by se
+        // s verzí .NETu, na kterém server běží.
+        Assert.Equal("System.Int32?", fixture.Column("Categories", "ParentCategoryId").ClrType);
+    }
+
+    [Fact]
     public void Nullabilita_odpovida_modelu()
     {
         Assert.False(fixture.Column("Customers", "Email").IsNullable);

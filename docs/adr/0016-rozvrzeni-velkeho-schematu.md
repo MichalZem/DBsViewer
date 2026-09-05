@@ -54,6 +54,12 @@ Cílové rozměry plochy se odvozují z celkové plochy uzlů, ne z velikosti ok
 vyjít pokaždé stejně; kdyby se odvíjel od viewportu, diagram by se po zvětšení okna
 přeskládal a snímky v dokumentaci by neseděly.
 
+**O tom, kam která tabulka patří, rozhodují sbalené výšky.** Rozbalený uzel je vyšší,
+takže kdyby jeho výška vstupovala do pořadí bloků, do zalomení vrstvy nebo do volby šířky
+řádku, kliknutí na „+" by přeskládalo celý diagram a uživatel by musel hledat, kam se mu
+zbytek schématu odskákal. Skutečné výšky se proto uplatní až při skládání uzlů pod sebe:
+rozbalený uzel roztlačí svůj sloupec a to, co je pod ním, ale nikdy nezmění, kdo kde stojí.
+
 ## Zvažované alternativy
 
 **Nechat to na focus modu.** Focus nad deseti tabulkami funguje dobře a je hlavním
@@ -79,6 +85,7 @@ by to jen užší pruh téhož problému — svisle by rostl stejně.
 - Bloky se čtou po tématech — přihlašování, faktury, náklady — protože je tak dělí sám graf.
 - Řádek bloků je vysoký jako jeho nejvyšší blok, takže vedle nižších zůstane prázdno.
   Je to cena za to, že bloky drží společnou horní hranu.
+- Rozbalení uzlu posouvá jen svisle, a jen to, co leží pod ním. Vodorovně se nehne nic.
 - `DiagramNode.Layer` dál nese číslo vrstvy uvnitř své komponenty, ne globální sloupec.
   Dvě tabulky se stejnou vrstvou už nemusí mít stejné X — tabulky z různých bloků ho
   nesdílejí a zalomená vrstva má podsloupců několik.

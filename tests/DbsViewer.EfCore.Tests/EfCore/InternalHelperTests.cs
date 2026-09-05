@@ -252,3 +252,40 @@ public class MigrationsReaderTests
         Assert.Empty(await reader.GetAppliedAsync(CancellationToken.None));
     }
 }
+
+public class ClrTypeNameTests
+{
+    [Fact]
+    public void Nullable_hodnotovy_typ_ma_otaznik()
+    {
+        // Type.FullName vrátí u int? celé jméno sestavy i s verzí runtime; v UI z toho
+        // po zkrácení zbylo „0, Culture=neutral, PublicKeyToken=…".
+        Assert.Equal("System.Int32?", EfModelReader.ClrTypeName(typeof(int?)));
+        Assert.Equal("System.DateTime?", EfModelReader.ClrTypeName(typeof(DateTime?)));
+    }
+
+    [Fact]
+    public void Obycejny_typ_i_pole_zustanou_beze_zmeny()
+    {
+        // Na přesném tvaru „System.Byte[]" stojí rozpoznání binárního sloupce v RowEditing.
+        Assert.Equal("System.String", EfModelReader.ClrTypeName(typeof(string)));
+        Assert.Equal("System.Int32", EfModelReader.ClrTypeName(typeof(int)));
+        Assert.Equal("System.Byte[]", EfModelReader.ClrTypeName(typeof(byte[])));
+    }
+
+    [Fact]
+    public void Genericky_typ_se_slozi_z_argumentu()
+    {
+        Assert.Equal(
+            "System.Collections.Generic.List<System.String>",
+            EfModelReader.ClrTypeName(typeof(List<string>)));
+
+        Assert.Equal(
+            "System.Collections.Generic.Dictionary<System.String, System.Int32?>",
+            EfModelReader.ClrTypeName(typeof(Dictionary<string, int?>)));
+    }
+
+    [Fact]
+    public void Chybejici_typ_je_chyba_argumentu() =>
+        Assert.Throws<ArgumentNullException>(() => EfModelReader.ClrTypeName(null!));
+}

@@ -587,6 +587,17 @@ public class TableDetailTests : TestContext
         Assert.Equal("Int32", TableDetail.ShortClrType("Int32"));
         Assert.Equal("", TableDetail.ShortClrType(null));
         Assert.Equal("", TableDetail.ShortClrType(""));
+
+        // Useknutí za poslední tečkou by u generického jména utrhlo nesmysl:
+        // z „List<System.String>" by zbylo „String>".
+        Assert.Equal("Int32?", TableDetail.ShortClrType("System.Int32?"));
+        Assert.Equal("Byte[]", TableDetail.ShortClrType("System.Byte[]"));
+        Assert.Equal(
+            "List<String>",
+            TableDetail.ShortClrType("System.Collections.Generic.List<System.String>"));
+        Assert.Equal(
+            "Dictionary<String, Int32>",
+            TableDetail.ShortClrType("System.Collections.Generic.Dictionary<System.String, System.Int32>"));
     }
 
     [Fact]

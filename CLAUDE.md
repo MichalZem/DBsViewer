@@ -282,6 +282,15 @@ tabulek bez vazeb. Rozměry se odvozují z plochy uzlů, **ne z velikosti okna**
 se diagram přeskládal po zvětšení okna a snímky v dokumentaci by neseděly.
 Viz [ADR-0016](docs/adr/0016-rozvrzeni-velkeho-schematu.md).
 
+**Kam tabulka v diagramu patří, rozhodují sbalené výšky.** Rozbalený uzel roztlačí svůj
+sloupec a to, co je pod ním — ale nesmí změnit pořadí bloků, zalomení vrstvy ani šířku
+řádku. Jinak by kliknutí na „+" přeskládalo celý diagram a uživatel by hledal, kam se mu
+zbytek schématu odskákal.
+
+**CLR jméno typu se neskládá z `Type.FullName`.** U `int?` je to assembly-qualified jméno
+i s verzí runtime, takže z něj v UI zbyl nesmysl a přes HTTP API by se hodnota měnila
+podle .NETu na serveru. Od toho je `EfModelReader.ClrTypeName`.
+
 **Stav UI žije mimo komponentu** v `ViewerState`, aby se dal testovat bez vykreslování.
 Viz [ADR-0013](docs/adr/0013-stav-mimo-komponentu.md).
 
@@ -321,11 +330,11 @@ Viz [ADR-0011](docs/adr/0011-parovani-podle-sloupcu.md).
 **Všech sedm etap je hotových.** Datový model, čtení z EF modelu, živá introspekce obou
 providerů, slučování, diff engine, HTTP API s autorizací a cache, Blazor WASM prohlížečka
 s přehledem databáze, ER diagramem a focus modem, historie schématu z migrací, náhled dat
-včetně úpravy a mazání řádků, export a `dotnet tool`. **1383 testů** (EfCore 257,
-Relational 245, Server 305, Tool 51, Ui 525), 100 % pokrytí řádků a metod ve všech pěti
+včetně úpravy a mazání řádků, export a `dotnet tool`. **1392 testů** (EfCore 262,
+Relational 245, Server 305, Tool 51, Ui 529), 100 % pokrytí řádků a metod ve všech pěti
 sadách.
 
-Vydáno na NuGetu, poslední stabilní verze je `0.5.0` — všech osm balíčků včetně
+Vydáno na NuGetu, poslední stabilní verze je `0.5.1` — všech osm balíčků včetně
 `DbsViewer.Tool`. Publikuje se přes Trusted Publishing z tagu `v*`.
 
 Ověřeno end-to-end: balíčky se zabalí, nainstalují do čerstvé Web API aplikace, dvěma

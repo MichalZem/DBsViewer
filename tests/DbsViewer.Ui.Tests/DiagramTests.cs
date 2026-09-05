@@ -382,12 +382,22 @@ public class DiagramLayoutTests
     }
 
     [Fact]
-    public void Popisek_na_kratkem_useku_zustane_na_nem()
+    public void Popisek_na_kratkem_useku_neuhne_pod_uzel()
     {
-        // Úsek je kratší než odsazení — popisek nesmí vyjet před jeho začátek.
+        // Úsek je kratší než odsazení. Popisek se posune blíž k šipce, ale jen po hranici,
+        // za kterou by ho přebil uzel — z „1:N" by pak zbylo „N". Že přitom přesahuje
+        // kousek před začátek svého úseku, je menší zlo než popisek, který není vidět.
         IReadOnlyList<(double X, double Y)> body = [(0, 0), (0, 40), (20, 40)];
 
-        Assert.Equal(10, DiagramLayout.LabelPosition(body).X);
+        Assert.Equal(2, DiagramLayout.LabelPosition(body).X);
+    }
+
+    [Fact]
+    public void Popisek_na_dlouhem_useku_drzi_plne_odsazeni()
+    {
+        IReadOnlyList<(double X, double Y)> body = [(0, 0), (0, 40), (100, 40)];
+
+        Assert.Equal(74, DiagramLayout.LabelPosition(body).X);
     }
 
     [Fact]
@@ -449,6 +459,33 @@ public class DiagramLayoutTests
         }
     }
 
+
+    [Fact]
+    public void Popisek_kardinality_nezaleze_pod_uzel()
+    {
+        // Uzly se kreslí až po hranách, takže popisek, který zasahuje pod uzel, přijde
+        // o první znaky — z „1:N" zbude „N" a z diagramu se nedá vyčíst kardinalita.
+        var (tables, relationships) = Smichane();
+        var layout = DiagramLayout.Compute(tables, relationships);
+
+        // Popisek je zarovnaný na střed, takže na každou stranu zabírá půlku své šířky.
+        const double Polovina = 10;
+
+        foreach (var edge in layout.Edges)
+        {
+            foreach (var node in layout.Nodes)
+            {
+                var podUzlem = edge.LabelAt.X - Polovina < node.X + node.Width
+                    && edge.LabelAt.X + Polovina > node.X
+                    && edge.LabelAt.Y > node.Y
+                    && edge.LabelAt.Y < node.Y + node.Height;
+
+                Assert.False(
+                    podUzlem,
+                    $"Popisek vazby {edge.Relationship.Id} leží pod {node.Table.Name.Name}.");
+            }
+        }
+    }
 
     [Fact]
     public void Popisky_na_stejnem_miste_se_rozsunou_podel_trasy()
@@ -746,6 +783,61 @@ public class DiagramLayoutTests
         // Podsloupce zůstaly vpravo od tabulky, na kterou míří.
         var ucet = layout.Find(N("Ucet"))!;
         Assert.All(pohyby, n => Assert.True(n.X > ucet.X));
+    }
+
+    [Fact]
+    public void Rozbaleni_uzlu_neprehazi_tabulky_jinam()
+    {
+        // Rozbalený uzel je vyšší, a kdyby z jeho výšky plynulo pořadí bloků nebo zalomení
+        // vrstvy, přeskládal by se celý diagram. Uživatel by po kliknutí na „+" hledal,
+        // kam se mu zbytek schématu odskákal.
+        var (tables, relationships) = Smichane();
+        var rozbalena = new HashSet<DbObjectName> { N("Pohyb00") };
+
+        var sbalene = DiagramLayout.Compute(tables, relationships);
+        var srozbalenym = DiagramLayout.Compute(tables, relationships, rozbalena);
+
+        // Sloupce zůstanou na svém místě do posledního pixelu.
+        Seq.Equal(
+            sbalene.Nodes.Select(n => (n.Table.Name.Name, n.X)),
+            srozbalenym.Nodes.Select(n => (n.Table.Name.Name, n.X)));
+
+        // A ve sloupci zůstane stejné pořadí shora dolů — posouvá se, nepřehazuje.
+        Seq.Equal(PoradiVeSloupcich(sbalene), PoradiVeSloupcich(srozbalenym));
+
+        // Kdyby rozbalený uzel nebyl vyšší, test by neověřoval nic.
+        Assert.True(srozbalenym.Find(N("Pohyb00"))!.Height > sbalene.Find(N("Pohyb00"))!.Height);
+    }
+
+    private static List<string> PoradiVeSloupcich(DiagramLayoutResult layout) =>
+    [
+        .. layout.Nodes
+            .GroupBy(n => n.X)
+            .OrderBy(g => g.Key)
+            .SelectMany(g => g.OrderBy(n => n.Y).Select(n => n.Table.Name.Name)),
+    ];
+
+    [Fact]
+    public void Rozbaleni_odsune_jen_to_co_je_pod_nim()
+    {
+        // Faktura a Zaloha stojí ve stejném sloupci, Polozka vedle nich. Rozbalení
+        // Faktury posune dolů jen Zalohu — Polozka je v jiném sloupci a nemá důvod se hnout.
+        var tables = new[]
+        {
+            Build.Table("Faktura", ["Id", "Cislo", "Datum", "Castka"], ["Id"]),
+            Build.Table("Zaloha", ["Id"], ["Id"]),
+            Build.Table("Polozka", ["Id", "FakturaId", "ZalohaId"], ["Id"]),
+        };
+
+        var relationships = new[] { Rel("Polozka", "Faktura"), Rel("Polozka", "Zaloha") };
+        var rozbalena = new HashSet<DbObjectName> { N("Faktura") };
+
+        var sbalene = DiagramLayout.Compute(tables, relationships);
+        var srozbalenym = DiagramLayout.Compute(tables, relationships, rozbalena);
+
+        Assert.Equal(sbalene.Find(N("Faktura"))!.Y, srozbalenym.Find(N("Faktura"))!.Y);
+        Assert.Equal(sbalene.Find(N("Polozka"))!.Y, srozbalenym.Find(N("Polozka"))!.Y);
+        Assert.True(srozbalenym.Find(N("Zaloha"))!.Y > sbalene.Find(N("Zaloha"))!.Y);
     }
 
     [Fact]

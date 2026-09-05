@@ -26,7 +26,7 @@ a mockup — each one belongs to the [What you'll see](#what-youll-see) chapter.
 > **Status:** released on nuget.org. The viewer has a graphical UI with an ER diagram,
 > an HTTP API, drift detection, schema history and a data preview with optional row
 > editing. The latest stable
-> version is [`0.5.0`](https://www.nuget.org/packages/DbsViewer.Server); every push to
+> version is [`0.5.1`](https://www.nuget.org/packages/DbsViewer.Server); every push to
 > `main` additionally produces a prerelease. See [installation](#installing-into-your-own-application).
 
 ---
@@ -167,7 +167,10 @@ a column they take up space and say nothing about the schema. Without that the n
 columns follows the depth of the foreign keys, and a database of thirty tables comes out
 as a strip three columns wide and twenty rows tall. The dimensions are derived from the
 area of the nodes, not from the window size, so the diagram always looks the same.
-Details in [ADR-0016](docs/adr/0016-rozvrzeni-velkeho-schematu.md) (in Czech).
+Expanding a node to all its columns does not move the layout — where a table belongs is
+decided from the collapsed heights, so an expanded node only pushes its own column and
+whatever sits below it. Details in
+[ADR-0016](docs/adr/0016-rozvrzeni-velkeho-schematu.md) (in Czech).
 
 The legend for the line types sits in the bottom-left corner of the diagram, collapsed
 into a chip. What the whole diagram looks like is visible [in the image at the top](#dbsviewer).

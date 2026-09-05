@@ -161,7 +161,7 @@ internal sealed class EfModelReader(
                 Ordinal = ordinal++,
                 StoreType = column.StoreType,
                 IsNullable = column.IsNullable,
-                ClrType = property?.ClrType.FullName,
+                ClrType = property is null ? null : ClrTypeName(property.ClrType),
                 PropertyNames = property is null ? [] : [property.Name],
             });
         }
@@ -219,7 +219,7 @@ internal sealed class EfModelReader(
                 Name = column.Name,
                 Ordinal = ordinal++,
                 StoreType = column.StoreType,
-                ClrType = property?.ClrType.FullName,
+                ClrType = property is null ? null : ClrTypeName(property.ClrType),
                 IsNullable = column.IsNullable,
                 IsPrimaryKey = pkColumns.Contains(column.Name),
                 IsForeignKey = fkColumns.Contains(column.Name),
@@ -602,6 +602,40 @@ internal sealed class EfModelReader(
         () => context.Database.GetDbConnection().Database,
         static ex => $"Jméno databáze se nepodařilo zjistit: {ex.Message}",
         warnings);
+
+    /// <summary>
+    /// Čitelné jméno CLR typu i pro nullable a generické typy.
+    /// </summary>
+    /// <remarks>
+    /// <c>Type.FullName</c> se použít nedá: u <c>int?</c> vrátí celé
+    /// <c>System.Nullable`1[[System.Int32, System.Private.CoreLib, Version=…]]</c>, tedy
+    /// jméno sestavy i s číslem verze runtime. V UI z toho po zkrácení zbyl nesmysl a přes
+    /// HTTP API by se navíc hodnota měnila podle toho, na jakém .NETu server běží.
+    /// Jméno se proto skládá ručně: <c>System.Int32?</c>, <c>System.Byte[]</c>,
+    /// <c>System.Collections.Generic.List&lt;System.String&gt;</c>.
+    /// </remarks>
+    internal static string ClrTypeName(Type type)
+    {
+        ArgumentNullException.ThrowIfNull(type);
+
+        if (Nullable.GetUnderlyingType(type) is { } underlying)
+        {
+            return ClrTypeName(underlying) + "?";
+        }
+
+        if (!type.IsGenericType)
+        {
+            // Pole i obyčejné typy mají FullName čitelné; null je jen u typových parametrů.
+            return type.FullName ?? type.Name;
+        }
+
+        var definice = type.GetGenericTypeDefinition().FullName ?? type.Name;
+        var arita = definice.IndexOf('`', StringComparison.Ordinal);
+        var jmeno = arita >= 0 ? definice[..arita] : definice;
+        var argumenty = string.Join(", ", type.GetGenericArguments().Select(ClrTypeName));
+
+        return $"{jmeno}<{argumenty}>";
+    }
 
     internal static DbProviderKind DetectProvider(string? providerName) => providerName switch
     {

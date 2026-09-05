@@ -134,7 +134,16 @@ public static class DiagramLayout
                 expanded?.Contains(t.Name) ?? false,
                 kotvy.GetValueOrDefault(t.Name)));
 
-        var nodes = PlaceNodes(tables, layers, relationships, vysky);
+        // Sbalené výšky rozhodují o tom, kam která tabulka patří. Kdyby o tom rozhodovaly
+        // ty skutečné, rozbalení jednoho uzlu by přeskládalo celý diagram a uživatel by
+        // musel hledat, kam se mu tabulky odskákaly.
+        var zakladni = expanded is null || expanded.Count == 0
+            ? vysky
+            : tables.ToDictionary(
+                static t => t.Name,
+                t => NodeHeight(t, isExpanded: false, kotvy.GetValueOrDefault(t.Name)));
+
+        var nodes = PlaceNodes(tables, layers, relationships, vysky, zakladni);
         var edges = RouteEdges(nodes, relationships);
 
         var width = nodes.Max(static n => n.X + n.Width) + Margin;
@@ -408,8 +417,24 @@ public static class DiagramLayout
         }
     }
 
-    /// <summary>Umístění uzlu uvnitř bloku, ještě v jeho vlastních souřadnicích.</summary>
-    private readonly record struct Umisteni(DbTable Table, double X, double Y, double Height, int Layer);
+    /// <summary>
+    /// Umístění uzlu uvnitř bloku, ještě v jeho vlastních souřadnicích.
+    /// </summary>
+    /// <param name="Table">Tabulka, kterou uzel kreslí.</param>
+    /// <param name="X">Levý okraj uvnitř bloku.</param>
+    /// <param name="Y">Horní okraj uvnitř bloku.</param>
+    /// <param name="Height">Skutečná výška uzlu, tedy i rozbaleného.</param>
+    /// <param name="BaseY">Kde by uzel ležel, kdyby byl každý uzel sbalený.</param>
+    /// <param name="BaseHeight">Výška uzlu ve sbaleném stavu.</param>
+    /// <param name="Layer">Vrstva uvnitř komponenty.</param>
+    private readonly record struct Umisteni(
+        DbTable Table,
+        double X,
+        double Y,
+        double Height,
+        double BaseY,
+        double BaseHeight,
+        int Layer);
 
     /// <summary>Samostatně rozvržená část schématu se souřadnicemi od nuly.</summary>
     private sealed record Blok(IReadOnlyList<Umisteni> Nodes)
@@ -417,6 +442,9 @@ public static class DiagramLayout
         public double Width { get; } = Nodes.Max(static n => n.X + CollapsedWidth);
 
         public double Height { get; } = Nodes.Max(static n => n.Y + n.Height);
+
+        /// <summary>Výška bloku, kdyby byl každý uzel sbalený. Rozhoduje o skládání.</summary>
+        public double BaseHeight { get; } = Nodes.Max(static n => n.BaseY + n.BaseHeight);
 
         /// <summary>Jméno první tabulky v abecedě. Rozhoduje při shodě velikosti bloků.</summary>
         public string Key { get; } = Nodes
@@ -433,27 +461,37 @@ public static class DiagramLayout
     /// bloky se poskládají vedle sebe. Ve společných vrstvách by se jen prokládaly a jejich
     /// vazby by se táhly přes celý obrázek, přestože spolu nemají co dělat — typicky
     /// tabulky přihlašování vedle tabulek objednávek.
+    ///
+    /// O tom, kam která tabulka patří, rozhodují **sbalené** výšky. Rozbalený uzel tak
+    /// jen roztlačí svůj sloupec a to, co je pod ním; nikdy nepřehodí pořadí bloků ani
+    /// nepřesune tabulku na jiný řádek.
     /// </remarks>
+    /// <param name="tables">Tabulky k rozmístění.</param>
+    /// <param name="layers">Vrstva každé tabulky.</param>
+    /// <param name="relationships">Vazby mezi tabulkami.</param>
+    /// <param name="heights">Skutečné výšky uzlů, tedy včetně rozbalených.</param>
+    /// <param name="zakladni">Výšky, jako by byl každý uzel sbalený.</param>
     private static List<DiagramNode> PlaceNodes(
         IReadOnlyList<DbTable> tables,
         Dictionary<DbObjectName, int> layers,
         IReadOnlyList<DbRelationship> relationships,
-        Dictionary<DbObjectName, double> heights)
+        Dictionary<DbObjectName, double> heights,
+        Dictionary<DbObjectName, double> zakladni)
     {
-        var (targetWidth, targetHeight) = TargetBox(tables, heights);
+        var (targetWidth, targetHeight) = TargetBox(tables, zakladni);
         var (komponenty, samostatne) = SplitComponents(tables, relationships);
 
         // Největší blok jde první: kolem něj se ty menší poskládají líp než naopak.
         var bloky = komponenty
-            .Select(k => PlaceComponent(k, layers, relationships, heights, targetHeight))
-            .OrderByDescending(static b => b.Height)
+            .Select(k => PlaceComponent(k, layers, relationships, heights, zakladni, targetHeight))
+            .OrderByDescending(static b => b.BaseHeight)
             .ThenBy(static b => b.Key, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
         if (samostatne.Count > 0)
         {
             // Mřížka až nakonec — nemá se k čemu vázat, takže nesmí rozhánět zbytek.
-            bloky.Add(PlaceGrid(samostatne, heights, targetWidth));
+            bloky.Add(PlaceGrid(samostatne, heights, zakladni, targetWidth));
         }
 
         return PackBlocks(bloky);
@@ -569,6 +607,7 @@ public static class DiagramLayout
         Dictionary<DbObjectName, int> layers,
         IReadOnlyList<DbRelationship> relationships,
         Dictionary<DbObjectName, double> heights,
+        Dictionary<DbObjectName, double> zakladni,
         double columnLimit)
     {
         var poradi = OrderWithinLayers(tables, layers, relationships);
@@ -577,19 +616,24 @@ public static class DiagramLayout
 
         foreach (var layer in tables.GroupBy(t => layers[t.Name]).OrderBy(static g => g.Key))
         {
+            // Zalomení se řídí sbalenými výškami, jinak by rozbalení uzlu roztrhlo vrstvu
+            // do dalšího podsloupce a půlka tabulek by se přesunula jinam.
             var sloupce = WrapIntoColumns(
-                layer.OrderBy(t => poradi[t.Name]).ToList(), heights, columnLimit);
+                layer.OrderBy(t => poradi[t.Name]).ToList(), zakladni, columnLimit);
 
             for (var i = 0; i < sloupce.Count; i++)
             {
                 var y = 0.0;
+                var yZakladni = 0.0;
 
                 foreach (var table in sloupce[i])
                 {
                     var height = heights[table.Name];
+                    var zaklad = zakladni[table.Name];
 
-                    umisteni.Add(new Umisteni(table, x, y, height, layer.Key));
+                    umisteni.Add(new Umisteni(table, x, y, height, yZakladni, zaklad, layer.Key));
                     y += height + NodeGap;
+                    yZakladni += zaklad + NodeGap;
                 }
 
                 // Mezi podsloupci jedné vrstvy nevede žádná hrana, takže smějí stát blíž
@@ -664,6 +708,7 @@ public static class DiagramLayout
     private static Blok PlaceGrid(
         List<DbTable> tables,
         Dictionary<DbObjectName, double> heights,
+        Dictionary<DbObjectName, double> zakladni,
         double targetWidth)
     {
         var sirkaSloupce = CollapsedWidth + NodeGap;
@@ -676,6 +721,7 @@ public static class DiagramLayout
 
         var umisteni = new List<Umisteni>(serazene.Count);
         var y = 0.0;
+        var yZakladni = 0.0;
 
         for (var i = 0; i < serazene.Count; i += sloupcu)
         {
@@ -683,11 +729,20 @@ public static class DiagramLayout
 
             for (var j = 0; j < radek.Count; j++)
             {
+                var table = radek[j];
+
                 umisteni.Add(new Umisteni(
-                    radek[j], j * sirkaSloupce, y, heights[radek[j].Name], 0));
+                    table,
+                    j * sirkaSloupce,
+                    y,
+                    heights[table.Name],
+                    yZakladni,
+                    zakladni[table.Name],
+                    0));
             }
 
             y += radek.Max(t => heights[t.Name]) + NodeGap;
+            yZakladni += radek.Max(t => zakladni[t.Name]) + NodeGap;
         }
 
         return new Blok(umisteni);
@@ -702,6 +757,9 @@ public static class DiagramLayout
     /// do výšky — přesně tomu se má skládání vyhnout. Zkusí se proto všechny šířky, na
     /// kterých nějaký blok končí, a vybere se ta, po které je výsledek nejblíž cílovému
     /// poměru stran.
+    ///
+    /// Poměr stran se počítá ze sbalených výšek. Podle skutečných by rozbalený uzel mohl
+    /// překlopit volbu na jinou šířku a bloky by se přeskládaly do jiných řádků.
     /// </remarks>
     private static List<DiagramNode> PackBlocks(List<Blok> bloky)
     {
@@ -716,18 +774,41 @@ public static class DiagramLayout
 
         // MinBy vrací první nejlepší, takže při shodě rozhodne pořadí limitů — méně
         // řádků před více. Rozvržení tím zůstává pokaždé stejné.
-        return limity
-            .Select(limit => Rozmisti(bloky, limit))
-            .MinBy(static r => Math.Abs(Math.Log(r.Width / r.Height / TargetAspect)))
-            .Nodes;
+        var limit = limity.MinBy(limit =>
+        {
+            var (_, width, height) = Slozit(bloky, limit, static b => b.BaseHeight);
+
+            return Math.Abs(Math.Log(width / height / TargetAspect));
+        });
+
+        var (umisteni, _, _) = Slozit(bloky, limit, static b => b.Height);
+
+        return umisteni
+            .SelectMany(static u => u.Blok.Nodes.Select(n => new DiagramNode
+            {
+                Table = n.Table,
+                X = Margin + u.X + n.X,
+                Y = Margin + u.Y + n.Y,
+                Width = CollapsedWidth,
+                Height = n.Height,
+                Layer = n.Layer,
+            }))
+            .ToList();
     }
 
-    /// <summary>Rozmístí bloky do řádků nejvýš zadané šířky.</summary>
-    private static (List<DiagramNode> Nodes, double Width, double Height) Rozmisti(
+    /// <summary>Poskládá bloky do řádků nejvýš zadané šířky a vrátí i rozměry výsledku.</summary>
+    /// <param name="bloky">Bloky v pořadí, ve kterém mají jít za sebou.</param>
+    /// <param name="limit">Největší přípustná šířka řádku.</param>
+    /// <param name="vyska">
+    /// Čím se měří výška bloku. Při hledání nejlepší šířky to jsou sbalené výšky,
+    /// při skutečném rozmístění ty aktuální.
+    /// </param>
+    private static (List<(Blok Blok, double X, double Y)> Umisteni, double Width, double Height) Slozit(
         List<Blok> bloky,
-        double limit)
+        double limit,
+        Func<Blok, double> vyska)
     {
-        var nodes = new List<DiagramNode>();
+        var umisteni = new List<(Blok Blok, double X, double Y)>(bloky.Count);
         var x = 0.0;
         var y = 0.0;
         var vyskaRadku = 0.0;
@@ -743,25 +824,14 @@ public static class DiagramLayout
                 vyskaRadku = 0;
             }
 
-            foreach (var umisteni in blok.Nodes)
-            {
-                nodes.Add(new DiagramNode
-                {
-                    Table = umisteni.Table,
-                    X = Margin + x + umisteni.X,
-                    Y = Margin + y + umisteni.Y,
-                    Width = CollapsedWidth,
-                    Height = umisteni.Height,
-                    Layer = umisteni.Layer,
-                });
-            }
+            umisteni.Add((blok, x, y));
 
             x += blok.Width + BlockGap;
-            vyskaRadku = Math.Max(vyskaRadku, blok.Height);
+            vyskaRadku = Math.Max(vyskaRadku, vyska(blok));
             sirka = Math.Max(sirka, x - BlockGap);
         }
 
-        return (nodes, sirka, y + vyskaRadku);
+        return (umisteni, sirka, y + vyskaRadku);
     }
 
     /// <summary>
@@ -1060,6 +1130,16 @@ public static class DiagramLayout
     private const double LabelOffset = 26;
 
     /// <summary>
+    /// Nejmenší odstup popisku od šipky.
+    /// </summary>
+    /// <remarks>
+    /// Popisek se kreslí na střed, takže polovina jeho šířky leží směrem k uzlu. Blíž než
+    /// takhle by mu uzel — kreslený až po hranách — sežral první znak a z „1:N" by zbylo
+    /// „N". Radši ať popisek přesahuje kousek před začátek svého úseku, než aby zmizel.
+    /// </remarks>
+    private const double MinLabelOffset = 18;
+
+    /// <summary>
     /// Popisek kardinality jde na poslední vodorovný úsek, kousek před šipku.
     /// </summary>
     /// <remarks>
@@ -1082,8 +1162,9 @@ public static class DiagramLayout
                 continue;
             }
 
-            // Na krátkém úseku by odsazení popisek posunulo až za jeho začátek.
-            var odsazeni = Math.Min(LabelOffset, Math.Abs(b.X - a.X) / 2);
+            // Na krátkém úseku se odstup zkrátí, ale jen po hranici, za kterou by popisek
+            // zalezl pod uzel, do kterého hrana míří.
+            var odsazeni = Math.Clamp(Math.Abs(b.X - a.X) / 2, MinLabelOffset, LabelOffset);
 
             return (b.X > a.X ? b.X - odsazeni : b.X + odsazeni, b.Y);
         }

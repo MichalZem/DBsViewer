@@ -467,16 +467,26 @@ public class SqlServerLiveTests(SqlServerLiveFixture fixture) : IClassFixture<Sq
         }
         finally
         {
-            await using var restore = connection.CreateCommand();
-            restore.CommandText = """
-                DROP TABLE dbo.__EFMigrationsHistory;
-                CREATE TABLE dbo.__EFMigrationsHistory (
-                    MigrationId    nvarchar(150) NOT NULL PRIMARY KEY,
-                    ProductVersion nvarchar(32)  NOT NULL
-                );
-                INSERT INTO dbo.__EFMigrationsHistory VALUES (N'20260101_Init', N'10.0.0');
-                """;
-            await restore.ExecuteNonQueryAsync();
+            // Obnova jde ve dvou dávkách schválně. V jedné se INSERT občas zkompiluje ještě
+            // proti tabulce, kterou tentýž skript teprve zahodí, a spadne na neshodě sloupců
+            // — podle toho, jestli se SQL Server rozhodne pro rekompilaci. Test pak padal
+            // jednou za pár běhů bez zjevné příčiny.
+            await using (var recreate = connection.CreateCommand())
+            {
+                recreate.CommandText = """
+                    DROP TABLE dbo.__EFMigrationsHistory;
+                    CREATE TABLE dbo.__EFMigrationsHistory (
+                        MigrationId    nvarchar(150) NOT NULL PRIMARY KEY,
+                        ProductVersion nvarchar(32)  NOT NULL
+                    );
+                    """;
+                await recreate.ExecuteNonQueryAsync();
+            }
+
+            await using var seed = connection.CreateCommand();
+            seed.CommandText =
+                "INSERT INTO dbo.__EFMigrationsHistory VALUES (N'20260101_Init', N'10.0.0');";
+            await seed.ExecuteNonQueryAsync();
         }
     }
 

@@ -21,7 +21,7 @@ každý najdeš v kapitole [Co uvidíš](#co-uvidíš).*
 > **Stav:** vydané na nuget.org. Prohlížečka má grafické UI s ER diagramem, HTTP API,
 > detekci rozdílů, historii schématu i náhled dat s volitelnou editací řádků.
 > Poslední stabilní verze je
-> [`0.5.0`](https://www.nuget.org/packages/DbsViewer.Server); z každého pushe na `main`
+> [`0.5.1`](https://www.nuget.org/packages/DbsViewer.Server); z každého pushe na `main`
 > vzniká navíc předběžná verze. Viz [instalace](#instalace-do-vlastní-aplikace).
 
 ---
@@ -156,7 +156,9 @@ podsloupců; tabulky bez jediné vazby jdou do mřížky na konec, protože ve s
 místo a o schématu nic neříkají. Bez toho se počet sloupců odvíjí od hloubky cizích klíčů
 a z databáze o třiceti tabulkách vyjde pruh tří sloupců a dvaceti řádků. Rozměry se
 odvozují z plochy uzlů, ne z velikosti okna, takže diagram vypadá pokaždé stejně.
-Podrobněji v [ADR-0016](docs/adr/0016-rozvrzeni-velkeho-schematu.md).
+Rozbalení uzlu na všechny sloupce s rozvržením nehýbe — o tom, kam která tabulka patří,
+rozhodují sbalené výšky, takže rozbalený uzel jen roztlačí svůj sloupec a to, co je pod
+ním. Podrobněji v [ADR-0016](docs/adr/0016-rozvrzeni-velkeho-schematu.md).
 
 Vysvětlivky k typům čar jsou v levém dolním rohu diagramu, sbalené do štítku.
 Jak diagram vypadá celý, je vidět [na obrázku v úvodu](#dbsviewer).

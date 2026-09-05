@@ -4,6 +4,8 @@
     nástrojích chybí, přitom je při zásahu do schématu nejužitečnější.
 *@
 
+@using System.Text
+
 @if (Table is null)
 {
     <p class="prazdno">Vyber tabulku ze seznamu vlevo.</p>
@@ -373,6 +375,11 @@ else
     };
 
     /// <summary>Z plného CLR jména stačí poslední část — namespace by jen zabíral místo.</summary>
+    /// <remarks>
+    /// Zkracuje se každá část jména zvlášť, ne useknutím za poslední tečkou. U jména se
+    /// závorkami — <c>List&lt;System.String&gt;</c> — leží poslední tečka uvnitř argumentu,
+    /// takže by z něj zbylo „String&gt;".
+    /// </remarks>
     internal static string ShortClrType(string? clrType)
     {
         if (string.IsNullOrEmpty(clrType))
@@ -380,8 +387,28 @@ else
             return "";
         }
 
-        var lastDot = clrType.LastIndexOf('.');
-        return lastDot >= 0 ? clrType[(lastDot + 1)..] : clrType;
+        var vysledek = new StringBuilder(clrType.Length);
+        var cast = new StringBuilder();
+
+        foreach (var znak in clrType)
+        {
+            if (znak == '.')
+            {
+                // Tečka uzavřela část namespace; ta se do výsledku nedostane.
+                cast.Clear();
+            }
+            else if (char.IsLetterOrDigit(znak) || znak is '_' or '`' or '+')
+            {
+                cast.Append(znak);
+            }
+            else
+            {
+                vysledek.Append(cast).Append(znak);
+                cast.Clear();
+            }
+        }
+
+        return vysledek.Append(cast).ToString();
     }
 
     internal static string ColumnNotes(DbColumn column)
