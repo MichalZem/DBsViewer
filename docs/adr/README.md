@@ -51,3 +51,4 @@ Drobnosti (přejmenování metody, oprava chyby, doplnění testu) ADR nepotřeb
 | [0013](0013-stav-mimo-komponentu.md) | Stav prohlížečky žije mimo komponentu | Přijato | 2026-08-28 |
 | [0014](0014-historie-schematu-z-migraci.md) | Historie schématu ze snapshotů EF migrací | Přijato | 2026-09-02 |
 | [0015](0015-editace-radku.md) | Zápis do dat jen po jednom řádku a jen podle primárního klíče | Přijato | 2026-09-04 |
+| [0016](0016-rozvrzeni-velkeho-schematu.md) | Rozvržení velkého schématu: bloky, zalomení vrstev a mřížka | Přijato | 2026-09-05 |

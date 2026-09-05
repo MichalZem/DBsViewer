@@ -181,6 +181,7 @@ public class DiagramLayoutTests
 
         var poradi = DiagramLayout.Compute(tables, []).Nodes
             .OrderBy(n => n.Y)
+            .ThenBy(n => n.X)
             .Select(n => n.Table.Name.Schema)
             .ToList();
 
@@ -526,17 +527,22 @@ public class DiagramLayoutTests
     [Fact]
     public void Razeni_ve_vrstve_snizi_krizeni()
     {
-        // Bez barycentra by se A1→B2 a A2→B1 překřížily jen kvůli abecednímu pořadí.
+        // Bez barycentra by se Zdroj1→Bcil a Zdroj2→Acil překřížily jen kvůli abecednímu
+        // pořadí. Společný kořen drží schéma v jedné souvislé části, jinak by se obě
+        // dvojice rozvrhly zvlášť a o křížení by nešlo mluvit.
         var tables = new[]
         {
-            Build.Table("Bcil", ["Id"], ["Id"]),
-            Build.Table("Acil", ["Id"], ["Id"]),
+            Build.Table("Koren", ["Id"], ["Id"]),
+            Build.Table("Bcil", ["Id", "KorenId"], ["Id"]),
+            Build.Table("Acil", ["Id", "KorenId"], ["Id"]),
             Build.Table("Zdroj1", ["Id", "CizId"], ["Id"]),
             Build.Table("Zdroj2", ["Id", "CizId"], ["Id"]),
         };
 
         var relationships = new[]
         {
+            Rel("Bcil", "Koren"),
+            Rel("Acil", "Koren"),
             Rel("Zdroj1", "Bcil"),
             Rel("Zdroj2", "Acil"),
         };
@@ -619,6 +625,238 @@ public class DiagramLayoutTests
                 }
             }
         }
+    }
+
+    [Fact]
+    public void Nesouvisle_casti_stoji_vedle_sebe()
+    {
+        // Šest dvojic, které spolu nemají jedinou vazbu. Ve společných vrstvách z nich
+        // vyjdou dva sloupce a šest řádků — pruh, ve kterém se nedá nic najít.
+        var tables = new List<DbTable>();
+        var relationships = new List<DbRelationship>();
+
+        for (var i = 0; i < 6; i++)
+        {
+            tables.Add(Build.Table($"Cil{i}", ["Id"], ["Id"]));
+            tables.Add(Build.Table($"Zdroj{i}", ["Id", "CilId"], ["Id"]));
+            relationships.Add(Rel($"Zdroj{i}", $"Cil{i}"));
+        }
+
+        var layout = DiagramLayout.Compute(tables, relationships);
+        var sloupcu = layout.Nodes.Select(n => n.X).Distinct().Count();
+
+        Assert.True(sloupcu > 2, $"Diagram má pořád jen {sloupcu} sloupce.");
+        Assert.True(layout.Width > layout.Height, "Diagram zůstal na výšku.");
+    }
+
+    [Fact]
+    public void Tabulky_bez_vazeb_jdou_do_mrizky()
+    {
+        // Tabulky nastavení a číselníky nevedou nikam. Pod sebou by každá ukrojila řádek
+        // výšky, aniž by o vazbách ve schématu cokoli řekla.
+        var tables = Enumerable
+            .Range(0, 12)
+            .Select(i => Build.Table($"Nastaveni{i:00}", ["Id"], ["Id"]))
+            .ToList();
+
+        var layout = DiagramLayout.Compute(tables, []);
+        var sloupcu = layout.Nodes.Select(n => n.X).Distinct().Count();
+
+        Assert.True(sloupcu >= 3, $"Mřížka má jen {sloupcu} sloupce.");
+        Assert.True(layout.Width > layout.Height, "Mřížka se protáhla do výšky.");
+    }
+
+    [Fact]
+    public void Tabulka_se_smyckou_nepatri_mezi_tabulky_bez_vazeb()
+    {
+        // Smyčka vede zpátky do stejné tabulky, ale vazba to je. V mřížce by navíc
+        // její oblouk neměl kam vyjet a ležel by přes souseda.
+        var tables = new List<DbTable> { Build.Table("Kategorie", ["Id", "NadrazenaId"], ["Id"]) };
+
+        for (var i = 0; i < 8; i++)
+        {
+            tables.Add(Build.Table($"Nastaveni{i:00}", ["Id"], ["Id"]));
+        }
+
+        var layout = DiagramLayout.Compute(tables, [Rel("Kategorie", "Kategorie")]);
+        var smycka = layout.Find(N("Kategorie"))!;
+
+        var vOblouku = layout.Nodes.Where(n =>
+            n.Table.Name != smycka.Table.Name
+            && n.X < smycka.X + smycka.Width + 40
+            && n.X + n.Width > smycka.X + smycka.Width
+            && n.Y < smycka.Y + smycka.Height
+            && n.Y + n.Height > smycka.Y);
+
+        Assert.Empty(vOblouku);
+    }
+
+    [Fact]
+    public void Vazebni_tabulka_patri_ke_dvojici_kterou_spojuje()
+    {
+        // Sbalená N:M vazba se kreslí mezi konci, takže vazební tabulka sama žádnou hranu
+        // nemá. Mezi tabulky bez vazeb ale nepatří — drží obě strany pohromadě.
+        var tables = new[]
+        {
+            Build.Table("Clients", ["Id"], ["Id"]),
+            Build.Table("ClientGroups", ["Id"], ["Id"]),
+            Build.Table("ClientGroupMemberships", ["ClientId", "GroupsId"], ["ClientId", "GroupsId"]),
+            Build.Table("Nastaveni", ["Id"], ["Id"]),
+        };
+
+        var vazba = new DbRelationship
+        {
+            Id = "nm:Clients-ClientGroups",
+            From = N("Clients"),
+            To = N("ClientGroups"),
+            Cardinality = DbCardinality.ManyToMany,
+            ViaJoinTable = N("ClientGroupMemberships"),
+        };
+
+        var (komponenty, samostatne) = DiagramLayout.SplitComponents(tables, [vazba]);
+
+        var komponenta = Assert.Single(komponenty);
+
+        Seq.Equal(
+            ["ClientGroupMemberships", "ClientGroups", "Clients"],
+            komponenta.Select(t => t.Name.Name).OrderBy(n => n, StringComparer.Ordinal));
+
+        Assert.Equal("Nastaveni", Assert.Single(samostatne).Name.Name);
+    }
+
+    [Fact]
+    public void Prepnena_vrstva_se_zalomi_do_podsloupcu()
+    {
+        // Účet, na který míří třicet pohybů. Nezalomená vrstva je sloupec dlouhý
+        // několik obrazovek a diagram se kvůli němu nedá přehlédnout.
+        var tables = new List<DbTable> { Build.Table("Ucet", ["Id"], ["Id"]) };
+        var relationships = new List<DbRelationship>();
+
+        for (var i = 0; i < 30; i++)
+        {
+            tables.Add(Build.Table($"Pohyb{i:00}", ["Id", "UcetId"], ["Id"]));
+            relationships.Add(Rel($"Pohyb{i:00}", "Ucet"));
+        }
+
+        var layout = DiagramLayout.Compute(tables, relationships);
+        var pohyby = layout.Nodes.Where(n => n.Layer == 1).ToList();
+
+        Assert.True(pohyby.Select(n => n.X).Distinct().Count() > 1, "Vrstva se nezalomila.");
+
+        // Podsloupce zůstaly vpravo od tabulky, na kterou míří.
+        var ucet = layout.Find(N("Ucet"))!;
+        Assert.All(pohyby, n => Assert.True(n.X > ucet.X));
+    }
+
+    [Fact]
+    public void Vrstva_se_bez_potreby_nezalomi()
+    {
+        var tables = new[]
+        {
+            Build.Table("A", ["Id"], ["Id"]),
+            Build.Table("B", ["Id"], ["Id"]),
+        };
+
+        var vysky = tables.ToDictionary(t => t.Name, _ => 100.0);
+
+        var sloupec = Assert.Single(DiagramLayout.WrapIntoColumns(tables, vysky, 1000));
+
+        Seq.Equal(["A", "B"], sloupec.Select(t => t.Name.Name));
+    }
+
+    [Fact]
+    public void Vysoka_vrstva_se_rozdeli_rovnomerne()
+    {
+        // Dva a dva, ne tři a jeden: nerovnoměrné sloupce vrátí zpátky ten dlouhý pruh.
+        var tables = Enumerable
+            .Range(0, 4)
+            .Select(i => Build.Table($"T{i}", ["Id"], ["Id"]))
+            .ToList();
+
+        var vysky = tables.ToDictionary(t => t.Name, _ => 100.0);
+
+        var sloupce = DiagramLayout.WrapIntoColumns(tables, vysky, 300);
+
+        Assert.Equal(2, sloupce.Count);
+        Seq.Equal(["T0", "T1"], sloupce[0].Select(t => t.Name.Name));
+        Seq.Equal(["T2", "T3"], sloupce[1].Select(t => t.Name.Name));
+    }
+
+    [Fact]
+    public void Zalomeni_bez_vstupu_je_chyba_argumentu()
+    {
+        var tables = new[] { Build.Table("A", ["Id"], ["Id"]) };
+        var vysky = tables.ToDictionary(t => t.Name, _ => 100.0);
+
+        Assert.Throws<ArgumentNullException>(() => DiagramLayout.WrapIntoColumns(null!, vysky, 100));
+        Assert.Throws<ArgumentNullException>(() => DiagramLayout.WrapIntoColumns(tables, null!, 100));
+    }
+
+    [Fact]
+    public void Zadne_dva_uzly_se_neprekryvaji()
+    {
+        // Schéma se vším, co rozvržení rozhoduje: velká souvislá část se zalomenou
+        // vrstvou, dvě samostatné dvojice a hrst tabulek bez vazeb.
+        var (tables, relationships) = Smichane();
+        var nodes = DiagramLayout.Compute(tables, relationships).Nodes;
+
+        for (var i = 0; i < nodes.Count; i++)
+        {
+            for (var j = i + 1; j < nodes.Count; j++)
+            {
+                var prekryv = nodes[i].X < nodes[j].X + nodes[j].Width
+                    && nodes[j].X < nodes[i].X + nodes[i].Width
+                    && nodes[i].Y < nodes[j].Y + nodes[j].Height
+                    && nodes[j].Y < nodes[i].Y + nodes[i].Height;
+
+                Assert.False(
+                    prekryv,
+                    $"{nodes[i].Table.Name.Name} a {nodes[j].Table.Name.Name} leží přes sebe.");
+            }
+        }
+    }
+
+    [Fact]
+    public void Rozvrzeni_je_pokazde_stejne()
+    {
+        // Layout se nesmí odvíjet od velikosti okna ani od pořadí ve slovníku, jinak
+        // by se diagram přeskládal pod rukama a snímky v dokumentaci by nesouhlasily.
+        static IEnumerable<(string Jmeno, double X, double Y)> Pozice()
+        {
+            var (tables, relationships) = Smichane();
+
+            return DiagramLayout.Compute(tables, relationships).Nodes
+                .Select(n => (n.Table.Name.Name, n.X, n.Y))
+                .ToList();
+        }
+
+        Seq.Equal(Pozice(), Pozice());
+    }
+
+    private static (List<DbTable> Tables, List<DbRelationship> Relationships) Smichane()
+    {
+        var tables = new List<DbTable> { Build.Table("Ucet", ["Id"], ["Id"]) };
+        var relationships = new List<DbRelationship>();
+
+        for (var i = 0; i < 12; i++)
+        {
+            tables.Add(Build.Table($"Pohyb{i:00}", ["Id", "UcetId"], ["Id"]));
+            relationships.Add(Rel($"Pohyb{i:00}", "Ucet"));
+        }
+
+        for (var i = 0; i < 2; i++)
+        {
+            tables.Add(Build.Table($"Sablona{i}", ["Id"], ["Id"]));
+            tables.Add(Build.Table($"Polozka{i}", ["Id", "SablonaId"], ["Id"]));
+            relationships.Add(Rel($"Polozka{i}", $"Sablona{i}"));
+        }
+
+        for (var i = 0; i < 5; i++)
+        {
+            tables.Add(Build.Table($"Nastaveni{i}", ["Id"], ["Id"]));
+        }
+
+        return (tables, relationships);
     }
 
     private static IEnumerable<((double X, double Y) A, (double X, double Y) B)> Useky(

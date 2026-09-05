@@ -60,6 +60,26 @@ necháš být, ověř ho — publikované verze zjistíš z
 Totéž platí pro *Stav a další kroky* na konci tohoto souboru a pro
 [`docs/README-balicek.md`](docs/README-balicek.md), který se ukazuje na nuget.org.
 
+### Dokumentace se prochází před každým commitem
+
+Není to úkol na konec etapy, ale **poslední krok každé změny, ještě před `git commit`**.
+Projdi tenhle seznam a co přestalo platit, oprav do **téhož commitu**:
+
+- `README.md` **i** `README.cs.md` — které kapitoly se čeho týkají, říká tabulka výš,
+- [`docs/README-balicek.md`](docs/README-balicek.md), když se změnilo, co balíček umí
+  nebo jak se zabezpečuje,
+- *Zásady*, *Struktura* a *Stav a další kroky* v tomhle souboru, včetně počtu testů,
+- [`docs/adr/`](docs/adr/README.md) — nové rozhodnutí má vlastní ADR **a** řádek v seznamu,
+- snímky v `docs/obrazky/`, když se změnil vzhled nebo rozvržení UI,
+- tvrzení, která stárnou sama: čísla verzí, počty testů, stav publikace.
+
+Když nic z toho změna nezasáhla, je to platný závěr — ale musí být výsledkem projití
+seznamu, ne toho, že se na něj zapomnělo.
+
+**U vydání navíc:** číslo poslední stabilní verze v obou READMEch i ve *Stavu a dalších
+krocích* musí odpovídat tomu, co se právě vydává, a opravit se musí **v commitu, na který
+ukazuje tag** — jinak vydaná verze tvrdí, že poslední je ta předchozí.
+
 ### README se udržuje česky i anglicky
 
 `README.md` je **anglicky**, [`README.cs.md`](README.cs.md) **česky**. Nejsou to dva
@@ -255,6 +275,13 @@ takže přehled, tabulky i diagram fungují beze změny. Porovnání dvou verzí
 v C#, protože JS interop se v testech komponent nedá spustit.
 Viz [ADR-0012](docs/adr/0012-vlastni-layout-diagramu.md).
 
+**Diagram se skládá z bloků, ne do jednoho pruhu sloupců.** Samotné vrstvení dá sloupců
+jen tolik, jak hluboký je řetěz cizích klíčů, takže široké schéma vyjde jako pruh. Proti
+tomu stojí tři kroky: nesouvislé části vedle sebe, zalomení přeplněné vrstvy a mřížka
+tabulek bez vazeb. Rozměry se odvozují z plochy uzlů, **ne z velikosti okna** — jinak by
+se diagram přeskládal po zvětšení okna a snímky v dokumentaci by neseděly.
+Viz [ADR-0016](docs/adr/0016-rozvrzeni-velkeho-schematu.md).
+
 **Stav UI žije mimo komponentu** v `ViewerState`, aby se dal testovat bez vykreslování.
 Viz [ADR-0013](docs/adr/0013-stav-mimo-komponentu.md).
 
@@ -294,11 +321,11 @@ Viz [ADR-0011](docs/adr/0011-parovani-podle-sloupcu.md).
 **Všech sedm etap je hotových.** Datový model, čtení z EF modelu, živá introspekce obou
 providerů, slučování, diff engine, HTTP API s autorizací a cache, Blazor WASM prohlížečka
 s přehledem databáze, ER diagramem a focus modem, historie schématu z migrací, náhled dat
-včetně úpravy a mazání řádků, export a `dotnet tool`. **1373 testů** (EfCore 257,
-Relational 245, Server 305, Tool 51, Ui 515), 100 % pokrytí řádků a metod ve všech pěti
+včetně úpravy a mazání řádků, export a `dotnet tool`. **1383 testů** (EfCore 257,
+Relational 245, Server 305, Tool 51, Ui 525), 100 % pokrytí řádků a metod ve všech pěti
 sadách.
 
-Vydáno na NuGetu, poslední stabilní verze je `0.4.0` — všech osm balíčků včetně
+Vydáno na NuGetu, poslední stabilní verze je `0.5.0` — všech osm balíčků včetně
 `DbsViewer.Tool`. Publikuje se přes Trusted Publishing z tagu `v*`.
 
 Ověřeno end-to-end: balíčky se zabalí, nainstalují do čerstvé Web API aplikace, dvěma

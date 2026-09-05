@@ -26,7 +26,7 @@ a mockup — each one belongs to the [What you'll see](#what-youll-see) chapter.
 > **Status:** released on nuget.org. The viewer has a graphical UI with an ER diagram,
 > an HTTP API, drift detection, schema history and a data preview with optional row
 > editing. The latest stable
-> version is [`0.4.0`](https://www.nuget.org/packages/DbsViewer.Server); every push to
+> version is [`0.5.0`](https://www.nuget.org/packages/DbsViewer.Server); every push to
 > `main` additionally produces a prerelease. See [installation](#installing-into-your-own-application).
 
 ---
@@ -158,6 +158,16 @@ Edges are routed around tables, not across them: the route is searched on a grid
 distance from the node borders and turns are penalised, so the result is the straightest
 possible line that never disappears underneath a table. Relationships pointing into the
 same table each get their own anchor so the arrowheads don't merge into one point.
+
+The layout assumes what real schemas look like: shallow and wide. Parts of the schema
+that share no relationship at all — authentication next to invoices — are laid out
+separately and packed side by side; a layer taller than the whole canvas wraps into
+sub-columns; tables without a single relationship go into a grid at the end, because in
+a column they take up space and say nothing about the schema. Without that the number of
+columns follows the depth of the foreign keys, and a database of thirty tables comes out
+as a strip three columns wide and twenty rows tall. The dimensions are derived from the
+area of the nodes, not from the window size, so the diagram always looks the same.
+Details in [ADR-0016](docs/adr/0016-rozvrzeni-velkeho-schematu.md) (in Czech).
 
 The legend for the line types sits in the bottom-left corner of the diagram, collapsed
 into a chip. What the whole diagram looks like is visible [in the image at the top](#dbsviewer).

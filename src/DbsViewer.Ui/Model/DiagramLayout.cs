@@ -59,6 +59,11 @@ public sealed record DiagramLayoutResult
 /// doleva, závislé doprava. Algoritmus je vlastní a v C#, aby diagram fungoval i bez
 /// JavaScriptu; kvalitnější rozvržení přes elkjs se dá doplnit později, aniž by se měnil
 /// tvar výsledku.
+///
+/// Samotné vrstvení ale dá sloupců jen tolik, jak dlouhý je nejdelší řetěz cizích klíčů.
+/// U velkého schématu s mělkými vazbami z toho vznikne pruh tří sloupců a desítek řádků,
+/// který se nedá přehlédnout. Rozměry proto srovnávají tři kroky navíc — nesouvislé části
+/// schématu vedle sebe, zalomení přeplněné vrstvy a mřížka tabulek bez vazeb.
 /// </remarks>
 public static class DiagramLayout
 {
@@ -76,6 +81,18 @@ public static class DiagramLayout
 
     /// <summary>Svislá mezera mezi uzly ve vrstvě.</summary>
     public const double NodeGap = 36;
+
+    /// <summary>Vodorovná mezera mezi podsloupci téže vrstvy.</summary>
+    public const double ColumnGap = 56;
+
+    /// <summary>Mezera mezi bloky, na které se schéma rozpadlo.</summary>
+    public const double BlockGap = 90;
+
+    /// <summary>
+    /// Cílový poměr stran plochy, šířka ku výšce. Diagram se čte na obrazovce, takže
+    /// mírně na šířku — ne čtverec a hlavně ne pruh.
+    /// </summary>
+    private const double TargetAspect = 1.6;
 
     private const double Margin = 40;
 
@@ -107,7 +124,17 @@ public static class DiagramLayout
 
         var layers = AssignLayers(tables, relationships);
         var kotvy = AnchorCounts(tables, relationships, layers);
-        var nodes = PlaceNodes(tables, layers, expanded, kotvy, relationships);
+
+        // Výšky se počítají dřív než pozice: odvozuje se z nich cílová plocha i to,
+        // kdy je vrstva tak vysoká, že se musí zalomit.
+        var vysky = tables.ToDictionary(
+            static t => t.Name,
+            t => NodeHeight(
+                t,
+                expanded?.Contains(t.Name) ?? false,
+                kotvy.GetValueOrDefault(t.Name)));
+
+        var nodes = PlaceNodes(tables, layers, relationships, vysky);
         var edges = RouteEdges(nodes, relationships);
 
         var width = nodes.Max(static n => n.X + n.Width) + Margin;
@@ -239,9 +266,9 @@ public static class DiagramLayout
     /// </summary>
     /// <remarks>
     /// Počítá se před umístěním, protože z toho plyne minimální výška uzlu. Strana se
-    /// odvodí z vrstev: tabulka odkazující doprava vystupuje pravým okrajem. Uzly ve
-    /// stejné vrstvě mají stejné X, takže u nich vychází pravá strana stejně jako
-    /// při pozdějším porovnání středů.
+    /// odvodí z vrstev: tabulka odkazující doprava vystupuje pravým okrajem. Po zalomení
+    /// vrstvy do podsloupců se odhad může od skutečné strany lišit — plyne z něj ale jen
+    /// výška uzlu, ne trasa, takže nejhůř zbude pár pixelů místa navíc.
     /// </remarks>
     private static Dictionary<DbObjectName, int> AnchorCounts(
         IReadOnlyList<DbTable> tables,
@@ -381,52 +408,360 @@ public static class DiagramLayout
         }
     }
 
+    /// <summary>Umístění uzlu uvnitř bloku, ještě v jeho vlastních souřadnicích.</summary>
+    private readonly record struct Umisteni(DbTable Table, double X, double Y, double Height, int Layer);
+
+    /// <summary>Samostatně rozvržená část schématu se souřadnicemi od nuly.</summary>
+    private sealed record Blok(IReadOnlyList<Umisteni> Nodes)
+    {
+        public double Width { get; } = Nodes.Max(static n => n.X + CollapsedWidth);
+
+        public double Height { get; } = Nodes.Max(static n => n.Y + n.Height);
+
+        /// <summary>Jméno první tabulky v abecedě. Rozhoduje při shodě velikosti bloků.</summary>
+        public string Key { get; } = Nodes
+            .Select(static n => n.Table.Qualified)
+            .OrderBy(static q => q, StringComparer.OrdinalIgnoreCase)
+            .First();
+    }
+
+    /// <summary>
+    /// Rozmístí tabulky do plochy s rozumným poměrem stran.
+    /// </summary>
+    /// <remarks>
+    /// Části schématu, které spolu nesdílejí jedinou vazbu, se rozvrhnou zvlášť a výsledné
+    /// bloky se poskládají vedle sebe. Ve společných vrstvách by se jen prokládaly a jejich
+    /// vazby by se táhly přes celý obrázek, přestože spolu nemají co dělat — typicky
+    /// tabulky přihlašování vedle tabulek objednávek.
+    /// </remarks>
     private static List<DiagramNode> PlaceNodes(
         IReadOnlyList<DbTable> tables,
         Dictionary<DbObjectName, int> layers,
-        IReadOnlySet<DbObjectName>? expanded,
-        Dictionary<DbObjectName, int> anchors,
-        IReadOnlyList<DbRelationship> relationships)
+        IReadOnlyList<DbRelationship> relationships,
+        Dictionary<DbObjectName, double> heights)
     {
-        var poradi = OrderWithinLayers(tables, layers, relationships);
+        var (targetWidth, targetHeight) = TargetBox(tables, heights);
+        var (komponenty, samostatne) = SplitComponents(tables, relationships);
 
-        var byLayer = tables
-            .GroupBy(t => layers[t.Name])
-            .OrderBy(static g => g.Key)
+        // Největší blok jde první: kolem něj se ty menší poskládají líp než naopak.
+        var bloky = komponenty
+            .Select(k => PlaceComponent(k, layers, relationships, heights, targetHeight))
+            .OrderByDescending(static b => b.Height)
+            .ThenBy(static b => b.Key, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        var nodes = new List<DiagramNode>(tables.Count);
-        var x = Margin;
-
-        foreach (var layer in byLayer)
+        if (samostatne.Count > 0)
         {
-            var ordered = layer.OrderBy(t => poradi[t.Name]).ToList();
-            var y = Margin;
-
-            foreach (var table in ordered)
-            {
-                var height = NodeHeight(
-                    table,
-                    expanded?.Contains(table.Name) ?? false,
-                    anchors.GetValueOrDefault(table.Name));
-
-                nodes.Add(new DiagramNode
-                {
-                    Table = table,
-                    X = x,
-                    Y = y,
-                    Width = CollapsedWidth,
-                    Height = height,
-                    Layer = layer.Key,
-                });
-
-                y += height + NodeGap;
-            }
-
-            x += CollapsedWidth + LayerGap;
+            // Mřížka až nakonec — nemá se k čemu vázat, takže nesmí rozhánět zbytek.
+            bloky.Add(PlaceGrid(samostatne, heights, targetWidth));
         }
 
-        return nodes;
+        return PackBlocks(bloky);
+    }
+
+    /// <summary>
+    /// Cílové rozměry plochy, odvozené z celkové plochy uzlů.
+    /// </summary>
+    /// <remarks>
+    /// Šířka viewportu se schválně nepoužívá: layout musí vyjít pokaždé stejně, jinak
+    /// by se diagram po zvětšení okna přeskládal a snímky v dokumentaci by neseděly.
+    /// </remarks>
+    private static (double Width, double Height) TargetBox(
+        IReadOnlyList<DbTable> tables,
+        Dictionary<DbObjectName, double> heights)
+    {
+        var plocha = tables.Sum(t => (CollapsedWidth + LayerGap) * (heights[t.Name] + NodeGap));
+        var width = Math.Sqrt(plocha * TargetAspect);
+
+        return (width, plocha / width);
+    }
+
+    /// <summary>
+    /// Rozdělí tabulky na souvislé části a na ty úplně bez vazeb.
+    /// </summary>
+    /// <remarks>
+    /// Vazba mimo zobrazené tabulky se nepočítá. Po zapnutí filtru je taková tabulka
+    /// v diagramu opravdu osamocená, i když cizí klíč v databázi má.
+    /// </remarks>
+    internal static (List<List<DbTable>> Components, List<DbTable> Isolated) SplitComponents(
+        IReadOnlyList<DbTable> tables,
+        IReadOnlyList<DbRelationship> relationships)
+    {
+        var sousede = tables.ToDictionary(static t => t.Name, static _ => new List<DbObjectName>());
+        var podleJmena = tables.ToDictionary(static t => t.Name);
+        var vevazbe = new HashSet<DbObjectName>();
+
+        foreach (var r in relationships)
+        {
+            if (!sousede.TryGetValue(r.From, out var odFrom)
+                || !sousede.TryGetValue(r.To, out var odTo))
+            {
+                continue;
+            }
+
+            vevazbe.Add(r.From);
+            vevazbe.Add(r.To);
+
+            // Smyčka do sebe sama tabulku s nikým nespojuje, ale mezi tabulky bez vazeb
+            // ji nepustí: vazbu má, jen vede zpátky do ní, a oblouk potřebuje místo vedle.
+            if (r.From != r.To)
+            {
+                odFrom.Add(r.To);
+                odTo.Add(r.From);
+            }
+
+            // Sbalená N:M vazba se kreslí mezi konci, takže vazební tabulka sama žádnou
+            // hranu nemá. Do mřížky „bez vazeb" přesto nepatří — váže se na obě strany
+            // a v mřížce by tvrdila, že s ničím nesouvisí.
+            if (r.ViaJoinTable is { } via && sousede.TryGetValue(via, out var odVia))
+            {
+                vevazbe.Add(via);
+
+                odVia.Add(r.From);
+                odVia.Add(r.To);
+                odFrom.Add(via);
+                odTo.Add(via);
+            }
+        }
+
+        var komponenty = new List<List<DbTable>>();
+        var samostatne = new List<DbTable>();
+        var videne = new HashSet<DbObjectName>();
+
+        foreach (var table in tables)
+        {
+            if (!vevazbe.Contains(table.Name))
+            {
+                samostatne.Add(table);
+                continue;
+            }
+
+            if (!videne.Add(table.Name))
+            {
+                continue;
+            }
+
+            var komponenta = new List<DbTable> { table };
+            var fronta = new Queue<DbObjectName>();
+            fronta.Enqueue(table.Name);
+
+            while (fronta.Count > 0)
+            {
+                foreach (var soused in sousede[fronta.Dequeue()])
+                {
+                    if (videne.Add(soused))
+                    {
+                        komponenta.Add(podleJmena[soused]);
+                        fronta.Enqueue(soused);
+                    }
+                }
+            }
+
+            komponenty.Add(komponenta);
+        }
+
+        return (komponenty, samostatne);
+    }
+
+    /// <summary>Rozvrhne jednu souvislou část schématu do vrstev.</summary>
+    private static Blok PlaceComponent(
+        List<DbTable> tables,
+        Dictionary<DbObjectName, int> layers,
+        IReadOnlyList<DbRelationship> relationships,
+        Dictionary<DbObjectName, double> heights,
+        double columnLimit)
+    {
+        var poradi = OrderWithinLayers(tables, layers, relationships);
+        var umisteni = new List<Umisteni>(tables.Count);
+        var x = 0.0;
+
+        foreach (var layer in tables.GroupBy(t => layers[t.Name]).OrderBy(static g => g.Key))
+        {
+            var sloupce = WrapIntoColumns(
+                layer.OrderBy(t => poradi[t.Name]).ToList(), heights, columnLimit);
+
+            for (var i = 0; i < sloupce.Count; i++)
+            {
+                var y = 0.0;
+
+                foreach (var table in sloupce[i])
+                {
+                    var height = heights[table.Name];
+
+                    umisteni.Add(new Umisteni(table, x, y, height, layer.Key));
+                    y += height + NodeGap;
+                }
+
+                // Mezi podsloupci jedné vrstvy nevede žádná hrana, takže smějí stát blíž
+                // u sebe než dvě vrstvy, mezi které se čáry musí vejít.
+                x += CollapsedWidth + (i == sloupce.Count - 1 ? LayerGap : ColumnGap);
+            }
+        }
+
+        return new Blok(umisteni);
+    }
+
+    /// <summary>
+    /// Rozdělí vrstvu na tolik podsloupců, aby se každý vešel do zadané výšky.
+    /// </summary>
+    /// <remarks>
+    /// Vrstva s padesáti tabulkami je jinak sloupec dlouhý několik obrazovek. Zalomí se
+    /// proto stejně jako text — pořadí zůstává, jen pokračuje o sloupec vedle.
+    /// </remarks>
+    /// <param name="ordered">Tabulky vrstvy v pořadí, ve kterém mají jít pod sebe.</param>
+    /// <param name="heights">Výšky uzlů podle jména tabulky.</param>
+    /// <param name="columnLimit">Nejvyšší přípustná výška jednoho sloupce.</param>
+    internal static List<List<DbTable>> WrapIntoColumns(
+        IReadOnlyList<DbTable> ordered,
+        Dictionary<DbObjectName, double> heights,
+        double columnLimit)
+    {
+        ArgumentNullException.ThrowIfNull(ordered);
+        ArgumentNullException.ThrowIfNull(heights);
+
+        var celkem = ordered.Sum(t => heights[t.Name] + NodeGap) - NodeGap;
+        var pocet = (int)Math.Ceiling(celkem / columnLimit);
+
+        if (pocet <= 1)
+        {
+            return [[.. ordered]];
+        }
+
+        // Plnit až po limit by nechalo poslední sloupec skoro prázdný; cílem je rovnoměr.
+        var cil = celkem / pocet;
+        var sloupce = new List<List<DbTable>>();
+        var soucasny = new List<DbTable>();
+        var vyska = 0.0;
+
+        foreach (var table in ordered)
+        {
+            var height = heights[table.Name];
+
+            if (soucasny.Count > 0 && sloupce.Count + 1 < pocet && vyska + NodeGap + height > cil)
+            {
+                sloupce.Add(soucasny);
+                soucasny = [];
+                vyska = 0;
+            }
+
+            vyska += (soucasny.Count > 0 ? NodeGap : 0) + height;
+            soucasny.Add(table);
+        }
+
+        sloupce.Add(soucasny);
+
+        return sloupce;
+    }
+
+    /// <summary>
+    /// Poskládá tabulky bez jediné vazby do mřížky.
+    /// </summary>
+    /// <remarks>
+    /// Ve vrstvě stojí pod sebou a každá ukrojí kus výšky, přestože o vazbách neříkají nic —
+    /// v ukázkovém schématu tak samotné číselníky nastavení natáhly diagram o osm řádků.
+    /// V mřížce zaberou pruh a čtou se po řádcích jako seznam.
+    /// </remarks>
+    private static Blok PlaceGrid(
+        List<DbTable> tables,
+        Dictionary<DbObjectName, double> heights,
+        double targetWidth)
+    {
+        var sirkaSloupce = CollapsedWidth + NodeGap;
+        var sloupcu = Math.Max(1, (int)Math.Floor((targetWidth + NodeGap) / sirkaSloupce));
+
+        var serazene = tables
+            .OrderBy(static t => t.Name.Schema ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(static t => t.Qualified, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var umisteni = new List<Umisteni>(serazene.Count);
+        var y = 0.0;
+
+        for (var i = 0; i < serazene.Count; i += sloupcu)
+        {
+            var radek = serazene.Skip(i).Take(sloupcu).ToList();
+
+            for (var j = 0; j < radek.Count; j++)
+            {
+                umisteni.Add(new Umisteni(
+                    radek[j], j * sirkaSloupce, y, heights[radek[j].Name], 0));
+            }
+
+            y += radek.Max(t => heights[t.Name]) + NodeGap;
+        }
+
+        return new Blok(umisteni);
+    }
+
+    /// <summary>
+    /// Poskládá bloky do řádků.
+    /// </summary>
+    /// <remarks>
+    /// Šířka řádku se nevolí předem. Blok je nedělitelný, takže při šířce o kousek menší,
+    /// než jsou dva bloky vedle sebe, zbude na řádku jeden a diagram se znovu protáhne
+    /// do výšky — přesně tomu se má skládání vyhnout. Zkusí se proto všechny šířky, na
+    /// kterých nějaký blok končí, a vybere se ta, po které je výsledek nejblíž cílovému
+    /// poměru stran.
+    /// </remarks>
+    private static List<DiagramNode> PackBlocks(List<Blok> bloky)
+    {
+        var limity = new List<double>();
+        var sirka = 0.0;
+
+        foreach (var blok in bloky)
+        {
+            sirka += (limity.Count > 0 ? BlockGap : 0) + blok.Width;
+            limity.Add(sirka);
+        }
+
+        // MinBy vrací první nejlepší, takže při shodě rozhodne pořadí limitů — méně
+        // řádků před více. Rozvržení tím zůstává pokaždé stejné.
+        return limity
+            .Select(limit => Rozmisti(bloky, limit))
+            .MinBy(static r => Math.Abs(Math.Log(r.Width / r.Height / TargetAspect)))
+            .Nodes;
+    }
+
+    /// <summary>Rozmístí bloky do řádků nejvýš zadané šířky.</summary>
+    private static (List<DiagramNode> Nodes, double Width, double Height) Rozmisti(
+        List<Blok> bloky,
+        double limit)
+    {
+        var nodes = new List<DiagramNode>();
+        var x = 0.0;
+        var y = 0.0;
+        var vyskaRadku = 0.0;
+        var sirka = 0.0;
+
+        foreach (var blok in bloky)
+        {
+            // Blok širší než limit se nezalomí — na svém řádku stojí sám.
+            if (x > 0 && x + blok.Width > limit)
+            {
+                x = 0;
+                y += vyskaRadku + BlockGap;
+                vyskaRadku = 0;
+            }
+
+            foreach (var umisteni in blok.Nodes)
+            {
+                nodes.Add(new DiagramNode
+                {
+                    Table = umisteni.Table,
+                    X = Margin + x + umisteni.X,
+                    Y = Margin + y + umisteni.Y,
+                    Width = CollapsedWidth,
+                    Height = umisteni.Height,
+                    Layer = umisteni.Layer,
+                });
+            }
+
+            x += blok.Width + BlockGap;
+            vyskaRadku = Math.Max(vyskaRadku, blok.Height);
+            sirka = Math.Max(sirka, x - BlockGap);
+        }
+
+        return (nodes, sirka, y + vyskaRadku);
     }
 
     /// <summary>
