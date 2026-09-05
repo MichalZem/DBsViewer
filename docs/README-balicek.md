@@ -28,7 +28,7 @@ není potřeba.
 - **Tabulky, sloupce, indexy, klíče**, computed sloupce, defaulty, collation, komentáře
 - **Historie schématu** z EF migrací — pohled na to, jak schéma vypadalo dřív
 - **Náhled dat** se stránkováním, řazením a filtrováním v databázi, volitelně
-  i s úpravou a mazáním řádků
+  i s úpravou, vkládáním a mazáním řádků
 - **Export dokumentace** do Markdownu, Mermaidu a DBML
 - **`dotnet tool dbsview`** pro výpis a diff z příkazové řádky
 

@@ -59,6 +59,35 @@ public class ErDiagramTests : TestContext
     }
 
     [Fact]
+    public void Uzel_nabidne_odkaz_na_data_jen_kdyz_jsou_dostupna()
+    {
+        var bez = RenderComponent<ErDiagram>(p => p.Add(x => x.Layout, Layout()));
+
+        Assert.Empty(bez.FindAll(".uzel-data"));
+
+        var s = RenderComponent<ErDiagram>(p => p
+            .Add(x => x.Layout, Layout())
+            .Add(x => x.CanPreviewData, true));
+
+        Assert.Equal(2, s.FindAll(".uzel-data").Count);
+    }
+
+    [Fact]
+    public void Kliknuti_na_odkaz_na_data_hlasi_tabulku()
+    {
+        DbObjectName? vybrana = null;
+
+        var component = RenderComponent<ErDiagram>(p => p
+            .Add(x => x.Layout, Layout())
+            .Add(x => x.CanPreviewData, true)
+            .Add(x => x.OnShowData, (DbObjectName t) => vybrana = t));
+
+        component.FindAll(".uzel-data").ElementAt(0).Click();
+
+        Assert.NotNull(vybrana);
+    }
+
+    [Fact]
     public void Kaskada_ma_vlastni_tridu()
     {
         var component = RenderComponent<ErDiagram>(p => p.Add(x => x.Layout, Layout()));

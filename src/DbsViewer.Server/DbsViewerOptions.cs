@@ -177,6 +177,15 @@ public sealed class DataPreviewOptions
     public bool AllowDelete { get; set; }
 
     /// <summary>
+    /// Povolit vkládání nových řádků. Vyžaduje zapnutý náhled dat.
+    /// </summary>
+    /// <remarks>
+    /// Vlastní přepínač, ne součást <see cref="AllowUpdate"/>: opravit překlep v existujícím
+    /// řádku a zakládat nová data jsou různě velká oprávnění a hodí se povolit každé zvlášť.
+    /// </remarks>
+    public bool AllowInsert { get; set; }
+
+    /// <summary>
     /// Když je neprázdné, zapisovat jde jen do uvedených tabulek. Podporuje zástupný
     /// znak <c>*</c>. Prázdný seznam znamená „všechny, do kterých se smí koukat".
     /// </summary>

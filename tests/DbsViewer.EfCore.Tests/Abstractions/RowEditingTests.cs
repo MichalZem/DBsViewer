@@ -171,3 +171,88 @@ public class RowEditingTests
         Assert.False(RowEditing.CanIdentifyRows(table));
     }
 }
+
+public class NoveRadkyTests
+{
+    private static DbColumn Column(
+        string name,
+        bool isPrimaryKey = false,
+        bool isIdentity = false,
+        bool isComputed = false,
+        string storeType = "nvarchar(50)") => new()
+        {
+            Name = name,
+            StoreType = storeType,
+            IsPrimaryKey = isPrimaryKey,
+            IsIdentity = isIdentity,
+            IsComputed = isComputed,
+        };
+
+    [Fact]
+    public void Primarni_klic_se_u_noveho_radku_vyplnit_smi()
+    {
+        // U existujícího řádku je klíč jeho identita, u nového ho musí zadat uživatel —
+        // jinak by do tabulky s přirozeným klíčem nešlo vložit nic.
+        var klic = Column("Kod", isPrimaryKey: true);
+
+        Assert.NotNull(RowEditing.ReadOnlyReason(klic));
+        Assert.Null(RowEditing.NewRowReadOnlyReason(klic));
+        Assert.True(RowEditing.IsFillable(klic));
+    }
+
+    [Fact]
+    public void Generovane_pocitane_a_binarni_sloupce_se_vyplnit_nedaji()
+    {
+        Assert.Equal(
+            "hodnotu generuje databáze",
+            RowEditing.NewRowReadOnlyReason(Column("Id", isIdentity: true)));
+
+        Assert.Equal(
+            "je počítaný",
+            RowEditing.NewRowReadOnlyReason(Column("Celkem", isComputed: true)));
+
+        Assert.Equal(
+            "je binární a v mřížce se zadat nedá",
+            RowEditing.NewRowReadOnlyReason(Column("Data", storeType: "varbinary(max)")));
+    }
+
+    [Fact]
+    public void Zamaskovany_sloupec_se_naslepo_nevyplnuje()
+    {
+        var sloupec = Column("PasswordHash");
+
+        Assert.Equal("je zamaskovaný", RowEditing.NewRowReadOnlyReason(sloupec, ["PasswordHash"]));
+        Assert.False(RowEditing.IsFillable(sloupec, ["passwordhash"]));
+    }
+
+    [Fact]
+    public void Vkladat_jde_i_do_tabulky_bez_klice()
+    {
+        // INSERT žádný existující řádek neadresuje, takže primární klíč nepotřebuje.
+        var log = new DbTable { Name = new DbObjectName(null, "Log"), Columns = [Column("Zprava")] };
+
+        Assert.False(RowEditing.CanIdentifyRows(log));
+        Assert.True(RowEditing.CanInsertRows(log));
+    }
+
+    [Fact]
+    public void Do_pohledu_se_nevklada()
+    {
+        var pohled = new DbTable
+        {
+            Name = new DbObjectName(null, "Prehled"),
+            IsView = true,
+            Columns = [Column("Id", isPrimaryKey: true)],
+            PrimaryKey = new DbPrimaryKey { Columns = ["Id"] },
+        };
+
+        Assert.False(RowEditing.CanInsertRows(pohled));
+    }
+
+    [Fact]
+    public void Chybejici_vstupy_jsou_chyba()
+    {
+        Assert.Throws<ArgumentNullException>(() => RowEditing.NewRowReadOnlyReason(null!));
+        Assert.Throws<ArgumentNullException>(() => RowEditing.CanInsertRows(null!));
+    }
+}

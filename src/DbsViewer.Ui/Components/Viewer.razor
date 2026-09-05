@@ -277,7 +277,9 @@
                                    ShowSchemas="Schemas.Count > 1"
                                    SeverityOf="State.SeverityOf"
                                    OnSelect="SelectAsync"
-                                   OnToggleExpand="ToggleExpand" />
+                                   OnToggleExpand="ToggleExpand"
+                                   CanPreviewData="State.Meta.CanPreviewData && !State.IsHistorical"
+                                   OnShowData="ShowDataAsync" />
                     }
                     else
                     {
@@ -295,9 +297,11 @@
                                      OnSelect="SelectAsync"
                                      CanEditData="State.Meta.CanEditData && !State.IsHistorical"
                                      CanDeleteData="State.Meta.CanDeleteData && !State.IsHistorical"
+                                     CanInsertData="State.Meta.CanInsertData && !State.IsHistorical"
                                      OnLoadRows="LoadRowsAsync"
                                      OnUpdateRow="UpdateRowAsync"
-                                     OnDeleteRow="DeleteRowAsync" />
+                                     OnDeleteRow="DeleteRowAsync"
+                                     OnInsertRow="InsertRowAsync" />
                     }
                 </main>
             }
@@ -433,6 +437,10 @@
     internal Task<string?> DeleteRowAsync(DataDelete delete) =>
         ZapisAsync(table => Client.DeleteRowAsync(table, delete, _cancellation.Token));
 
+    /// <summary>Vloží řádek. Vrací hlášku pro mřížku, nebo <c>null</c> při úspěchu.</summary>
+    internal Task<string?> InsertRowAsync(DataInsert insert) =>
+        ZapisAsync(table => Client.InsertRowAsync(table, insert, _cancellation.Token));
+
     private async Task<string?> ZapisAsync(Func<DbObjectName, Task<RowChange>> operace)
     {
         if (State.SelectedTable is not { } table)
@@ -478,6 +486,21 @@
     {
         State.Pane = ViewerPane.Browser;
         await SelectAsync(table);
+    }
+
+    /// <summary>
+    /// Přechod z diagramu rovnou na data tabulky.
+    /// </summary>
+    /// <remarks>
+    /// Z diagramu je nejčastější další otázka „a co v té tabulce je". Bez tohohle by se
+    /// uživatel musel vracet do seznamu, tabulku najít znovu a přepnout záložku.
+    /// </remarks>
+    internal async Task ShowDataAsync(DbObjectName table)
+    {
+        await SelectAsync(table);
+
+        State.Pane = ViewerPane.Browser;
+        State.Tab = DetailTab.Data;
     }
 
     private async Task SelectAsync(DbObjectName table)

@@ -469,6 +469,30 @@ button.odkaz {
 
 .uzel-hlavicka .odznak { padding: 0 5px; font-size: 9px; }
 
+/* Odkaz na data. Stojí vlevo od přepínače sloupců, protože přepínač je zavedený
+   na pravém okraji a ten se stěhovat nemá. */
+.uzel-data {
+    margin-left: auto;
+    width: 18px;
+    height: 18px;
+    border: 1px solid transparent;
+    border-radius: 3px;
+    background: none;
+    color: var(--text-2);
+    cursor: pointer;
+    line-height: 1;
+    padding: 0;
+    font-size: 12px;
+}
+
+.uzel-data:hover {
+    border-color: var(--linka);
+    background: var(--panel);
+    color: var(--text);
+}
+
+.uzel-data + .uzel-prepinac { margin-left: 2px; }
+
 .uzel-prepinac {
     margin-left: auto;
     width: 18px;
@@ -856,6 +880,12 @@ button.hlavni {
 
 .mrizka.data tr.upravuje-se { background: var(--akcent-svetly); }
 .mrizka.data tr.maze-se { background: var(--chyba-svetla); }
+
+/* Zakládaný řádek stojí nad daty, ne pod nimi. Na stránce s padesáti řádky by na konci
+   skončil hluboko pod okrajem okna a kliknutí na „+ Nový řádek" by vypadalo, že se nic
+   nestalo. Odspodu ho od existujících dat odděluje linka. */
+.mrizka.data tr.novy { background: var(--akcent-svetly); }
+.mrizka.data tr.novy td { border-bottom: 2px solid var(--akcent); }
 
 /* Nezměnitelná hodnota se v rozepsaném řádku odliší, aby bylo vidět proč. */
 .mrizka.data td.neupravitelna { color: var(--text-3); }

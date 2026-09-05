@@ -47,6 +47,8 @@ public class DataEditTests : TestContext
         RowPreview? preview = null,
         bool canEdit = true,
         bool canDelete = true,
+        bool canInsert = false,
+        List<DataInsert>? inserts = null,
         List<DataQuery>? loads = null) =>
         RenderComponent<DataNahled>(p => p
             .Add(x => x.Table, table ?? Tabulka())
@@ -63,7 +65,15 @@ public class DataEditTests : TestContext
             {
                 deletes?.Add(d);
                 return Task.FromResult(chyba);
-            }));
+            })
+            .Add(x => x.CanInsert, canInsert)
+            .Add(x => x.OnInsert, canInsert || inserts is not null
+                ? (DataInsert i) =>
+                {
+                    inserts?.Add(i);
+                    return Task.FromResult(chyba);
+                }
+                : null));
 
     /// <summary>Tlačítko v prvním řádku podle popisku.</summary>
     private static void Klikni(IRenderedComponent<DataNahled> component, string popisek, int radek = 0)
@@ -354,5 +364,152 @@ public class DataEditTests : TestContext
 
         Assert.Empty(deletes);
         Assert.Contains("jednoznačně určit", component.Markup, StringComparison.Ordinal);
+    }
+
+    // ---------- vkládání ----------
+
+    /// <summary>Tlačítko nad mřížkou podle popisku.</summary>
+    private static void KlikniNahore(IRenderedComponent<DataNahled> component, string popisek) =>
+        component.FindAll("button").First(b => b.TextContent.Trim() == popisek).Click();
+
+    [Fact]
+    public void Bez_povoleneho_vkladani_se_novy_radek_nenabizi()
+    {
+        Assert.DoesNotContain("Nový řádek", Mrizka().Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Novy_radek_se_otevre_nad_daty()
+    {
+        // Na konci mřížky by se stránkou padesáti řádků skončil pod okrajem okna
+        // a kliknutí by vypadalo, že se nic nestalo.
+        var component = Mrizka(canInsert: true);
+
+        KlikniNahore(component, "+ Nový řádek");
+
+        var radky = component.FindAll("tbody tr");
+
+        Assert.Equal(3, radky.Count);
+        Assert.Contains("novy", radky.ElementAt(0).ClassName ?? "", StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Vlozeni_posle_jen_vyplnene_sloupce()
+    {
+        // Nevyplněný sloupec se neposílá, aby se uplatnila výchozí hodnota z databáze.
+        var inserts = new List<DataInsert>();
+        var component = Mrizka(canInsert: true, inserts: inserts);
+
+        KlikniNahore(component, "+ Nový řádek");
+
+        var radek = component.FindAll("tbody tr").ElementAt(0);
+        radek.QuerySelectorAll("input.hodnota").ElementAt(1).Change("novy@x.cz");
+
+        KlikniNahore(component, "Vložit");
+
+        var insert = Assert.Single(inserts);
+        var hodnota = Assert.Single(insert.Values);
+
+        Assert.Equal("Email", hodnota.Column);
+        Assert.Equal("novy@x.cz", hodnota.Value);
+    }
+
+    [Fact]
+    public void Prazdny_novy_radek_se_neposila()
+    {
+        var inserts = new List<DataInsert>();
+        var component = Mrizka(canInsert: true, inserts: inserts);
+
+        KlikniNahore(component, "+ Nový řádek");
+        KlikniNahore(component, "Vložit");
+
+        Assert.Empty(inserts);
+        Assert.Contains("ani jeden sloupec", component.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Do_pohledu_se_novy_radek_nenabizi()
+    {
+        var component = Mrizka(canInsert: true, table: Tabulka(isView: true));
+
+        Assert.DoesNotContain("Nový řádek", component.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Vkladat_jde_i_do_tabulky_bez_klice()
+    {
+        // Bez klíče se řádek nedá upravit ani smazat, ale vložit se dá — INSERT žádný
+        // existující řádek neadresuje.
+        var component = Mrizka(canInsert: true, table: Tabulka(sKlicem: false));
+
+        Assert.Contains("Nový řádek", component.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain(">Upravit<", component.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Pocitany_sloupec_se_v_novem_radku_vyplnit_neda()
+    {
+        var component = Mrizka(canInsert: true);
+
+        KlikniNahore(component, "+ Nový řádek");
+
+        var radek = component.FindAll("tbody tr").ElementAt(0);
+
+        // Id, Email a Jmeno mají políčko, Celkem je počítaný a má jen pomlčku.
+        Assert.Equal(3, radek.QuerySelectorAll("input.hodnota").Length);
+        Assert.Single(radek.QuerySelectorAll("td.neupravitelna"));
+    }
+
+    [Fact]
+    public void Neuspesne_vlozeni_nechá_radek_otevreny()
+    {
+        var component = Mrizka(canInsert: true, inserts: [], chyba: "Databáze zápis odmítla");
+
+        KlikniNahore(component, "+ Nový řádek");
+        component.FindAll("tbody tr").ElementAt(0)
+            .QuerySelectorAll("input.hodnota").ElementAt(1).Change("novy@x.cz");
+        KlikniNahore(component, "Vložit");
+
+        Assert.Contains("Databáze zápis odmítla", component.Markup, StringComparison.Ordinal);
+        Assert.Equal(3, component.FindAll("tbody tr").Count);
+    }
+
+    [Fact]
+    public void Policko_noveho_radku_ukaze_co_se_stane_bez_vyplneni()
+    {
+        // Prázdné políčko se do INSERT nedostane, takže se uplatní výchozí hodnota
+        // z databáze — a ta musí být vidět, jinak uživatel netuší, co vloží.
+        var tabulka = Tabulka();
+        var sDefaultem = tabulka with
+        {
+            Columns =
+            [
+                tabulka.Columns[0],
+                tabulka.Columns[1] with { DefaultValueSql = "'nikdo@x.cz'" },
+                tabulka.Columns[2],
+                tabulka.Columns[3],
+            ],
+        };
+
+        var component = Mrizka(canInsert: true, table: sDefaultem);
+
+        KlikniNahore(component, "+ Nový řádek");
+
+        var policka = component.FindAll("tbody tr").ElementAt(0).QuerySelectorAll("input.hodnota");
+
+        Assert.Equal("'nikdo@x.cz'", policka.ElementAt(1).GetAttribute("placeholder"));
+        Assert.Equal("NULL", policka.ElementAt(2).GetAttribute("placeholder"));
+        Assert.Equal("", policka.ElementAt(0).GetAttribute("placeholder"));
+    }
+
+    [Fact]
+    public void Zruseni_noveho_radku_ho_zavre()
+    {
+        var component = Mrizka(canInsert: true);
+
+        KlikniNahore(component, "+ Nový řádek");
+        KlikniNahore(component, "Zrušit");
+
+        Assert.Equal(2, component.FindAll("tbody tr").Count);
     }
 }

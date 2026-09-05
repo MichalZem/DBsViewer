@@ -133,7 +133,47 @@ public sealed class DataPreviewService(
             string.Join(", ", update.Values.Select(static v => v.Column)),
             user ?? "(neznámý)");
 
-        return await WriteAsync(connection, query, cancellationToken).ConfigureAwait(false);
+        return await WriteAsync(connection, query, ZadnyRadek, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>Vloží jeden řádek.</summary>
+    /// <param name="table">Tabulka, ověřuje se proti načtenému schématu.</param>
+    /// <param name="insert">Vyplněné hodnoty nového řádku.</param>
+    /// <param name="user">Kdo zapisuje — zapíše se do audit logu.</param>
+    /// <param name="cancellationToken">Zrušení operace.</param>
+    public async Task<DataChangeResult> InsertAsync(
+        DbObjectName table,
+        DataInsert insert,
+        string? user = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(insert);
+
+        var known = await ResolveAsync(table, cancellationToken).ConfigureAwait(false);
+
+        GuardWrite(table, options.DataPreview.AllowInsert, "Vkládání dat", "DataPreview.AllowInsert");
+
+        var connection = GetConnection();
+        var query = DataQueryBuilder.BuildInsert(
+            known,
+            insert,
+            MaskedColumns(known),
+            IsSqlite(connection));
+
+        logger.LogInformation(
+            "DbsViewer: vložení řádku do tabulky {Table}, sloupce {Columns}, uživatel {User}.",
+            known.Qualified,
+            string.Join(", ", insert.Values.Select(static v => v.Column)),
+            user ?? "(neznámý)");
+
+        // Nulový počet řádků u INSERT znamená, že ho zahodil trigger nebo pravidlo —
+        // hláška o nenalezeném řádku by tu lhala.
+        return await WriteAsync(
+            connection,
+            query,
+            "Řádek se nevložil. Databáze žádný řádek nepřidala.",
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>Smaže jeden řádek.</summary>
@@ -165,8 +205,13 @@ public sealed class DataPreviewService(
             known.Qualified,
             user ?? "(neznámý)");
 
-        return await WriteAsync(connection, query, cancellationToken).ConfigureAwait(false);
+        return await WriteAsync(connection, query, ZadnyRadek, cancellationToken)
+            .ConfigureAwait(false);
     }
+
+    /// <summary>Hláška, když se zápis nedotkl žádného řádku.</summary>
+    private const string ZadnyRadek =
+        "Řádek se nenašel. Nejspíš ho mezitím někdo smazal nebo změnil jeho klíč.";
 
     /// <summary>
     /// Ověří, že se z tabulky vůbec smí číst, a najde ji ve schématu.
@@ -233,6 +278,7 @@ public sealed class DataPreviewService(
     private async Task<DataChangeResult> WriteAsync(
         DbConnection connection,
         BuiltQuery query,
+        string zadnyRadek,
         CancellationToken cancellationToken)
     {
         await using var scope = await ConnectionScope
@@ -260,8 +306,7 @@ public sealed class DataPreviewService(
 
         if (affected == 0)
         {
-            throw new DataRequestException(
-                "Řádek se nenašel. Nejspíš ho mezitím někdo smazal nebo změnil jeho klíč.");
+            throw new DataRequestException(zadnyRadek);
         }
 
         return new DataChangeResult { Affected = affected };

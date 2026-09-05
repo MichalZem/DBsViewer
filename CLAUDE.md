@@ -257,7 +257,13 @@ Skládá to `DataQueryBuilder` — jediné místo, kde se SQL staví z něčeho,
 pohled ani zamaskovaný klíč se neupravují a zápis, který se nedotkl právě jednoho řádku,
 je chyba. Co se smí měnit, je napsané jednou v `RowEditing` v `Abstractions` — používá to
 server i UI, aby prohlížečka nenabízela to, co server odmítne.
-Viz [ADR-0015](docs/adr/0015-editace-radku.md).
+Viz [ADR-0017](docs/adr/0017-vkladani-radku.md).
+
+**Vkládání se řídí jinými pravidly než úprava.** `INSERT` žádný existující řádek
+neadresuje, takže nepotřebuje primární klíč — do tabulky bez klíče se vložit dá a klíč se
+u nového řádku naopak vyplnit **musí**. Nevyplněný sloupec se do příkazu vůbec nedostane,
+aby se uplatnila výchozí hodnota z databáze. Proto má `RowEditing` dvě sady pravidel:
+`ReadOnlyReason` pro existující řádek a `NewRowReadOnlyReason` pro nový.
 
 **Stránkuje, řadí a filtruje databáze, ne prohlížečka.** Načíst tabulku celou a krájet
 ji až v UI by u milionů řádků neprošlo. Bez `ORDER BY` navíc není stránkování stabilní,
@@ -330,11 +336,11 @@ Viz [ADR-0011](docs/adr/0011-parovani-podle-sloupcu.md).
 **Všech sedm etap je hotových.** Datový model, čtení z EF modelu, živá introspekce obou
 providerů, slučování, diff engine, HTTP API s autorizací a cache, Blazor WASM prohlížečka
 s přehledem databáze, ER diagramem a focus modem, historie schématu z migrací, náhled dat
-včetně úpravy a mazání řádků, export a `dotnet tool`. **1392 testů** (EfCore 262,
-Relational 245, Server 305, Tool 51, Ui 529), 100 % pokrytí řádků a metod ve všech pěti
+včetně úpravy, vkládání a mazání řádků, export a `dotnet tool`. **1425 testů** (EfCore 268,
+Relational 245, Server 318, Tool 51, Ui 543), 100 % pokrytí řádků a metod ve všech pěti
 sadách.
 
-Vydáno na NuGetu, poslední stabilní verze je `0.5.1` — všech osm balíčků včetně
+Vydáno na NuGetu, poslední stabilní verze je `0.6.0` — všech osm balíčků včetně
 `DbsViewer.Tool`. Publikuje se přes Trusted Publishing z tagu `v*`.
 
 Ověřeno end-to-end: balíčky se zabalí, nainstalují do čerstvé Web API aplikace, dvěma

@@ -95,6 +95,18 @@ else
                                 {
                                     <span class="odznak" title="Pohled">VIEW</span>
                                 }
+                                @if (CanPreviewData)
+                                {
+                                    @*
+                                        Odkaz rovnou na data. Z diagramu je nejčastější další
+                                        krok „a co je v té tabulce", a bez tohohle se musí přes
+                                        seznam vlevo a záložku Data.
+                                    *@
+                                    <button class="uzel-data"
+                                            title="Zobrazit data tabulky @node.Table.Name.Name"
+                                            @onclick:stopPropagation="true"
+                                            @onclick="() => OnShowData.InvokeAsync(node.Table.Name)">▤</button>
+                                }
                                 <button class="uzel-prepinac"
                                         title="Zobrazit všechny sloupce"
                                         @onclick:stopPropagation="true"
@@ -198,6 +210,14 @@ else
     /// </summary>
     [Parameter]
     public bool ShowSchemas { get; set; }
+
+    /// <summary>Nabízet v hlavičce uzlu odkaz na data tabulky?</summary>
+    [Parameter]
+    public bool CanPreviewData { get; set; }
+
+    /// <summary>Kliknutí na odkaz na data.</summary>
+    [Parameter]
+    public EventCallback<DbObjectName> OnShowData { get; set; }
 
     /// <summary>CSS třída podle stavu změny.</summary>
     internal static string StavTridy(ZmenaStav stav) => stav switch

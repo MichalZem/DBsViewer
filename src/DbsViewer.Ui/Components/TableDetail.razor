@@ -227,8 +227,9 @@ else
 
             default:
                 <DataNahled Table="Table" Preview="Preview" Error="@PreviewError"
-                            CanEdit="CanEditData" CanDelete="CanDeleteData"
-                            OnLoad="OnLoadRows" OnUpdate="OnUpdateRow" OnDelete="OnDeleteRow" />
+                            CanEdit="CanEditData" CanDelete="CanDeleteData" CanInsert="CanInsertData"
+                            OnLoad="OnLoadRows" OnUpdate="OnUpdateRow" OnDelete="OnDeleteRow"
+                            OnInsert="OnInsertRow" />
                 break;
         }
     </div>
@@ -335,6 +336,10 @@ else
     [Parameter]
     public bool CanDeleteData { get; set; }
 
+    /// <summary>Povolil server zakládání nových řádků?</summary>
+    [Parameter]
+    public bool CanInsertData { get; set; }
+
     /// <summary>Uložení změn řádku. Vrací hlášku o chybě, nebo <c>null</c> při úspěchu.</summary>
     [Parameter]
     public Func<DataUpdate, Task<string?>>? OnUpdateRow { get; set; }
@@ -342,6 +347,10 @@ else
     /// <summary>Smazání řádku. Vrací hlášku o chybě, nebo <c>null</c> při úspěchu.</summary>
     [Parameter]
     public Func<DataDelete, Task<string?>>? OnDeleteRow { get; set; }
+
+    /// <summary>Vložení řádku. Vrací hlášku o chybě, nebo <c>null</c> při úspěchu.</summary>
+    [Parameter]
+    public Func<DataInsert, Task<string?>>? OnInsertRow { get; set; }
 
     internal static string TabLabel(DetailTab tab) => tab switch
     {

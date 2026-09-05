@@ -118,6 +118,70 @@ public static class DataQueryBuilder
             parametry);
     }
 
+    /// <summary>
+    /// Sestaví <c>INSERT</c> jednoho řádku.
+    /// </summary>
+    /// <remarks>
+    /// Vkládají se jen vyplněné sloupce. Nevyplněné se do příkazu nedostanou vůbec, takže
+    /// se uplatní výchozí hodnota z databáze — vypsat je jako NULL by výchozí hodnotu
+    /// přebilo a u NOT NULL sloupce by vložení zbytečně selhalo.
+    /// </remarks>
+    /// <param name="table">Tabulka ze schématu.</param>
+    /// <param name="insert">Vyplněné hodnoty.</param>
+    /// <param name="maskedColumns">Sloupce, jejichž hodnoty se maskují.</param>
+    /// <param name="isSqlite">Podle providera se liší uvozování jmen.</param>
+    public static BuiltQuery BuildInsert(
+        DbTable table,
+        DataInsert insert,
+        IReadOnlyCollection<string> maskedColumns,
+        bool isSqlite)
+    {
+        ArgumentNullException.ThrowIfNull(table);
+        ArgumentNullException.ThrowIfNull(insert);
+        ArgumentNullException.ThrowIfNull(maskedColumns);
+
+        if (!RowEditing.CanInsertRows(table))
+        {
+            throw new DataRequestException($"Do {table.Qualified} se vkládat nedá — je to pohled.");
+        }
+
+        if (insert.Values.Count == 0)
+        {
+            throw new DataRequestException("Požadavek nevyplňuje žádný sloupec.");
+        }
+
+        var parametry = new List<object>();
+        var sloupce = new List<string>();
+        var zastupci = new List<string>();
+        var videne = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var hodnota in insert.Values)
+        {
+            var sloupec = FindColumn(table, hodnota.Column)
+                ?? throw new DataRequestException(
+                    $"Sloupec {hodnota.Column} v tabulce {table.Qualified} není.");
+
+            if (RowEditing.NewRowReadOnlyReason(sloupec, maskedColumns) is { } duvod)
+            {
+                throw new DataRequestException($"Sloupec {sloupec.Name} se vyplnit nedá — {duvod}.");
+            }
+
+            if (!videne.Add(sloupec.Name))
+            {
+                throw new DataRequestException($"Sloupec {sloupec.Name} je v požadavku dvakrát.");
+            }
+
+            sloupce.Add(QuoteColumn(sloupec.Name, isSqlite));
+            zastupci.Add($"@p{parametry.Count}");
+            parametry.Add(DataValueConverter.ToParameter(sloupec, hodnota.Value));
+        }
+
+        return new BuiltQuery(
+            $"INSERT INTO {QuoteName(table.Name, isSqlite)} "
+            + $"({string.Join(", ", sloupce)}) VALUES ({string.Join(", ", zastupci)})",
+            parametry);
+    }
+
     /// <summary>Sestaví DELETE jednoho řádku.</summary>
     /// <param name="table">Tabulka z načteného schématu.</param>
     /// <param name="delete">Klíč mazaného řádku.</param>

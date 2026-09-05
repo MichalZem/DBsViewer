@@ -14,10 +14,12 @@ public class DataEditTests
     private const string Rows = "/dbschema/api/tables/-/Customers/rows";
     private const string Update = Rows + "/update";
     private const string Delete = Rows + "/delete";
+    private const string Insert = Rows + "/insert";
 
     private static async Task<DbsViewerApp> StartAsync(
         bool allowUpdate = true,
         bool allowDelete = true,
+        bool allowInsert = true,
         Action<DataPreviewOptions>? configure = null)
     {
         var app = await DbsViewerApp.StartAsync(o =>
@@ -25,6 +27,7 @@ public class DataEditTests
             o.DataPreview.Enabled = true;
             o.DataPreview.AllowUpdate = allowUpdate;
             o.DataPreview.AllowDelete = allowDelete;
+            o.DataPreview.AllowInsert = allowInsert;
             configure?.Invoke(o.DataPreview);
         });
 
@@ -59,6 +62,97 @@ public class DataEditTests
     }
 
     // ---------- co se povede ----------
+
+    private static DataInsert Novy(params DataValue[] values) => new() { Values = values };
+
+    // ---------- vkládání ----------
+
+    [Fact]
+    public async Task Vlozeny_radek_je_v_databazi()
+    {
+        await using var app = await StartAsync();
+
+        var response = await app.Client.PostAsJsonAsync(
+            Insert,
+            Novy(
+                new DataValue("Id", "3"),
+                new DataValue("Email", "treti@x.cz"),
+                new DataValue("CreatedAt", "2026-01-03")));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("3", await app.ScalarAsync("SELECT COUNT(*) FROM Customers"));
+        Assert.Equal("treti@x.cz", await app.ScalarAsync("SELECT Email FROM Customers WHERE Id = 3"));
+    }
+
+    [Fact]
+    public async Task Nevyplneny_sloupec_zustane_na_vychozi_hodnote()
+    {
+        // DisplayName se neposílá vůbec — databáze si doplní své, ne prázdný řetězec.
+        await using var app = await StartAsync();
+
+        await app.Client.PostAsJsonAsync(
+            Insert,
+            Novy(
+                new DataValue("Id", "4"),
+                new DataValue("Email", "ctvrty@x.cz"),
+                new DataValue("CreatedAt", "2026-01-04")));
+
+        Assert.Equal("1", await app.ScalarAsync("SELECT DisplayName IS NULL FROM Customers WHERE Id = 4"));
+    }
+
+    [Fact]
+    public async Task Vypnute_vkladani_neprojde()
+    {
+        await using var app = await StartAsync(allowInsert: false);
+
+        var response = await app.Client.PostAsJsonAsync(
+            Insert,
+            Novy(new DataValue("Id", "9"), new DataValue("Email", "nikdy@x.cz")));
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Contains("AllowInsert", await ChybaAsync(response), StringComparison.Ordinal);
+        Assert.Equal("2", await app.ScalarAsync("SELECT COUNT(*) FROM Customers"));
+    }
+
+    [Fact]
+    public async Task Vkladani_respektuje_seznam_editovatelnych_tabulek()
+    {
+        await using var app = await StartAsync(configure: static p => p.EditableTables.Add("Orders"));
+
+        var response = await app.Client.PostAsJsonAsync(
+            Insert,
+            Novy(new DataValue("Id", "9"), new DataValue("Email", "nikdy@x.cz")));
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Contains("EditableTables", await ChybaAsync(response), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Vlozeni_bez_jedineho_sloupce_je_chyba_pozadavku()
+    {
+        await using var app = await StartAsync();
+
+        var response = await app.Client.PostAsJsonAsync(Insert, new DataInsert());
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("2", await app.ScalarAsync("SELECT COUNT(*) FROM Customers"));
+    }
+
+    [Fact]
+    public async Task Porusena_podminka_databaze_se_uzivateli_ukaze()
+    {
+        // Stejné Id podruhé — databáze zápis odmítne a její hláška je to nejužitečnější,
+        // co se dá uživateli říct.
+        await using var app = await StartAsync();
+
+        var response = await app.Client.PostAsJsonAsync(
+            Insert,
+            Novy(new DataValue("Id", "1"), new DataValue("Email", "duplicita@x.cz")));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("Databáze zápis odmítla", await ChybaAsync(response), StringComparison.Ordinal);
+    }
+
 
     [Fact]
     public async Task Upravena_hodnota_je_v_databazi()

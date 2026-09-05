@@ -1,7 +1,8 @@
 # 0015. Zápis do dat jen po jednom řádku a jen podle primárního klíče
 
-- **Stav:** Přijato
+- **Stav:** Nahrazeno
 - **Datum:** 2026-09-04
+- **Nahrazeno:** [ADR-0017](0017-vkladani-radku.md) doplnil vkládání řádků; ostatní pravidla platí dál
 
 ## Kontext
 

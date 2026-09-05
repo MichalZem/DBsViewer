@@ -261,6 +261,18 @@ public static class DbsViewerEndpointRouteBuilderExtensions
                 (table, update, user, token) => preview.UpdateAsync(table, update ?? new DataUpdate(), user, token),
                 cancellationToken));
 
+        api.MapPost("/tables/{schema}/{name}/rows/insert", (
+            DataPreviewService preview,
+            HttpContext context,
+            string schema,
+            string name,
+            CancellationToken cancellationToken) =>
+            WriteAsync<DataInsert>(
+                context,
+                new DbObjectName(NormalizeSchema(schema), name),
+                (table, insert, user, token) => preview.InsertAsync(table, insert ?? new DataInsert(), user, token),
+                cancellationToken));
+
         api.MapPost("/tables/{schema}/{name}/rows/delete", (
             DataPreviewService preview,
             HttpContext context,
@@ -374,6 +386,9 @@ public sealed record DbsViewerMeta
     /// <summary>Smí se v mřížce mazat řádky?</summary>
     public bool CanDeleteData { get; init; }
 
+    /// <summary>Smí se v mřížce zakládat nové řádky?</summary>
+    public bool CanInsertData { get; init; }
+
     public required bool ShowRowCounts { get; init; }
 
     /// <summary>Pojmenované skupiny tabulek pro filtr v UI.</summary>
@@ -396,6 +411,7 @@ public sealed record DbsViewerMeta
         CanPreviewData = options.DataPreview.Enabled,
         CanEditData = options.DataPreview is { Enabled: true, AllowUpdate: true },
         CanDeleteData = options.DataPreview is { Enabled: true, AllowDelete: true },
+        CanInsertData = options.DataPreview is { Enabled: true, AllowInsert: true },
         ShowRowCounts = options.ShowRowCounts,
         Groups = new Dictionary<string, string>(options.Groups, StringComparer.Ordinal),
         DataPreviewMaxRows = options.DataPreview.MaxRows,

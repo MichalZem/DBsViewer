@@ -21,7 +21,7 @@ každý najdeš v kapitole [Co uvidíš](#co-uvidíš).*
 > **Stav:** vydané na nuget.org. Prohlížečka má grafické UI s ER diagramem, HTTP API,
 > detekci rozdílů, historii schématu i náhled dat s volitelnou editací řádků.
 > Poslední stabilní verze je
-> [`0.5.1`](https://www.nuget.org/packages/DbsViewer.Server); z každého pushe na `main`
+> [`0.6.0`](https://www.nuget.org/packages/DbsViewer.Server); z každého pushe na `main`
 > vzniká navíc předběžná verze. Viz [instalace](#instalace-do-vlastní-aplikace).
 
 ---
@@ -170,6 +170,8 @@ tlačítko **← Celé schéma** — ve výřezu totiž není z diagramu poznat,
 schématu vůbec existuje.
 
 Uzly se dají rozbalit na všechny sloupce, plocha se posouvá tažením a přibližuje kolečkem.
+Se zapnutým náhledem dat je v hlavičce každého uzlu ještě symbol **▤**, který skočí rovnou
+na data té tabulky — z diagramu je „a co v ní je" nejčastější další otázka.
 
 [![Focus mode — výřez kolem vybrané tabulky](docs/obrazky/diagram-focus.png)](docs/obrazky/diagram-focus.png)
 
@@ -220,8 +222,22 @@ zůstávají jen ke čtení a mřížka to napíše, místo aby nabídla tlačí
 selhala. Totéž platí pro jednotlivé sloupce: primární klíč, sloupce generované databází,
 počítané, binární a zamaskované se měnit nedají a bublinová nápověda u buňky říká proč.
 Co odmítne databáze (cizí klíč, `NOT NULL`, check constraint), se ukáže vlastní hláškou
-nad mřížkou a rozepsané hodnoty zůstanou na místě. Odůvodnění v
-[ADR-0015](docs/adr/0015-editace-radku.md).
+nad mřížkou a rozepsané hodnoty zůstanou na místě.
+
+**Nový řádek.** Se zapnutým `DataPreview.AllowInsert` je nad mřížkou tlačítko *+ Nový řádek*;
+otevře prázdný řádek nad daty. Nevyplněné políčko se do `INSERT` vůbec nedostane, takže
+se uplatní výchozí hodnota z databáze — a aby bylo vidět, co se stane, políčko ji ukazuje
+v nápovědě (`NULL` u sloupce, který smí být prázdný). Primární klíč se u nového řádku na rozdíl
+od úpravy vyplnit **smí**, protože jinak by do tabulky s přirozeným klíčem nešlo vložit nic;
+sloupce generované databází, počítané, binární a zamaskované se nevyplňují. Vkládat jde i do
+tabulky bez primárního klíče — `INSERT` žádný existující řádek neadresuje. Odůvodnění v
+[ADR-0017](docs/adr/0017-vkladani-radku.md).
+
+[![Nový řádek v mřížce](docs/obrazky/data-novy-radek.png)](docs/obrazky/data-novy-radek.png)
+
+*Zakládaný řádek: `CreatedAt` má v nápovědě výchozí hodnotu z databáze
+(`CURRENT_TIMESTAMP`), `BillingPostalCode` `NULL`. Co zůstane prázdné, se do `INSERT`
+vůbec nedostane.*
 
 [![Úprava řádku v mřížce](docs/obrazky/data-editace.png)](docs/obrazky/data-editace.png)
 
@@ -252,6 +268,7 @@ Všechny cesty jsou relativní k `RoutePrefix` (výchozí `/dbschema`).
 | `GET` | `/api/tables/{schema}/{name}` | Detail jedné tabulky. |
 | `POST` | `/api/tables/{schema}/{name}/rows` | Stránka dat. Ve výchozím stavu vrací `403`. |
 | `POST` | `/api/tables/{schema}/{name}/rows/update` | Nové hodnoty jednoho řádku. Ve výchozím stavu vrací `403`. |
+| `POST` | `/api/tables/{schema}/{name}/rows/insert` | Vloží jeden řádek. Ve výchozím stavu vrací `403`. |
 | `POST` | `/api/tables/{schema}/{name}/rows/delete` | Smaže jeden řádek. Ve výchozím stavu vrací `403`. |
 | `GET` | `/api/migrations` | Migrace i s tím, co která změnila. |
 | `GET` | `/api/migrations/diff?from=&to=` | Rozdíl mezi dvěma verzemi historie. |
@@ -447,6 +464,7 @@ builder.Services.AddDbsViewer<AppDbContext>(options =>
     // Úprava řádků — viz Bezpečnost
     options.DataPreview.AllowUpdate = true;        // výchozí false
     options.DataPreview.AllowDelete = true;        // výchozí false
+    options.DataPreview.AllowInsert = true;        // výchozí false
     options.DataPreview.EditableTables.Add("Order*"); // prázdné = vše, co smí náhled dat
 });
 ```
@@ -504,7 +522,7 @@ při nasazení.
 | „není zaregistrovaná čtečka živé databáze" | Provider není SQL Server ani SQLite. Nastav `IncludeLiveDatabase = false`. |
 | `views` obsahuje jen `["ef"]` | Živá introspekce se nezapnula. Zkontroluj `IncludeLiveDatabase` a providera. |
 | `403` na `/rows` | Náhled dat je vypnutý nebo tabulka není ve whitelistu. |
-| `403` na `/rows/update` | Úprava je vypnutá (`AllowUpdate`, `AllowDelete`), nebo tabulka není v `EditableTables`. |
+| `403` na `/rows/update` | Zápis je vypnutý (`AllowUpdate`, `AllowDelete`, `AllowInsert`), nebo tabulka není v `EditableTables`. |
 | Mřížka nenabízí tlačítka úprav | Tabulka nemá primární klíč, je to pohled, nebo je klíč zamaskovaný — poznámka nad mřížkou říká co z toho. |
 | Změny v databázi se neprojeví | Cache. Zavolej `POST /api/refresh`, přidej `?refresh=true`, nebo sniž `CacheFor`. |
 | Balíček se nenašel | Předběžné verze se bez `--prerelease` nenabízejí. Když stavíš ze zdrojů, zkontroluj cestu v `NuGet.config` a že v `artifacts/packages` opravdu jsou `.nupkg` soubory; po přebalení stejné verze vyčisti cache: `dotnet nuget locals global-packages --clear`. |

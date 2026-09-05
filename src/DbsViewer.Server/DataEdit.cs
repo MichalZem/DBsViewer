@@ -19,6 +19,17 @@ public sealed record DataUpdate
     public IReadOnlyList<DataValue> Values { get; init; } = [];
 }
 
+/// <summary>Požadavek na vložení jednoho řádku.</summary>
+/// <remarks>
+/// Klíč se neposílá: nový řádek žádný ještě nemá. Posílají se jen sloupce, které uživatel
+/// vyplnil — u zbytku se nechá zapracovat výchozí hodnota z databáze.
+/// </remarks>
+public sealed record DataInsert
+{
+    /// <summary>Hodnoty vyplněných sloupců.</summary>
+    public IReadOnlyList<DataValue> Values { get; init; } = [];
+}
+
 /// <summary>Požadavek na smazání jednoho řádku.</summary>
 public sealed record DataDelete
 {

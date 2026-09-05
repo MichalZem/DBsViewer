@@ -452,6 +452,36 @@ public class ViewerTests : TestContext
     }
 
     [Fact]
+    public async Task Vlozeni_radku_dojde_na_server()
+    {
+        var component = Render();
+        component.FindAll(".seznam li button").ElementAt(0).Click();
+
+        string? chyba = null;
+
+        await component.InvokeAsync(async () => chyba = await component.Instance.InsertRowAsync(
+            new DataInsert { Values = [new DataValue("Email", "novy@x.cz")] }));
+
+        Assert.Null(chyba);
+        Assert.Equal(1, _server.WriteCalls);
+    }
+
+    [Fact]
+    public async Task Odkaz_z_diagramu_otevre_rovnou_data_tabulky()
+    {
+        // Z diagramu je nejčastější další otázka „a co v té tabulce je" — bez tohohle
+        // by se uživatel musel vracet do seznamu a přepínat záložku ručně.
+        var component = Render();
+
+        await component.InvokeAsync(() =>
+            component.Instance.ShowDataAsync(new DbObjectName(null, "Customers")));
+
+        Assert.Equal(new DbObjectName(null, "Customers"), component.Instance.State.SelectedTable);
+        Assert.Equal(ViewerPane.Browser, component.Instance.State.Pane);
+        Assert.Equal(DetailTab.Data, component.Instance.State.Tab);
+    }
+
+    [Fact]
     public void Filtr_schematu_se_ukaze_jen_pri_vice_schematech()
     {
         var component = Render();
@@ -626,7 +656,8 @@ public class ViewerTests : TestContext
             }
 
             if (url.Contains("/rows/update", StringComparison.Ordinal)
-                || url.Contains("/rows/delete", StringComparison.Ordinal))
+                || url.Contains("/rows/delete", StringComparison.Ordinal)
+                || url.Contains("/rows/insert", StringComparison.Ordinal))
             {
                 WriteCalls++;
 

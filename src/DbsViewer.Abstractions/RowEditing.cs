@@ -47,6 +47,60 @@ public static class RowEditing
     public static bool IsEditable(DbColumn column, IReadOnlyCollection<string>? maskedColumns = null) =>
         ReadOnlyReason(column, maskedColumns) is null;
 
+    /// <summary>Proč se sloupec nedá vyplnit u nového řádku, nebo <c>null</c>, když jde.</summary>
+    /// <param name="column">Sloupec ze schématu.</param>
+    /// <param name="maskedColumns">Sloupce, jejichž hodnoty se maskují.</param>
+    /// <remarks>
+    /// Proti <see cref="ReadOnlyReason"/> se liší v primárním klíči. U existujícího řádku je
+    /// klíč jeho identita a měnit se nesmí; u nového ho musí vyplnit uživatel, jinak by do
+    /// tabulky s přirozeným klíčem nešlo vložit vůbec nic.
+    /// </remarks>
+    public static string? NewRowReadOnlyReason(
+        DbColumn column,
+        IReadOnlyCollection<string>? maskedColumns = null)
+    {
+        ArgumentNullException.ThrowIfNull(column);
+
+        if (column.IsIdentity)
+        {
+            return "hodnotu generuje databáze";
+        }
+
+        if (column.IsComputed)
+        {
+            return "je počítaný";
+        }
+
+        if (IsBinary(column))
+        {
+            return "je binární a v mřížce se zadat nedá";
+        }
+
+        // Zamaskovanou hodnotu uživatel nevidí ani u nového řádku, takže by ji psal naslepo.
+        // Sloupec zůstane na výchozí hodnotě z databáze, nebo vložení odmítne NOT NULL.
+        return Contains(maskedColumns, column.Name) ? "je zamaskovaný" : null;
+    }
+
+    /// <summary>Dá se hodnota sloupce vyplnit u nového řádku?</summary>
+    public static bool IsFillable(DbColumn column, IReadOnlyCollection<string>? maskedColumns = null) =>
+        NewRowReadOnlyReason(column, maskedColumns) is null;
+
+    /// <summary>
+    /// Dá se do tabulky vložit řádek?
+    /// </summary>
+    /// <remarks>
+    /// Primární klíč se — na rozdíl od úpravy a mazání — nevyžaduje. <c>INSERT</c> žádný
+    /// existující řádek neadresuje, takže se nemá čím splést, a „právě jeden řádek" plyne
+    /// z tvaru příkazu. Do tabulky bez klíče se tedy vložit dá, jen se pak řádek nedá
+    /// upravit ani smazat. Pohled zůstává jen ke čtení.
+    /// </remarks>
+    public static bool CanInsertRows(DbTable table)
+    {
+        ArgumentNullException.ThrowIfNull(table);
+
+        return !table.IsView;
+    }
+
     /// <summary>
     /// Je to binární sloupec? Pozná se z CLR typu, a když ten chybí (tabulka mimo model),
     /// z typu v databázi.

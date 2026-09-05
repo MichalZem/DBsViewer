@@ -368,6 +368,119 @@ public class DataWriteBuilderTests
         }
     }
 
+
+    // ---------- INSERT ----------
+
+    [Fact]
+    public void Insert_vypise_jen_vyplnene_sloupce()
+    {
+        // Nevyplněný sloupec se do příkazu nedostane, aby se uplatnila výchozí hodnota
+        // z databáze. Vypsat ho jako NULL by ji přebilo.
+        var query = DataQueryBuilder.BuildInsert(
+            Table(),
+            new DataInsert { Values = [new DataValue("Email", "novy@x.cz")] },
+            [],
+            isSqlite: true);
+
+        Assert.Equal("INSERT INTO \"Zakaznici\" (\"Email\") VALUES (@p0)", query.Sql);
+        Assert.Single(query.Parameters);
+    }
+
+    [Fact]
+    public void Insert_umi_vyplnit_primarni_klic()
+    {
+        var query = DataQueryBuilder.BuildInsert(
+            Table(),
+            new DataInsert { Values = [new DataValue("Id", "7"), new DataValue("Email", "a@x.cz")] },
+            [],
+            isSqlite: true);
+
+        Assert.Equal("INSERT INTO \"Zakaznici\" (\"Id\", \"Email\") VALUES (@p0, @p1)", query.Sql);
+    }
+
+    [Fact]
+    public void Insert_bez_jedineho_sloupce_je_chyba()
+    {
+        Assert.Throws<DataRequestException>(() =>
+            DataQueryBuilder.BuildInsert(Table(), new DataInsert(), [], isSqlite: true));
+    }
+
+    [Fact]
+    public void Insert_do_pohledu_se_odmitne()
+    {
+        var pohled = new DbTable
+        {
+            Name = new DbObjectName(null, "Prehled"),
+            IsView = true,
+            Columns = [Column("Id", "int", isPrimaryKey: true)],
+            PrimaryKey = new DbPrimaryKey { Columns = ["Id"] },
+        };
+
+        Assert.Throws<DataRequestException>(() =>
+            DataQueryBuilder.BuildInsert(
+                pohled,
+                new DataInsert { Values = [new DataValue("Id", "1")] },
+                [],
+                isSqlite: true));
+    }
+
+    [Fact]
+    public void Insert_odmitne_neznamy_i_dvojity_sloupec()
+    {
+        Assert.Throws<DataRequestException>(() =>
+            DataQueryBuilder.BuildInsert(
+                Table(),
+                new DataInsert { Values = [new DataValue("Neexistuje", "1")] },
+                [],
+                isSqlite: true));
+
+        Assert.Throws<DataRequestException>(() =>
+            DataQueryBuilder.BuildInsert(
+                Table(),
+                new DataInsert { Values = [new DataValue("Email", "a"), new DataValue("email", "b")] },
+                [],
+                isSqlite: true));
+    }
+
+    [Fact]
+    public void Insert_odmitne_sloupec_ktery_patri_databazi()
+    {
+        var table = Table(
+            Column("Id", "int", isPrimaryKey: true, isIdentity: true),
+            Column("Celkem", "int", isComputed: true),
+            Column("Tajne"));
+
+        foreach (var sloupec in new[] { "Id", "Celkem" })
+        {
+            Assert.Throws<DataRequestException>(() =>
+                DataQueryBuilder.BuildInsert(
+                    table,
+                    new DataInsert { Values = [new DataValue(sloupec, "1")] },
+                    [],
+                    isSqlite: true));
+        }
+
+        Assert.Throws<DataRequestException>(() =>
+            DataQueryBuilder.BuildInsert(
+                table,
+                new DataInsert { Values = [new DataValue("Tajne", "1")] },
+                ["Tajne"],
+                isSqlite: true));
+    }
+
+    [Fact]
+    public void Insert_bez_vstupu_je_chyba_argumentu()
+    {
+        Assert.Throws<ArgumentNullException>(() =>
+            DataQueryBuilder.BuildInsert(null!, new DataInsert(), [], isSqlite: true));
+
+        Assert.Throws<ArgumentNullException>(() =>
+            DataQueryBuilder.BuildInsert(Table(), null!, [], isSqlite: true));
+
+        Assert.Throws<ArgumentNullException>(() =>
+            DataQueryBuilder.BuildInsert(Table(), new DataInsert(), null!, isSqlite: true));
+    }
+
     [Fact]
     public void Vyjimka_zapisu_umi_nest_i_puvodni_chybu()
     {

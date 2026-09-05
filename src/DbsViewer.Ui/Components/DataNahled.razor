@@ -54,6 +54,12 @@ else
                 }
 
                 <button class="odkaz" @onclick="() => NactiAsync(Stranka)" title="Načíst znovu">Obnovit</button>
+
+                @if (MuzeVkladat && !NovyRadek)
+                {
+                    <button class="odkaz" @onclick="ZacniVkladani"
+                            title="Založit nový řádek">+ Nový řádek</button>
+                }
             </div>
         </header>
 
@@ -118,6 +124,47 @@ else
                         </tr>
                     </thead>
                     <tbody class="@(Nacita ? "nacita" : "")">
+                        @if (NovyRadek)
+                        {
+                            <tr class="novy">
+                                <td class="akce">
+                                    <button class="odkaz ulozit" title="Vložit řádek"
+                                            @onclick="VlozAsync">Vložit</button>
+                                    <button class="odkaz" title="Zahodit nový řádek"
+                                            @onclick="Zrus">Zrušit</button>
+                                </td>
+
+                                @foreach (var sloupec in Sloupce)
+                                {
+                                    @if (DuvodNevyplnitelnosti(sloupec) is null)
+                                    {
+                                        <td class="upravovana">
+                                            <input class="hodnota"
+                                                   placeholder="@Vychozi(sloupec)"
+                                                   value="@(Upravovana(sloupec) ?? "")"
+                                                   disabled="@(Upravovana(sloupec) is null)"
+                                                   aria-label="@sloupec"
+                                                   @onchange="e => ZmenHodnotu(sloupec, e.Value?.ToString())" />
+
+                                            @if (JeNullovatelny(sloupec))
+                                            {
+                                                <label class="null-prepinac" title="Uložit NULL">
+                                                    <input type="checkbox"
+                                                           checked="@(Upravovana(sloupec) is null)"
+                                                           @onchange="e => PrepniNull(sloupec, e.Value is true)" />
+                                                    NULL
+                                                </label>
+                                            }
+                                        </td>
+                                    }
+                                    else
+                                    {
+                                        <td class="neupravitelna" title="@DuvodNevyplnitelnosti(sloupec)">—</td>
+                                    }
+                                }
+                            </tr>
+                        }
+
                         @for (var r = 0; r < Radky.Count; r++)
                         {
                             var radek = r;
@@ -194,6 +241,7 @@ else
                                 }
                             </tr>
                         }
+
                     </tbody>
                 </table>
             </div>
@@ -264,6 +312,9 @@ else
     /// <summary>Index řádku, u kterého se čeká na potvrzení smazání.</summary>
     private int? MazanyRadek { get; set; }
 
+    /// <summary>Je nad mřížkou rozepsaný nový řádek?</summary>
+    private bool NovyRadek { get; set; }
+
     /// <summary>Proč se poslední zápis nepovedl. Mřížka zůstane, hláška je nad ní.</summary>
     private string? ChybaZapisu { get; set; }
 
@@ -284,6 +335,10 @@ else
     [Parameter]
     public bool CanDelete { get; set; }
 
+    /// <summary>Povolil server zakládání nových řádků?</summary>
+    [Parameter]
+    public bool CanInsert { get; set; }
+
     /// <summary>Načtení stránky. Komponenta si sama neví, jak volat server.</summary>
     [Parameter]
     public EventCallback<DataQuery> OnLoad { get; set; }
@@ -302,6 +357,10 @@ else
     [Parameter]
     public Func<DataDelete, Task<string?>>? OnDelete { get; set; }
 
+    /// <summary>Vložení řádku. Vrací chybovou hlášku, nebo <c>null</c> při úspěchu.</summary>
+    [Parameter]
+    public Func<DataInsert, Task<string?>>? OnInsert { get; set; }
+
     private bool MaFiltr => Filtry.Count > 0;
 
     /// <summary>
@@ -316,7 +375,10 @@ else
     private IReadOnlyList<IReadOnlyList<string?>> Radky => Preview?.Rows ?? [];
 
     /// <summary>Nabízí konfigurace zápis, ať už v téhle tabulce půjde, nebo ne?</summary>
-    private bool JeZapisNabidnuty => (CanEdit && OnUpdate is not null) || (CanDelete && OnDelete is not null);
+    private bool JeZapisNabidnuty =>
+        (CanEdit && OnUpdate is not null)
+        || (CanDelete && OnDelete is not null)
+        || (CanInsert && OnInsert is not null);
 
     /// <summary>Dá se řádek jednoznačně adresovat? Bez toho se nezapisuje vůbec.</summary>
     private bool KlicJednoznacny =>
@@ -326,7 +388,14 @@ else
 
     private bool MuzeMazat => CanDelete && OnDelete is not null && KlicJednoznacny;
 
-    private bool JsouAkce => MuzeUpravovat || MuzeMazat;
+    /// <summary>
+    /// Vkládat jde i tam, kde se upravovat nedá: nový řádek se neadresuje klíčem, takže
+    /// stačí, že to není pohled.
+    /// </summary>
+    private bool MuzeVkladat =>
+        CanInsert && OnInsert is not null && Table is { } tabulka && RowEditing.CanInsertRows(tabulka);
+
+    private bool JsouAkce => MuzeUpravovat || MuzeMazat || MuzeVkladat;
 
     /// <summary>
     /// Data se načtou hned při zobrazení a znovu při přepnutí na jinou tabulku.
@@ -493,13 +562,50 @@ else
         MazanyRadek = radek;
     }
 
-    /// <summary>Zahodí rozepsanou úpravu i čekající potvrzení mazání.</summary>
+    /// <summary>
+    /// Otevře prázdný řádek nad daty.
+    /// </summary>
+    /// <remarks>
+    /// Vyplnitelné sloupce se založí jako prázdné, aby v nich šlo psát a aby prázdné
+    /// políčko šlo odlišit od NULL. Prázdné se pak do <c>INSERT</c> vůbec nedostane
+    /// a uplatní se výchozí hodnota z databáze — proto ji políčko ukazuje v nápovědě.
+    /// </remarks>
+    private void ZacniVkladani()
+    {
+        Zrus();
+        NovyRadek = true;
+
+        foreach (var sloupec in Sloupce)
+        {
+            if (DuvodNevyplnitelnosti(sloupec) is null)
+            {
+                Editace[sloupec] = "";
+            }
+        }
+    }
+
+    /// <summary>Zahodí rozepsanou úpravu, nový řádek i čekající potvrzení mazání.</summary>
     private void Zrus()
     {
         EditovanyRadek = null;
         MazanyRadek = null;
+        NovyRadek = false;
         Editace.Clear();
     }
+
+    /// <summary>Proč se sloupec nedá vyplnit u nového řádku.</summary>
+    internal string? DuvodNevyplnitelnosti(string column) =>
+        Table?.FindColumn(column) is { } sloupec
+            ? RowEditing.NewRowReadOnlyReason(sloupec, Preview?.MaskedColumns)
+            : "sloupec ve schématu není";
+
+    /// <summary>Co se do sloupce dostane, když ho uživatel nevyplní.</summary>
+    private string Vychozi(string column) => Table?.FindColumn(column) switch
+    {
+        { DefaultValueSql: { Length: > 0 } sql } => sql,
+        { IsNullable: true } => "NULL",
+        _ => "",
+    };
 
     private void ZmenHodnotu(string column, string? value) => Editace[column] = value ?? "";
 
@@ -537,6 +643,32 @@ else
 
     private async Task SmazAsync(int radek) =>
         await ZapisAsync(Radky[radek], klic => OnDelete!(new DataDelete { Key = klic }));
+
+    /// <summary>
+    /// Vloží rozepsaný řádek. Posílají se jen vyplněné sloupce — u zbytku se nechá
+    /// zapracovat výchozí hodnota z databáze.
+    /// </summary>
+    private async Task VlozAsync()
+    {
+        var hodnoty = Editace
+            .Where(static e => e.Value is null || e.Value.Length > 0)
+            .Select(static e => new DataValue(e.Key, e.Value))
+            .ToList();
+
+        if (hodnoty.Count == 0)
+        {
+            ChybaZapisu = "Nový řádek nemá vyplněný ani jeden sloupec.";
+            return;
+        }
+
+        ChybaZapisu = await OnInsert!(new DataInsert { Values = hodnoty });
+
+        if (ChybaZapisu is null)
+        {
+            Zrus();
+            await NactiAsync(Stranka);
+        }
+    }
 
     /// <summary>
     /// Společný průběh zápisu: sestaví klíč, zavolá server a po úspěchu načte stránku

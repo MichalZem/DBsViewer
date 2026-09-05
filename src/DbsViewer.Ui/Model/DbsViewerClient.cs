@@ -26,6 +26,9 @@ public sealed record ViewerMeta
     /// <summary>Smí se v mřížce mazat řádky?</summary>
     public bool CanDeleteData { get; init; }
 
+    /// <summary>Smí se v mřížce zakládat nové řádky?</summary>
+    public bool CanInsertData { get; init; }
+
     public bool ShowRowCounts { get; init; }
 
     public IReadOnlyDictionary<string, string> Groups { get; init; } =
@@ -99,6 +102,13 @@ public sealed record DataUpdate
     public IReadOnlyList<DataValue> Key { get; init; } = [];
 
     /// <summary>Nové hodnoty měněných sloupců.</summary>
+    public IReadOnlyList<DataValue> Values { get; init; } = [];
+}
+
+/// <summary>Požadavek na vložení řádku. Odpovídá serverovému <c>DataInsert</c>.</summary>
+public sealed record DataInsert
+{
+    /// <summary>Hodnoty vyplněných sloupců. Nevyplněné se nechají na databázi.</summary>
     public IReadOnlyList<DataValue> Values { get; init; } = [];
 }
 
@@ -206,6 +216,13 @@ public sealed class DbsViewerClient(HttpClient http)
         DataUpdate update,
         CancellationToken cancellationToken = default) =>
         WriteAsync<DataUpdate, RowChange>(RowsUrl(table, "update"), update, cancellationToken);
+
+    /// <summary>Vloží jeden řádek.</summary>
+    public Task<RowChange> InsertRowAsync(
+        DbObjectName table,
+        DataInsert insert,
+        CancellationToken cancellationToken = default) =>
+        WriteAsync<DataInsert, RowChange>(RowsUrl(table, "insert"), insert, cancellationToken);
 
     /// <summary>Smaže jeden řádek.</summary>
     public Task<RowChange> DeleteRowAsync(
