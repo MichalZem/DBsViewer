@@ -106,7 +106,7 @@ public static class SchemaTextWriter
 
         if (table.RowCountEstimate is { } rows)
         {
-            flags.Add($"~{Ui.Model.Counts.Rows(rows)}");
+            flags.Add($"~{Cislovka.Pocet(rows, "řádek", "řádky", "řádků")}");
         }
 
         output.AppendLine($"■ {table.Qualified}{(flags.Count > 0 ? $"   [{string.Join(" · ", flags)}]" : "")}");

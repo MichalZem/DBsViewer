@@ -107,6 +107,9 @@ místa s JavaScriptem v `index.html` a stahování všech jazyků při každém 
   si ji přepnou samy.
 - Hlášky, které vrací **databáze** (porušený cizí klíč, `NOT NULL`), zůstávají v jazyce
   databáze. Přeložit jde jen to, co skládá prohlížečka.
+- **`dbsview` si formátuje čísla sám.** Prohlížečka vybírá tvar slova podle zvoleného
+  jazyka, jenže nástroj žádný zvolený jazyk nemá — půjčené `Counts` by se řídilo kulturou
+  stroje a výpis by se lišil podle toho, kde běží. Přesně na tom spadlo CI.
 - **Nepřeloženo zatím zůstává:** výpis `dbsview`, konfigurační výjimky při startu (čte je
   vývojář, ne uživatel) a varování ze `SafeRead`, která v sobě nesou text výjimky
   z databázového driveru.

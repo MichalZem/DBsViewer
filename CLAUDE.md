@@ -340,6 +340,9 @@ Viz [ADR-0011](docs/adr/0011-parovani-podle-sloupcu.md).
   Od toho je `Plural.Number`, které oddělovač vybírá podle jazyka prohlížečky.
 - **Testy si připínají kulturu.** Bez toho by na českých Windows četly češtinu
   a na CI angličtinu; od toho je `Kultura.Pripni` v testovacím projektu.
+- **`dbsview` si formátuje čísla sám.** Prohlížečka vybírá tvar slova podle zvoleného
+  jazyka, ale nástroj žádný zvolený jazyk nemá — půjčené `Counts` by se řídilo kulturou
+  stroje. Od toho je `Cislovka` v `DbsViewer.Dump`.
 
 ---
 
@@ -349,7 +352,7 @@ Viz [ADR-0011](docs/adr/0011-parovani-podle-sloupcu.md).
 providerů, slučování, diff engine, HTTP API s autorizací a cache, Blazor WASM prohlížečka
 s přehledem databáze, ER diagramem a focus modem, historie schématu z migrací, náhled dat
 včetně úpravy, vkládání a mazání řádků, export a `dotnet tool`. UI mluví anglicky
-a česky. **1434 testů** (EfCore 268, Relational 245, Server 318, Tool 51, Ui 552),
+a česky. **1442 testů** (EfCore 268, Relational 245, Server 318, Tool 59, Ui 552),
 100 % pokrytí řádků a metod ve všech pěti sadách.
 
 Vydáno na NuGetu, poslední stabilní verze je `0.7.0` — všech osm balíčků včetně

@@ -382,3 +382,50 @@ public class ProgramTests : IDisposable
         }
     }
 }
+
+/// <summary>
+/// Číslování ve výpisu nástroje. Nástroj má vlastní, protože prohlížečka od ADR-0018
+/// vybírá tvar podle zvoleného jazyka — a `dbsview` žádný zvolený jazyk nemá.
+/// </summary>
+public class CislovkaTests
+{
+    [Theory]
+    [InlineData(0, "0 řádků")]
+    [InlineData(1, "1 řádek")]
+    [InlineData(2, "2 řádky")]
+    [InlineData(4, "4 řádky")]
+    [InlineData(5, "5 řádků")]
+    [InlineData(11, "11 řádků")]
+    public void Pocet_se_sklonuje(long pocet, string expected) =>
+        Assert.Equal(expected, Cislovka.Pocet(pocet, "řádek", "řádky", "řádků"));
+
+    [Fact]
+    public void Cislo_oddeluje_tisice_nedelitelnou_mezerou()
+    {
+        Assert.Equal("1 234 567", Cislovka.Cislo(1234567));
+        Assert.Equal("999", Cislovka.Cislo(999));
+        Assert.Equal("-4 200", Cislovka.Cislo(-4200));
+    }
+
+    [Fact]
+    public void Vypis_nezavisi_na_kulture_stroje()
+    {
+        // Přesně tohle spadlo na CI: na českých Windows „2 řádky", na CI „2 rows".
+        var puvodni = System.Globalization.CultureInfo.CurrentUICulture;
+
+        try
+        {
+            foreach (var kultura in new[] { "en-US", "cs-CZ" })
+            {
+                System.Globalization.CultureInfo.CurrentUICulture =
+                    new System.Globalization.CultureInfo(kultura);
+
+                Assert.Equal("2 řádky", Cislovka.Pocet(2, "řádek", "řádky", "řádků"));
+            }
+        }
+        finally
+        {
+            System.Globalization.CultureInfo.CurrentUICulture = puvodni;
+        }
+    }
+}
