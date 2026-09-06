@@ -21,7 +21,7 @@ každý najdeš v kapitole [Co uvidíš](#co-uvidíš).*
 > **Stav:** vydané na nuget.org. Prohlížečka má grafické UI s ER diagramem, HTTP API,
 > detekci rozdílů, historii schématu i náhled dat s volitelnou editací řádků.
 > Poslední stabilní verze je
-> [`0.6.0`](https://www.nuget.org/packages/DbsViewer.Server); z každého pushe na `main`
+> [`0.7.0`](https://www.nuget.org/packages/DbsViewer.Server); z každého pushe na `main`
 > vzniká navíc předběžná verze. Viz [instalace](#instalace-do-vlastní-aplikace).
 
 ---
@@ -162,6 +162,13 @@ ním. Podrobněji v [ADR-0016](docs/adr/0016-rozvrzeni-velkeho-schematu.md).
 
 Vysvětlivky k typům čar jsou v levém dolním rohu diagramu, sbalené do štítku.
 Jak diagram vypadá celý, je vidět [na obrázku v úvodu](#dbsviewer).
+
+**Jazyk.** Přepínač vpravo nahoře nabízí angličtinu a češtinu; **výchozí je angličtina**,
+protože balíček si instaluje kdokoli na světě. Přepnutí načte prohlížečku znovu —
+ve WebAssembly se překlady stahují jen pro jazyk, se kterým aplikace nastartovala — takže
+se nejdřív zeptá, a to vlastním oknem, ne dialogem prohlížeče. Jazyk žije v adrese jako
+`?lang=cs`, takže se dá poslat odkaz i s ním.
+Podrobněji v [ADR-0018](docs/adr/0018-vicejazycne-ui.md).
 
 **Focus mode** je zapnutý ve výchozím stavu a je to jediný způsob, jak udělat diagram
 se stovkou tabulek čitelný: vyber tabulku a posuvníkem urči, jak daleko od ní se má

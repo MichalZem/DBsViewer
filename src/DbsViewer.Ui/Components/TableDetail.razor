@@ -8,7 +8,7 @@
 
 @if (Table is null)
 {
-    <p class="prazdno">Vyber tabulku ze seznamu vlevo.</p>
+    <p class="prazdno">@Texts.PickTable</p>
 }
 else
 {
@@ -17,7 +17,7 @@ else
             @if (Table.Name.Schema is { Length: > 0 } schemaPrefix)
             {
                 <span class="schema-prefix" style="@SchemaBarvy.Styl(schemaPrefix)"
-                      title="Schéma @schemaPrefix">@schemaPrefix<span class="tecka">.</span></span>
+                      title="@Texts.SchemaLabel @schemaPrefix">@schemaPrefix<span class="tecka">.</span></span>
             }
 
             @Table.Name.Name
@@ -30,7 +30,7 @@ else
             }
             @if (Table.IsJoinTable)
             {
-                <span class="odznak">vazební N:M</span>
+                <span class="odznak">@Texts.JoinTableShort</span>
             }
             @foreach (var entity in Table.EntityClrNames)
             {
@@ -38,11 +38,11 @@ else
             }
             @if (Table.DiscriminatorColumn is { } discriminator)
             {
-                <span class="odznak" title="Dědičnost TPH">TPH: @discriminator</span>
+                <span class="odznak" title="@Texts.TphInheritance">TPH: @discriminator</span>
             }
             @if (Table.RowCountEstimate is { } rows)
             {
-                <span class="odznak" title="Odhad ze statistik">~@Cestina.Radky(rows)</span>
+                <span class="odznak" title="@Texts.RowsEstimateTitle">~@Counts.Rows(rows)</span>
             }
         </div>
 
@@ -62,7 +62,7 @@ else
                     @if (finding.ModelValue is not null || finding.DatabaseValue is not null)
                     {
                         <span class="hodnoty">
-                            model: @(finding.ModelValue ?? "—") · databáze: @(finding.DatabaseValue ?? "—")
+                            @Texts.ModelLower: @(finding.ModelValue ?? "—") · @Texts.DatabaseLower: @(finding.DatabaseValue ?? "—")
                         </span>
                     }
                 </li>
@@ -89,12 +89,12 @@ else
                 <table class="mrizka">
                     <thead>
                         <tr>
-                            <th>Sloupec</th>
-                            <th>Typ</th>
+                            <th>@Texts.ColumnColumn</th>
+                            <th>@Texts.ColumnType</th>
                             <th>Null</th>
-                            <th>Klíč</th>
+                            <th>@Texts.ColumnKey</th>
                             <th>CLR typ</th>
-                            <th>Poznámka</th>
+                            <th>@Texts.ColumnNote</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -121,17 +121,17 @@ else
             case DetailTab.Indexes:
                 @if (Table.Indexes.Count == 0)
                 {
-                    <p class="prazdno">Tabulka nemá žádné indexy.</p>
+                    <p class="prazdno">@Texts.NoIndexes</p>
                 }
                 else
                 {
                     <table class="mrizka">
                         <thead>
                             <tr>
-                                <th>Index</th>
-                                <th>Sloupce</th>
-                                <th>Unikátní</th>
-                                <th>Poznámka</th>
+                                <th>@Texts.ColumnIndex</th>
+                                <th>@Texts.ColumnColumns</th>
+                                <th>@Texts.ColumnUnique</th>
+                                <th>@Texts.ColumnNote</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -154,18 +154,18 @@ else
             case DetailTab.ForeignKeys:
                 @if (Table.ForeignKeys.Count == 0)
                 {
-                    <p class="prazdno">Tabulka nemá žádné cizí klíče.</p>
+                    <p class="prazdno">@Texts.NoForeignKeys</p>
                 }
                 else
                 {
                     <table class="mrizka">
                         <thead>
                             <tr>
-                                <th>Klíč</th>
-                                <th>Sloupce</th>
-                                <th>Cíl</th>
-                                <th>Při smazání</th>
-                                <th>Navigace</th>
+                                <th>@Texts.ColumnKey</th>
+                                <th>@Texts.ColumnColumns</th>
+                                <th>@Texts.ColumnTarget</th>
+                                <th>@Texts.ColumnOnDelete</th>
+                                <th>@Texts.ColumnNavigation</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -199,10 +199,10 @@ else
                     <table class="mrizka">
                         <thead>
                             <tr>
-                                <th>Tabulka</th>
-                                <th>Sloupce</th>
-                                <th>Vztah</th>
-                                <th>Při smazání</th>
+                                <th>@Texts.ColumnTable</th>
+                                <th>@Texts.ColumnColumns</th>
+                                <th>@Texts.ColumnRelation</th>
+                                <th>@Texts.ColumnOnDelete</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -300,17 +300,17 @@ else
     /// <summary>Vysvětlení stavu do bublinové nápovědy.</summary>
     internal static string? StavPopis(ZmenaStav stav) => stav switch
     {
-        ZmenaStav.Pribylo => "Přibylo oproti porovnávané verzi",
-        ZmenaStav.Ubylo => "V porovnávané verzi bylo, teď už není",
-        ZmenaStav.Zmeneno => "Změnilo se oproti porovnávané verzi",
+        ZmenaStav.Pribylo => Texts.ChangeAdded,
+        ZmenaStav.Ubylo => Texts.ChangeRemoved,
+        ZmenaStav.Zmeneno => Texts.ChangeModified,
         _ => null,
     };
 
     /// <summary>Vysvětlení, proč je záložka nedostupná. U dostupné je prázdné.</summary>
     private string? TabTitle(DetailTab tab) => tab == DetailTab.Data && !CanPreviewData
         ? IsHistorical
-            ? "Data se dají prohlížet jen v aktuálním schématu — v historické verzi neexistují."
-            : "Náhled dat je vypnutý."
+            ? Texts.DataOnlyInCurrent
+            : Texts.DataPreviewOff
         : null;
 
     [Parameter]
@@ -354,11 +354,11 @@ else
 
     internal static string TabLabel(DetailTab tab) => tab switch
     {
-        DetailTab.Columns => "Sloupce",
-        DetailTab.Indexes => "Indexy",
-        DetailTab.ForeignKeys => "Cizí klíče",
-        DetailTab.ReferencedBy => "Odkazuje sem",
-        _ => "Data",
+        DetailTab.Columns => Texts.TabColumns,
+        DetailTab.Indexes => Texts.TabIndexes,
+        DetailTab.ForeignKeys => Texts.TabForeignKeys,
+        DetailTab.ReferencedBy => Texts.TabIncoming,
+        _ => Texts.TabData,
     };
 
     private string TabCount(DetailTab tab)
@@ -478,7 +478,7 @@ else
 
         if (index.IsDescending.Any(static d => d))
         {
-            notes.Add("sestupně");
+            notes.Add(Texts.Descending);
         }
 
         return string.Join(", ", notes);

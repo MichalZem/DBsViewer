@@ -20,9 +20,9 @@ else
                     Dvě různá porovnání se dvěma různými popisky byla past.
                 *@
                 <label>
-                    Co se změnilo od
+                    @Texts.ChangedSince
                     <select value="@From" @onchange="ZmenOdAsync">
-                        <option value="">před první migrací</option>
+                        <option value="">@Texts.BeforeFirstMigration</option>
                         @foreach (var m in Migrations)
                         {
                             <option value="@m.Id">@Kratce(m.Id)</option>
@@ -31,7 +31,7 @@ else
                 </label>
 
                 <label>
-                    <span class="sipka">→</span> do
+                    <span class="sipka">→</span> @Texts.CompareTo
                     <select value="@To" @onchange="ZmenDoAsync">
                         @foreach (var m in Migrations)
                         {
@@ -41,12 +41,12 @@ else
                 </label>
 
                 <button class="hlavni" disabled="@(To is null or "")" @onclick="PorovnejAsync">
-                    Porovnat
+                    @Texts.Compare
                 </button>
 
                 @if (Diff is not null)
                 {
-                    <button class="odkaz" @onclick="ZavriPorovnani">Zavřít porovnání</button>
+                    <button class="odkaz" @onclick="ZavriPorovnani">@Texts.CloseComparison</button>
                 }
             </div>
         </header>
@@ -55,8 +55,8 @@ else
         {
             <section class="historie-diff">
                 <h3>
-                    Co se změnilo od <span class="mono">@(Kratce(From) ?? "začátku historie")</span>
-                    <span class="sipka">→</span> do <span class="mono">@Kratce(To)</span>
+                    @Texts.ChangedSince <span class="mono">@(Kratce(From) ?? Texts.HistoryStart)</span>
+                    <span class="sipka">→</span> @Texts.CompareTo <span class="mono">@Kratce(To)</span>
                 </h3>
 
                 <p class="smer-vysvetleni">
@@ -84,14 +84,14 @@ else
                             @if (migrace.HasSnapshot)
                             {
                                 <button class="prepnout @(vybrana ? "aktivni" : "")"
-                                        title="Zobrazit schéma po této migraci"
+                                        title="@Texts.ShowSchemaAfterMigration"
                                         @onclick="() => PrepniAsync(migrace.Id)">
-                                    @(vybrana ? "✓ zobrazeno" : "Zobrazit schéma")
+                                    @(vybrana ? $"✓ {Texts.Shown}" : Texts.ShowSchema)
                                 </button>
                             }
                             else
                             {
-                                <span class="bez-snapshotu" title="Kód migrace v projektu není">
+                                <span class="bez-snapshotu" title="@Texts.MigrationCodeMissing">
                                     schéma není k dispozici
                                 </span>
                             }
@@ -101,8 +101,8 @@ else
                         {
                             <p class="bez-zmen">
                                 @(migrace.HasSnapshot
-                                    ? "Migrace schéma nemění."
-                                    : "Migrace proběhla, ale její kód už v projektu není.")
+                                    ? Texts.MigrationNoChange
+                                    : Texts.MigrationCodeGone)
                             </p>
                         }
                         else
@@ -224,9 +224,9 @@ else
 
     internal static string StavPopis(DbMigration migrace) => migrace switch
     {
-        { IsPending: true } => "čeká na nasazení",
-        { AppliedInDatabase: true, PresentInAssembly: false } => "chybí v kódu",
-        _ => "aplikovaná",
+        { IsPending: true } => Texts.MigrationPending,
+        { AppliedInDatabase: true, PresentInAssembly: false } => Texts.MigrationMissingInCode,
+        _ => Texts.MigrationApplied,
     };
 
     /// <summary>Přibylo, ubylo, nebo se změnilo? Podle toho se změna obarví.</summary>

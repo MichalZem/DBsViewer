@@ -53,3 +53,4 @@ Drobnosti (přejmenování metody, oprava chyby, doplnění testu) ADR nepotřeb
 | [0015](0015-editace-radku.md) | Zápis do dat jen po jednom řádku a jen podle primárního klíče | Nahrazeno | 2026-09-04 |
 | [0016](0016-rozvrzeni-velkeho-schematu.md) | Rozvržení velkého schématu: bloky, zalomení vrstev a mřížka | Přijato | 2026-09-05 |
 | [0017](0017-vkladani-radku.md) | Zápis do dat včetně vkládání řádků | Přijato | 2026-09-05 |
+| [0018](0018-vicejazycne-ui.md) | Vícejazyčné UI: silně typované resx a jazyk v adrese | Přijato | 2026-09-06 |

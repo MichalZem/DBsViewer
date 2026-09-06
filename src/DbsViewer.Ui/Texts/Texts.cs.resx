@@ -1,0 +1,764 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType><xsd:choice maxOccurs="unbounded">
+        <xsd:element name="data"><xsd:complexType><xsd:sequence>
+          <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+        </xsd:sequence><xsd:attribute name="name" type="xsd:string" msdata:Ordinal="1" />
+        <xsd:attribute name="xml:space" type="xsd:string" /></xsd:complexType></xsd:element>
+        <xsd:element name="resheader"><xsd:complexType><xsd:sequence>
+          <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+        </xsd:sequence><xsd:attribute name="name" type="xsd:string" use="required" /></xsd:complexType></xsd:element>
+      </xsd:choice></xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+  <data name="AfterFilters" xml:space="preserve">
+    <value>po filtrech</value>
+  </data>
+  <data name="AfterMigration" xml:space="preserve">
+    <value>po</value>
+  </data>
+  <data name="AllGroups" xml:space="preserve">
+    <value>Všechny skupiny</value>
+  </data>
+  <data name="AllSchemas" xml:space="preserve">
+    <value>Všechna schémata</value>
+  </data>
+  <data name="AndMore" xml:space="preserve">
+    <value>a další</value>
+  </data>
+  <data name="AppliedMigration_Few" xml:space="preserve">
+    <value>aplikované</value>
+  </data>
+  <data name="AppliedMigration_One" xml:space="preserve">
+    <value>aplikovaná</value>
+  </data>
+  <data name="AppliedMigration_Other" xml:space="preserve">
+    <value>aplikovaných</value>
+  </data>
+  <data name="BackToCurrent" xml:space="preserve">
+    <value>← Zpět na aktuální schéma</value>
+  </data>
+  <data name="BeforeFirstMigration" xml:space="preserve">
+    <value>před první migrací</value>
+  </data>
+  <data name="Cancel" xml:space="preserve">
+    <value>Zrušit</value>
+  </data>
+  <data name="ChangeAdded" xml:space="preserve">
+    <value>Přibylo oproti porovnávané verzi</value>
+  </data>
+  <data name="ChangeAddedShort" xml:space="preserve">
+    <value>přibylo</value>
+  </data>
+  <data name="ChangeLegendHint" xml:space="preserve">
+    <value>Změny se čtou ve směru šipky</value>
+  </data>
+  <data name="ChangeModified" xml:space="preserve">
+    <value>Změnilo se oproti porovnávané verzi</value>
+  </data>
+  <data name="ChangeModifiedShort" xml:space="preserve">
+    <value>jiné</value>
+  </data>
+  <data name="ChangeRemoved" xml:space="preserve">
+    <value>V porovnávané verzi bylo, teď už není</value>
+  </data>
+  <data name="ChangeRemovedShort" xml:space="preserve">
+    <value>chybí</value>
+  </data>
+  <data name="ChangedSince" xml:space="preserve">
+    <value>Co se změnilo od</value>
+  </data>
+  <data name="ClearFilters" xml:space="preserve">
+    <value>Zrušit filtry</value>
+  </data>
+  <data name="Close" xml:space="preserve">
+    <value>Zavřít</value>
+  </data>
+  <data name="CloseComparison" xml:space="preserve">
+    <value>Zavřít porovnání</value>
+  </data>
+  <data name="ColumnColumn" xml:space="preserve">
+    <value>Sloupec</value>
+  </data>
+  <data name="ColumnColumns" xml:space="preserve">
+    <value>Sloupce</value>
+  </data>
+  <data name="ColumnFinding" xml:space="preserve">
+    <value>Nález</value>
+  </data>
+  <data name="ColumnIndex" xml:space="preserve">
+    <value>Index</value>
+  </data>
+  <data name="ColumnKey" xml:space="preserve">
+    <value>Klíč</value>
+  </data>
+  <data name="ColumnNavigation" xml:space="preserve">
+    <value>Navigace</value>
+  </data>
+  <data name="ColumnNote" xml:space="preserve">
+    <value>Poznámka</value>
+  </data>
+  <data name="ColumnObject" xml:space="preserve">
+    <value>Objekt</value>
+  </data>
+  <data name="ColumnOnDelete" xml:space="preserve">
+    <value>Při smazání</value>
+  </data>
+  <data name="ColumnRelation" xml:space="preserve">
+    <value>Vztah</value>
+  </data>
+  <data name="ColumnTable" xml:space="preserve">
+    <value>Tabulka</value>
+  </data>
+  <data name="ColumnTarget" xml:space="preserve">
+    <value>Cíl</value>
+  </data>
+  <data name="ColumnType" xml:space="preserve">
+    <value>Typ</value>
+  </data>
+  <data name="ColumnUnique" xml:space="preserve">
+    <value>Unikátní</value>
+  </data>
+  <data name="Column_Few" xml:space="preserve">
+    <value>sloupce</value>
+  </data>
+  <data name="Column_One" xml:space="preserve">
+    <value>sloupec</value>
+  </data>
+  <data name="Column_Other" xml:space="preserve">
+    <value>sloupců</value>
+  </data>
+  <data name="Compare" xml:space="preserve">
+    <value>Porovnat</value>
+  </data>
+  <data name="CompareNone" xml:space="preserve">
+    <value>neporovnávat</value>
+  </data>
+  <data name="CompareTo" xml:space="preserve">
+    <value>do</value>
+  </data>
+  <data name="DataOnlyInCurrent" xml:space="preserve">
+    <value>Data se dají prohlížet jen v aktuálním schématu — v historické verzi neexistují.</value>
+  </data>
+  <data name="DataPreviewOff" xml:space="preserve">
+    <value>Náhled dat je vypnutý.</value>
+  </data>
+  <data name="DataUnavailableHistorical" xml:space="preserve">
+    <value>Data se v historické verzi prohlížet nedají.</value>
+  </data>
+  <data name="Database" xml:space="preserve">
+    <value>Databáze</value>
+  </data>
+  <data name="DatabaseLower" xml:space="preserve">
+    <value>databáze</value>
+  </data>
+  <data name="DefaultSchema" xml:space="preserve">
+    <value>výchozí</value>
+  </data>
+  <data name="Delete" xml:space="preserve">
+    <value>Smazat</value>
+  </data>
+  <data name="DeleteConfirm" xml:space="preserve">
+    <value>Smazat?</value>
+  </data>
+  <data name="DeleteReally" xml:space="preserve">
+    <value>Opravdu smazat</value>
+  </data>
+  <data name="DeleteRowTitle" xml:space="preserve">
+    <value>Smazat řádek</value>
+  </data>
+  <data name="Descending" xml:space="preserve">
+    <value>sestupně</value>
+  </data>
+  <data name="DiagramEmpty" xml:space="preserve">
+    <value>Žádné tabulky k zobrazení. Zkus změnit filtr nebo vypnout focus.</value>
+  </data>
+  <data name="DiffClean" xml:space="preserve">
+    <value>Model a databáze se shodují.</value>
+  </data>
+  <data name="DiffColumnDefaultMismatch" xml:space="preserve">
+    <value>Defaultní hodnota se liší.</value>
+  </data>
+  <data name="DiffColumnLengthMismatch" xml:space="preserve">
+    <value>Délka sloupce se liší.</value>
+  </data>
+  <data name="DiffColumnMissingInDatabase" xml:space="preserve">
+    <value>Sloupec je v modelu, ale v databázi chybí.</value>
+  </data>
+  <data name="DiffColumnMissingInModel" xml:space="preserve">
+    <value>Sloupec je v databázi, ale v modelu není. EF s ním nepracuje.</value>
+  </data>
+  <data name="DiffColumnNullabilityMismatch" xml:space="preserve">
+    <value>Povinnost sloupce se liší.</value>
+  </data>
+  <data name="DiffColumnTypeMismatch" xml:space="preserve">
+    <value>Typ sloupce se liší. Hrozí tichý ořez hodnoty nebo výjimka za běhu.</value>
+  </data>
+  <data name="DiffForeignKeyDeleteBehaviorMismatch" xml:space="preserve">
+    <value>Chování při mazání se liší. Kaskáda se v praxi chová jinak, než model tvrdí.</value>
+  </data>
+  <data name="DiffForeignKeyMissingInDatabase" xml:space="preserve">
+    <value>Cizí klíč je v modelu, ale v databázi chybí. Integrita se nevynucuje.</value>
+  </data>
+  <data name="DiffForeignKeyMissingInModel" xml:space="preserve">
+    <value>Cizí klíč je v databázi, ale v modelu není.</value>
+  </data>
+  <data name="DiffForeignKeyTargetMismatch" xml:space="preserve">
+    <value>Cizí klíč ukazuje na jinou tabulku, než model předpokládá.</value>
+  </data>
+  <data name="DiffIndexColumnsMismatch" xml:space="preserve">
+    <value>Sloupce indexu se liší.</value>
+  </data>
+  <data name="DiffIndexMissingInDatabase" xml:space="preserve">
+    <value>Index je v modelu, ale v databázi chybí. Dotazy nad ním poběží pomalu.</value>
+  </data>
+  <data name="DiffIndexMissingInModel" xml:space="preserve">
+    <value>Index je v databázi, ale v modelu není. Ručně doladěný výkon mimo migrace.</value>
+  </data>
+  <data name="DiffIndexUniquenessMismatch" xml:space="preserve">
+    <value>Unikátnost indexu se liší.</value>
+  </data>
+  <data name="DiffMigrationOrphaned" xml:space="preserve">
+    <value>Migrace je nasazená, ale v kódu chybí. Databáze je novější než aplikace.</value>
+  </data>
+  <data name="DiffMigrationPending" xml:space="preserve">
+    <value>Migrace je v kódu, ale není nasazená.</value>
+  </data>
+  <data name="DiffPrimaryKeyMismatch" xml:space="preserve">
+    <value>Primární klíč se liší.</value>
+  </data>
+  <data name="DiffTableMissingInDatabase" xml:space="preserve">
+    <value>Tabulka je v modelu, ale v databázi chybí. Nejspíš neaplikovaná migrace.</value>
+  </data>
+  <data name="DiffTableMissingInModel" xml:space="preserve">
+    <value>Tabulka je v databázi, ale v modelu není. Legacy objekt nebo cizí schéma.</value>
+  </data>
+  <data name="DiscardChanges" xml:space="preserve">
+    <value>Zahodit změny</value>
+  </data>
+  <data name="DiscardNewRow" xml:space="preserve">
+    <value>Zahodit nový řádek</value>
+  </data>
+  <data name="DownloadFailed" xml:space="preserve">
+    <value>Stažení souboru se nepovedlo:</value>
+  </data>
+  <data name="Edit" xml:space="preserve">
+    <value>Upravit</value>
+  </data>
+  <data name="EditRowTitle" xml:space="preserve">
+    <value>Upravit řádek</value>
+  </data>
+  <data name="ErrorBadRequest" xml:space="preserve">
+    <value>Server požadavku nerozuměl. Zkontroluj zvolený pohled.</value>
+  </data>
+  <data name="ErrorFinding_Few" xml:space="preserve">
+    <value>chyby</value>
+  </data>
+  <data name="ErrorFinding_One" xml:space="preserve">
+    <value>chyba</value>
+  </data>
+  <data name="ErrorFinding_Other" xml:space="preserve">
+    <value>chyb</value>
+  </data>
+  <data name="ErrorForbidden" xml:space="preserve">
+    <value>Přístup odepřen. Funkce je v konfiguraci vypnutá nebo na ni nemáš oprávnění.</value>
+  </data>
+  <data name="ErrorNotFound" xml:space="preserve">
+    <value>Požadovaný objekt neexistuje.</value>
+  </data>
+  <data name="ErrorStatus" xml:space="preserve">
+    <value>Server odpověděl chybou {0}.</value>
+  </data>
+  <data name="ErrorUnauthorized" xml:space="preserve">
+    <value>Nejsi přihlášený. Přihlas se a zkus to znovu.</value>
+  </data>
+  <data name="Export" xml:space="preserve">
+    <value>Export</value>
+  </data>
+  <data name="ExportTitle" xml:space="preserve">
+    <value>Export schématu</value>
+  </data>
+  <data name="FirstPage" xml:space="preserve">
+    <value>První stránka</value>
+  </data>
+  <data name="FocusDistance" xml:space="preserve">
+    <value>Vzdálenost</value>
+  </data>
+  <data name="FocusOnSelected" xml:space="preserve">
+    <value>Focus na vybranou tabulku</value>
+  </data>
+  <data name="ForeignKeyWithoutIndex" xml:space="preserve">
+    <value>Cizí klíč bez indexu</value>
+  </data>
+  <data name="ForeignKeyWithoutIndexHint" xml:space="preserve">
+    <value>Při JOINu i při mazání rodiče musí databáze projít celou tabulku. U malých číselníků to nevadí.</value>
+  </data>
+  <data name="HideMessage" xml:space="preserve">
+    <value>Skrýt hlášku</value>
+  </data>
+  <data name="HistoricalColumnDefaultMismatch" xml:space="preserve">
+    <value>Sloupec změnil výchozí hodnotu.</value>
+  </data>
+  <data name="HistoricalColumnLengthMismatch" xml:space="preserve">
+    <value>Sloupec změnil délku.</value>
+  </data>
+  <data name="HistoricalColumnMissingInDatabase" xml:space="preserve">
+    <value>Sloupec zanikl.</value>
+  </data>
+  <data name="HistoricalColumnMissingInModel" xml:space="preserve">
+    <value>Sloupec přibyl.</value>
+  </data>
+  <data name="HistoricalColumnNullabilityMismatch" xml:space="preserve">
+    <value>Sloupec změnil povinnost.</value>
+  </data>
+  <data name="HistoricalColumnTypeMismatch" xml:space="preserve">
+    <value>Sloupec změnil typ.</value>
+  </data>
+  <data name="HistoricalForeignKeyDeleteBehaviorMismatch" xml:space="preserve">
+    <value>Cizí klíč změnil chování při mazání.</value>
+  </data>
+  <data name="HistoricalForeignKeyMissingInDatabase" xml:space="preserve">
+    <value>Cizí klíč zanikl.</value>
+  </data>
+  <data name="HistoricalForeignKeyMissingInModel" xml:space="preserve">
+    <value>Cizí klíč přibyl.</value>
+  </data>
+  <data name="HistoricalForeignKeyTargetMismatch" xml:space="preserve">
+    <value>Cizí klíč změnil cíl.</value>
+  </data>
+  <data name="HistoricalIndexColumnsMismatch" xml:space="preserve">
+    <value>Index změnil sloupce.</value>
+  </data>
+  <data name="HistoricalIndexMissingInDatabase" xml:space="preserve">
+    <value>Index zanikl.</value>
+  </data>
+  <data name="HistoricalIndexMissingInModel" xml:space="preserve">
+    <value>Index přibyl.</value>
+  </data>
+  <data name="HistoricalIndexUniquenessMismatch" xml:space="preserve">
+    <value>Index změnil unikátnost.</value>
+  </data>
+  <data name="HistoricalPrimaryKeyMismatch" xml:space="preserve">
+    <value>Primární klíč se změnil.</value>
+  </data>
+  <data name="HistoricalTableMissingInDatabase" xml:space="preserve">
+    <value>Tabulka zanikla.</value>
+  </data>
+  <data name="HistoricalTableMissingInModel" xml:space="preserve">
+    <value>Tabulka přibyla.</value>
+  </data>
+  <data name="HistoryStart" xml:space="preserve">
+    <value>začátku historie</value>
+  </data>
+  <data name="Index_Few" xml:space="preserve">
+    <value>indexy</value>
+  </data>
+  <data name="Index_One" xml:space="preserve">
+    <value>index</value>
+  </data>
+  <data name="Index_Other" xml:space="preserve">
+    <value>indexů</value>
+  </data>
+  <data name="Insert" xml:space="preserve">
+    <value>Vložit</value>
+  </data>
+  <data name="InsertRowTitle" xml:space="preserve">
+    <value>Vložit řádek</value>
+  </data>
+  <data name="IsolatedTableHint" xml:space="preserve">
+    <value>Tabulka nesouvisí s žádnou jinou — číselník, log, nebo pozůstatek.</value>
+  </data>
+  <data name="Item_Few" xml:space="preserve">
+    <value>položky</value>
+  </data>
+  <data name="Item_One" xml:space="preserve">
+    <value>položka</value>
+  </data>
+  <data name="Item_Other" xml:space="preserve">
+    <value>položek</value>
+  </data>
+  <data name="JoinTableBadge" xml:space="preserve">
+    <value>Vazební tabulka N:M</value>
+  </data>
+  <data name="JoinTableHint" xml:space="preserve">
+    <value>Spojují dvě tabulky bez vlastních dat. V diagramu jsou označené odznakem.</value>
+  </data>
+  <data name="JoinTableShort" xml:space="preserve">
+    <value>vazební N:M</value>
+  </data>
+  <data name="JoinTable_Few" xml:space="preserve">
+    <value>vazební tabulky</value>
+  </data>
+  <data name="JoinTable_One" xml:space="preserve">
+    <value>vazební tabulka</value>
+  </data>
+  <data name="JoinTable_Other" xml:space="preserve">
+    <value>vazebních tabulek</value>
+  </data>
+  <data name="LanguageReloadConfirm" xml:space="preserve">
+    <value>Přepnout</value>
+  </data>
+  <data name="LanguageReloadWarning" xml:space="preserve">
+    <value>Prohlížečka se musí načíst znovu — překlady se stahují jen pro jazyk, se kterým nastartovala. Přijdeš o vybranou tabulku, filtry i pozici v diagramu.</value>
+  </data>
+  <data name="LanguageSwitchHeading" xml:space="preserve">
+    <value>Přepnout jazyk?</value>
+  </data>
+  <data name="LanguageSwitchTo" xml:space="preserve">
+    <value>Přepne se na</value>
+  </data>
+  <data name="LanguageTitle" xml:space="preserve">
+    <value>Jazyk</value>
+  </data>
+  <data name="LargestTables" xml:space="preserve">
+    <value>Největší tabulky</value>
+  </data>
+  <data name="LastMigration" xml:space="preserve">
+    <value>poslední</value>
+  </data>
+  <data name="LastPage" xml:space="preserve">
+    <value>Poslední stránka</value>
+  </data>
+  <data name="Legend" xml:space="preserve">
+    <value>Vysvětlivky</value>
+  </data>
+  <data name="LegendHide" xml:space="preserve">
+    <value>Skrýt vysvětlivky</value>
+  </data>
+  <data name="LoadedAt" xml:space="preserve">
+    <value>Načteno</value>
+  </data>
+  <data name="LoadingData" xml:space="preserve">
+    <value>Načítám data…</value>
+  </data>
+  <data name="LoadingDiff" xml:space="preserve">
+    <value>Načítám porovnání…</value>
+  </data>
+  <data name="LoadingSchema" xml:space="preserve">
+    <value>Načítám schéma…</value>
+  </data>
+  <data name="MigrationApplied" xml:space="preserve">
+    <value>aplikovaná</value>
+  </data>
+  <data name="MigrationCodeGone" xml:space="preserve">
+    <value>Migrace proběhla, ale její kód už v projektu není.</value>
+  </data>
+  <data name="MigrationCodeMissing" xml:space="preserve">
+    <value>Kód migrace v projektu není</value>
+  </data>
+  <data name="MigrationCurrent" xml:space="preserve">
+    <value>aktuální</value>
+  </data>
+  <data name="MigrationCurrentSchema" xml:space="preserve">
+    <value>aktuální schéma</value>
+  </data>
+  <data name="MigrationMissingInCode" xml:space="preserve">
+    <value>chybí v kódu</value>
+  </data>
+  <data name="MigrationNoChange" xml:space="preserve">
+    <value>Migrace schéma nemění.</value>
+  </data>
+  <data name="MigrationNoSnapshot" xml:space="preserve">
+    <value>bez schématu</value>
+  </data>
+  <data name="MigrationPending" xml:space="preserve">
+    <value>čeká na nasazení</value>
+  </data>
+  <data name="Migrations" xml:space="preserve">
+    <value>Migrace</value>
+  </data>
+  <data name="Model" xml:space="preserve">
+    <value>Model</value>
+  </data>
+  <data name="ModelLower" xml:space="preserve">
+    <value>model</value>
+  </data>
+  <data name="MostCommonTypes" xml:space="preserve">
+    <value>Nejčastější typy</value>
+  </data>
+  <data name="MostConnected" xml:space="preserve">
+    <value>Nejvíc propojené</value>
+  </data>
+  <data name="NewRow" xml:space="preserve">
+    <value>+ Nový řádek</value>
+  </data>
+  <data name="NewRowEmpty" xml:space="preserve">
+    <value>Nový řádek nemá vyplněný ani jeden sloupec.</value>
+  </data>
+  <data name="NewRowTitle" xml:space="preserve">
+    <value>Založit nový řádek</value>
+  </data>
+  <data name="NewerVersion" xml:space="preserve">
+    <value>Novější verze</value>
+  </data>
+  <data name="No" xml:space="preserve">
+    <value>Ne</value>
+  </data>
+  <data name="NoForeignKeys" xml:space="preserve">
+    <value>Tabulka nemá žádné cizí klíče.</value>
+  </data>
+  <data name="NoIndexes" xml:space="preserve">
+    <value>Tabulka nemá žádné indexy.</value>
+  </data>
+  <data name="NoRowsMatchFilter" xml:space="preserve">
+    <value>Filtrům neodpovídá žádný řádek.</value>
+  </data>
+  <data name="NoTableSelectedError" xml:space="preserve">
+    <value>Není vybraná žádná tabulka.</value>
+  </data>
+  <data name="NothingNotable" xml:space="preserve">
+    <value>Nic nápadného. Každá tabulka má primární klíč, cizí klíče jsou pokryté indexy a nic nestojí stranou.</value>
+  </data>
+  <data name="OfTotal" xml:space="preserve">
+    <value>z</value>
+  </data>
+  <data name="OlderVersion" xml:space="preserve">
+    <value>Starší verze</value>
+  </data>
+  <data name="Page" xml:space="preserve">
+    <value>Stránka</value>
+  </data>
+  <data name="PageSize" xml:space="preserve">
+    <value>Na stránku</value>
+  </data>
+  <data name="PickTable" xml:space="preserve">
+    <value>Vyber tabulku ze seznamu vlevo.</value>
+  </data>
+  <data name="ReasonColumnMissing" xml:space="preserve">
+    <value>sloupec ve schématu není</value>
+  </data>
+  <data name="ReasonKeyNotReadable" xml:space="preserve">
+    <value>primární klíč není v mřížce celý čitelný</value>
+  </data>
+  <data name="ReasonNoPrimaryKey" xml:space="preserve">
+    <value>tabulka nemá primární klíč</value>
+  </data>
+  <data name="ReasonView" xml:space="preserve">
+    <value>pohled se přes prohlížečku neupravuje</value>
+  </data>
+  <data name="Refresh" xml:space="preserve">
+    <value>Obnovit</value>
+  </data>
+  <data name="RefreshTitle" xml:space="preserve">
+    <value>Načíst schéma znovu</value>
+  </data>
+  <data name="Relationship_Few" xml:space="preserve">
+    <value>vazby</value>
+  </data>
+  <data name="Relationship_One" xml:space="preserve">
+    <value>vazba</value>
+  </data>
+  <data name="Relationship_Other" xml:space="preserve">
+    <value>vazeb</value>
+  </data>
+  <data name="ReloadTitle" xml:space="preserve">
+    <value>Načíst znovu</value>
+  </data>
+  <data name="RowActions" xml:space="preserve">
+    <value>Úpravy řádku</value>
+  </data>
+  <data name="RowNotIdentifiable" xml:space="preserve">
+    <value>Řádek se nedá jednoznačně určit, takže se s ním nedá nic dělat.</value>
+  </data>
+  <data name="Row_Few" xml:space="preserve">
+    <value>řádky</value>
+  </data>
+  <data name="Row_One" xml:space="preserve">
+    <value>řádek</value>
+  </data>
+  <data name="Row_Other" xml:space="preserve">
+    <value>řádků</value>
+  </data>
+  <data name="RowsEstimate" xml:space="preserve">
+    <value>(odhad)</value>
+  </data>
+  <data name="RowsEstimateTitle" xml:space="preserve">
+    <value>Odhad ze statistik</value>
+  </data>
+  <data name="Save" xml:space="preserve">
+    <value>Uložit</value>
+  </data>
+  <data name="SaveChanges" xml:space="preserve">
+    <value>Uložit změny</value>
+  </data>
+  <data name="SchemaLabel" xml:space="preserve">
+    <value>Schéma</value>
+  </data>
+  <data name="SchemaLoadFailed" xml:space="preserve">
+    <value>Schéma se nepodařilo načíst.</value>
+  </data>
+  <data name="SchemaLower" xml:space="preserve">
+    <value>schéma</value>
+  </data>
+  <data name="SchemaSource" xml:space="preserve">
+    <value>Zdroj schématu</value>
+  </data>
+  <data name="Schemas" xml:space="preserve">
+    <value>Schémata</value>
+  </data>
+  <data name="SearchPlaceholder" xml:space="preserve">
+    <value>Hledat tabulku nebo sloupec…</value>
+  </data>
+  <data name="ServerUnreachable" xml:space="preserve">
+    <value>Server neodpovídá. Zkontroluj, jestli aplikace běží.</value>
+  </data>
+  <data name="SeverityErrors" xml:space="preserve">
+    <value>Chyby</value>
+  </data>
+  <data name="SeverityInfo" xml:space="preserve">
+    <value>Informace</value>
+  </data>
+  <data name="SeverityWarnings" xml:space="preserve">
+    <value>Varování</value>
+  </data>
+  <data name="ShowAllColumns" xml:space="preserve">
+    <value>Zobrazit všechny sloupce</value>
+  </data>
+  <data name="ShowSchema" xml:space="preserve">
+    <value>Zobrazit schéma</value>
+  </data>
+  <data name="ShowSchemaAfterMigration" xml:space="preserve">
+    <value>Zobrazit schéma po této migraci</value>
+  </data>
+  <data name="ShowTableData" xml:space="preserve">
+    <value>Zobrazit data tabulky</value>
+  </data>
+  <data name="Shown" xml:space="preserve">
+    <value>zobrazeno</value>
+  </data>
+  <data name="SortBy" xml:space="preserve">
+    <value>Seřadit podle</value>
+  </data>
+  <data name="Source" xml:space="preserve">
+    <value>Zdroj</value>
+  </data>
+  <data name="SourceDatabase" xml:space="preserve">
+    <value>Databáze</value>
+  </data>
+  <data name="SourceEfModel" xml:space="preserve">
+    <value>EF model</value>
+  </data>
+  <data name="SourceMerged" xml:space="preserve">
+    <value>Sloučeno</value>
+  </data>
+  <data name="StoreNull" xml:space="preserve">
+    <value>Uložit NULL</value>
+  </data>
+  <data name="TabColumns" xml:space="preserve">
+    <value>Sloupce</value>
+  </data>
+  <data name="TabData" xml:space="preserve">
+    <value>Data</value>
+  </data>
+  <data name="TabDiagram" xml:space="preserve">
+    <value>Diagram</value>
+  </data>
+  <data name="TabDifferences" xml:space="preserve">
+    <value>Rozdíly</value>
+  </data>
+  <data name="TabForeignKeys" xml:space="preserve">
+    <value>Cizí klíče</value>
+  </data>
+  <data name="TabHistory" xml:space="preserve">
+    <value>Historie</value>
+  </data>
+  <data name="TabIncoming" xml:space="preserve">
+    <value>Odkazuje sem</value>
+  </data>
+  <data name="TabIndexes" xml:space="preserve">
+    <value>Indexy</value>
+  </data>
+  <data name="TabOverview" xml:space="preserve">
+    <value>Přehled</value>
+  </data>
+  <data name="TabTables" xml:space="preserve">
+    <value>Tabulky</value>
+  </data>
+  <data name="TableEmpty" xml:space="preserve">
+    <value>Tabulka je prázdná.</value>
+  </data>
+  <data name="TableGroup" xml:space="preserve">
+    <value>Skupina tabulek</value>
+  </data>
+  <data name="Table_Few" xml:space="preserve">
+    <value>tabulky</value>
+  </data>
+  <data name="Table_One" xml:space="preserve">
+    <value>tabulka</value>
+  </data>
+  <data name="Table_Other" xml:space="preserve">
+    <value>tabulek</value>
+  </data>
+  <data name="TablesGenitive" xml:space="preserve">
+    <value>tabulek</value>
+  </data>
+  <data name="TotalCountUnknown" xml:space="preserve">
+    <value>bez celkového počtu</value>
+  </data>
+  <data name="TotalCountUnknownTitle" xml:space="preserve">
+    <value>Celkový počet se nepodařilo zjistit</value>
+  </data>
+  <data name="TphInheritance" xml:space="preserve">
+    <value>Dědičnost TPH</value>
+  </data>
+  <data name="VersionCurrent" xml:space="preserve">
+    <value>Aktuální schéma</value>
+  </data>
+  <data name="VersionHistorical" xml:space="preserve">
+    <value>Historická verze</value>
+  </data>
+  <data name="VersionLabel" xml:space="preserve">
+    <value>Verze schématu</value>
+  </data>
+  <data name="ViewBadge" xml:space="preserve">
+    <value>Pohled</value>
+  </data>
+  <data name="View_Few" xml:space="preserve">
+    <value>pohledy</value>
+  </data>
+  <data name="View_One" xml:space="preserve">
+    <value>pohled</value>
+  </data>
+  <data name="View_Other" xml:space="preserve">
+    <value>pohledů</value>
+  </data>
+  <data name="WarningFinding_Few" xml:space="preserve">
+    <value>varování</value>
+  </data>
+  <data name="WarningFinding_One" xml:space="preserve">
+    <value>varování</value>
+  </data>
+  <data name="WarningFinding_Other" xml:space="preserve">
+    <value>varování</value>
+  </data>
+  <data name="WarningsHeading" xml:space="preserve">
+    <value>Při načítání se nepovedlo přečíst všechno</value>
+  </data>
+  <data name="WithoutPrimaryKey" xml:space="preserve">
+    <value>Bez primárního klíče</value>
+  </data>
+  <data name="WithoutPrimaryKeyHint" xml:space="preserve">
+    <value>Řádek nejde jednoznačně adresovat; EF s takovou tabulkou umí pracovat jen pro čtení.</value>
+  </data>
+  <data name="WorthAttention" xml:space="preserve">
+    <value>Co stojí za pozornost</value>
+  </data>
+  <data name="Yes" xml:space="preserve">
+    <value>Ano</value>
+  </data>
+  <data name="ZoomIn" xml:space="preserve">
+    <value>Přiblížit</value>
+  </data>
+  <data name="ZoomOut" xml:space="preserve">
+    <value>Oddálit</value>
+  </data>
+  <data name="ZoomReset" xml:space="preserve">
+    <value>Původní velikost</value>
+  </data>
+</root>

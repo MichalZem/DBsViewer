@@ -92,8 +92,8 @@ public class DataEditTests : TestContext
         var component = Mrizka();
 
         Assert.Equal(2, component.FindAll("td.akce").Count);
-        Assert.Contains("Upravit", component.Markup, StringComparison.Ordinal);
-        Assert.Contains("Smazat", component.Markup, StringComparison.Ordinal);
+        Assert.Contains("Edit", component.Markup, StringComparison.Ordinal);
+        Assert.Contains("Delete", component.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -122,7 +122,7 @@ public class DataEditTests : TestContext
         var component = Mrizka(table: Tabulka(sKlicem: false));
 
         Assert.Empty(component.FindAll("td.akce"));
-        Assert.Contains("tabulka nemá primární klíč", component.Markup, StringComparison.Ordinal);
+        Assert.Contains("the table has no primary key", component.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -131,13 +131,13 @@ public class DataEditTests : TestContext
         var component = Mrizka(preview: Nahled("Id"));
 
         Assert.Empty(component.FindAll("td.akce"));
-        Assert.Contains("není v mřížce celý čitelný", component.Markup, StringComparison.Ordinal);
+        Assert.Contains("not fully readable in the grid", component.Markup, StringComparison.Ordinal);
     }
 
     [Theory]
-    [InlineData(true, false, "pohled se přes prohlížečku neupravuje")]
-    [InlineData(false, false, "tabulka nemá primární klíč")]
-    [InlineData(false, true, "primární klíč není v mřížce celý čitelný")]
+    [InlineData(true, false, "a view is not edited through the viewer")]
+    [InlineData(false, false, "the table has no primary key")]
+    [InlineData(false, true, "the primary key is not fully readable in the grid")]
     public void Duvod_proc_se_nezapisuje(bool isView, bool sKlicem, string expected)
     {
         var table = Tabulka(sKlicem: sKlicem || isView, isView: isView);
@@ -152,7 +152,7 @@ public class DataEditTests : TestContext
     {
         var component = Mrizka();
 
-        Klikni(component, "Upravit");
+        Klikni(component, "Edit");
 
         // Klíč ani počítaný sloupec políčko nedostanou.
         Assert.Equal(2, component.FindAll("tr.upravuje-se input.hodnota").Count);
@@ -164,7 +164,7 @@ public class DataEditTests : TestContext
     {
         var component = Mrizka();
 
-        Klikni(component, "Upravit");
+        Klikni(component, "Edit");
 
         var bunky = component.FindAll("tr.upravuje-se td.neupravitelna");
 
@@ -178,9 +178,9 @@ public class DataEditTests : TestContext
         var updates = new List<DataUpdate>();
         var component = Mrizka(updates);
 
-        Klikni(component, "Upravit");
+        Klikni(component, "Edit");
         component.FindAll("tr.upravuje-se input.hodnota").ElementAt(0).Change("novy@x.cz");
-        Klikni(component, "Uložit");
+        Klikni(component, "Save");
 
         var update = Assert.Single(updates);
 
@@ -199,8 +199,8 @@ public class DataEditTests : TestContext
         var updates = new List<DataUpdate>();
         var component = Mrizka(updates);
 
-        Klikni(component, "Upravit");
-        Klikni(component, "Uložit");
+        Klikni(component, "Edit");
+        Klikni(component, "Save");
 
         Assert.Empty(updates);
         Assert.Empty(component.FindAll("tr.upravuje-se"));
@@ -212,9 +212,9 @@ public class DataEditTests : TestContext
         var updates = new List<DataUpdate>();
         var component = Mrizka(updates);
 
-        Klikni(component, "Upravit");
+        Klikni(component, "Edit");
         component.FindAll("input.hodnota").ElementAt(0).Change("jiny@x.cz");
-        Klikni(component, "Zrušit");
+        Klikni(component, "Cancel");
 
         Assert.Empty(updates);
         Assert.Empty(component.FindAll("tr.upravuje-se"));
@@ -229,9 +229,9 @@ public class DataEditTests : TestContext
         // První načtení proběhlo při vykreslení.
         Assert.Single(loads);
 
-        Klikni(component, "Upravit");
+        Klikni(component, "Edit");
         component.FindAll("input.hodnota").ElementAt(0).Change("novy@x.cz");
-        Klikni(component, "Uložit");
+        Klikni(component, "Save");
 
         Assert.Equal(2, loads.Count);
     }
@@ -242,9 +242,9 @@ public class DataEditTests : TestContext
         var updates = new List<DataUpdate>();
         var component = Mrizka(updates);
 
-        Klikni(component, "Upravit");
+        Klikni(component, "Edit");
         component.Find("input[type=checkbox]").Change(true);
-        Klikni(component, "Uložit");
+        Klikni(component, "Save");
 
         var zmena = Assert.Single(Assert.Single(updates).Values);
 
@@ -259,12 +259,12 @@ public class DataEditTests : TestContext
         var component = Mrizka(updates);
 
         // Druhý řádek má ve sloupci Jmeno NULL.
-        Klikni(component, "Upravit", radek: 1);
+        Klikni(component, "Edit", radek: 1);
 
         Assert.True(component.Find("input[type=checkbox]").HasAttribute("checked"));
 
         component.Find("input[type=checkbox]").Change(false);
-        Klikni(component, "Uložit", radek: 1);
+        Klikni(component, "Save", radek: 1);
 
         var zmena = Assert.Single(Assert.Single(updates).Values);
 
@@ -279,13 +279,13 @@ public class DataEditTests : TestContext
         var deletes = new List<DataDelete>();
         var component = Mrizka(deletes: deletes);
 
-        Klikni(component, "Smazat");
+        Klikni(component, "Delete");
 
         Assert.Empty(deletes);
-        Assert.Contains("Smazat?", component.Markup, StringComparison.Ordinal);
+        Assert.Contains("Delete?", component.Markup, StringComparison.Ordinal);
         Assert.Single(component.FindAll("tr.maze-se"));
 
-        Klikni(component, "Ano");
+        Klikni(component, "Yes");
 
         Assert.Equal("1", Assert.Single(Assert.Single(deletes).Key).Value);
     }
@@ -296,8 +296,8 @@ public class DataEditTests : TestContext
         var deletes = new List<DataDelete>();
         var component = Mrizka(deletes: deletes);
 
-        Klikni(component, "Smazat");
-        Klikni(component, "Ne");
+        Klikni(component, "Delete");
+        Klikni(component, "No");
 
         Assert.Empty(deletes);
         Assert.Empty(component.FindAll("tr.maze-se"));
@@ -308,8 +308,8 @@ public class DataEditTests : TestContext
     {
         var component = Mrizka();
 
-        Klikni(component, "Upravit");
-        Klikni(component, "Smazat", radek: 1);
+        Klikni(component, "Edit");
+        Klikni(component, "Delete", radek: 1);
 
         Assert.Empty(component.FindAll("tr.upravuje-se"));
         Assert.Single(component.FindAll("tr.maze-se"));
@@ -322,9 +322,9 @@ public class DataEditTests : TestContext
     {
         var component = Mrizka(chyba: "Databáze zápis odmítla: cizí klíč.");
 
-        Klikni(component, "Upravit");
+        Klikni(component, "Edit");
         component.FindAll("input.hodnota").ElementAt(0).Change("novy@x.cz");
-        Klikni(component, "Uložit");
+        Klikni(component, "Save");
 
         Assert.Contains("cizí klíč", component.Markup, StringComparison.Ordinal);
         Assert.Single(component.FindAll("tr.upravuje-se"));
@@ -335,8 +335,8 @@ public class DataEditTests : TestContext
     {
         var component = Mrizka(chyba: "Nepovedlo se to.");
 
-        Klikni(component, "Smazat");
-        Klikni(component, "Ano");
+        Klikni(component, "Delete");
+        Klikni(component, "Yes");
 
         Assert.Single(component.FindAll("p.zapis-chyba"));
 
@@ -359,11 +359,11 @@ public class DataEditTests : TestContext
         var deletes = new List<DataDelete>();
         var component = Mrizka(deletes: deletes, preview: preview);
 
-        Klikni(component, "Smazat");
-        Klikni(component, "Ano");
+        Klikni(component, "Delete");
+        Klikni(component, "Yes");
 
         Assert.Empty(deletes);
-        Assert.Contains("jednoznačně určit", component.Markup, StringComparison.Ordinal);
+        Assert.Contains("cannot be identified", component.Markup, StringComparison.Ordinal);
     }
 
     // ---------- vkládání ----------
@@ -375,7 +375,7 @@ public class DataEditTests : TestContext
     [Fact]
     public void Bez_povoleneho_vkladani_se_novy_radek_nenabizi()
     {
-        Assert.DoesNotContain("Nový řádek", Mrizka().Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("New row", Mrizka().Markup, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -385,7 +385,7 @@ public class DataEditTests : TestContext
         // a kliknutí by vypadalo, že se nic nestalo.
         var component = Mrizka(canInsert: true);
 
-        KlikniNahore(component, "+ Nový řádek");
+        KlikniNahore(component, "+ New row");
 
         var radky = component.FindAll("tbody tr");
 
@@ -400,12 +400,12 @@ public class DataEditTests : TestContext
         var inserts = new List<DataInsert>();
         var component = Mrizka(canInsert: true, inserts: inserts);
 
-        KlikniNahore(component, "+ Nový řádek");
+        KlikniNahore(component, "+ New row");
 
         var radek = component.FindAll("tbody tr").ElementAt(0);
         radek.QuerySelectorAll("input.hodnota").ElementAt(1).Change("novy@x.cz");
 
-        KlikniNahore(component, "Vložit");
+        KlikniNahore(component, "Insert");
 
         var insert = Assert.Single(inserts);
         var hodnota = Assert.Single(insert.Values);
@@ -420,11 +420,11 @@ public class DataEditTests : TestContext
         var inserts = new List<DataInsert>();
         var component = Mrizka(canInsert: true, inserts: inserts);
 
-        KlikniNahore(component, "+ Nový řádek");
-        KlikniNahore(component, "Vložit");
+        KlikniNahore(component, "+ New row");
+        KlikniNahore(component, "Insert");
 
         Assert.Empty(inserts);
-        Assert.Contains("ani jeden sloupec", component.Markup, StringComparison.Ordinal);
+        Assert.Contains("no column filled in", component.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -432,7 +432,7 @@ public class DataEditTests : TestContext
     {
         var component = Mrizka(canInsert: true, table: Tabulka(isView: true));
 
-        Assert.DoesNotContain("Nový řádek", component.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("New row", component.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -442,7 +442,7 @@ public class DataEditTests : TestContext
         // existující řádek neadresuje.
         var component = Mrizka(canInsert: true, table: Tabulka(sKlicem: false));
 
-        Assert.Contains("Nový řádek", component.Markup, StringComparison.Ordinal);
+        Assert.Contains("New row", component.Markup, StringComparison.Ordinal);
         Assert.DoesNotContain(">Upravit<", component.Markup, StringComparison.Ordinal);
     }
 
@@ -451,7 +451,7 @@ public class DataEditTests : TestContext
     {
         var component = Mrizka(canInsert: true);
 
-        KlikniNahore(component, "+ Nový řádek");
+        KlikniNahore(component, "+ New row");
 
         var radek = component.FindAll("tbody tr").ElementAt(0);
 
@@ -465,10 +465,10 @@ public class DataEditTests : TestContext
     {
         var component = Mrizka(canInsert: true, inserts: [], chyba: "Databáze zápis odmítla");
 
-        KlikniNahore(component, "+ Nový řádek");
+        KlikniNahore(component, "+ New row");
         component.FindAll("tbody tr").ElementAt(0)
             .QuerySelectorAll("input.hodnota").ElementAt(1).Change("novy@x.cz");
-        KlikniNahore(component, "Vložit");
+        KlikniNahore(component, "Insert");
 
         Assert.Contains("Databáze zápis odmítla", component.Markup, StringComparison.Ordinal);
         Assert.Equal(3, component.FindAll("tbody tr").Count);
@@ -493,7 +493,7 @@ public class DataEditTests : TestContext
 
         var component = Mrizka(canInsert: true, table: sDefaultem);
 
-        KlikniNahore(component, "+ Nový řádek");
+        KlikniNahore(component, "+ New row");
 
         var policka = component.FindAll("tbody tr").ElementAt(0).QuerySelectorAll("input.hodnota");
 
@@ -507,8 +507,8 @@ public class DataEditTests : TestContext
     {
         var component = Mrizka(canInsert: true);
 
-        KlikniNahore(component, "+ Nový řádek");
-        KlikniNahore(component, "Zrušit");
+        KlikniNahore(component, "+ New row");
+        KlikniNahore(component, "Cancel");
 
         Assert.Equal(2, component.FindAll("tbody tr").Count);
     }

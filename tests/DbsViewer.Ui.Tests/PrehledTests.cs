@@ -13,7 +13,7 @@ public class PrehledTests : TestContext
     {
         var component = Render(new DatabaseSchema());
 
-        Assert.Contains("tabulek", component.Markup, StringComparison.Ordinal);
+        Assert.Contains("tables", component.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -21,7 +21,7 @@ public class PrehledTests : TestContext
     {
         var component = Render(Ukazka());
 
-        Assert.Contains("Zdroj", component.Markup, StringComparison.Ordinal);
+        Assert.Contains("Source", component.Markup, StringComparison.Ordinal);
         Assert.Contains("Eshop", component.Markup, StringComparison.Ordinal);
 
         // Dvě tabulky, jeden pohled.
@@ -32,10 +32,10 @@ public class PrehledTests : TestContext
     public void Pohledy_se_ukazou_jen_kdyz_nejake_jsou()
     {
         var bez = Render(Schema(Build.Table("Zakaznici", ["Id"], ["Id"])));
-        Assert.DoesNotContain("pohled", bez.Markup, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("view", bez.Markup, StringComparison.OrdinalIgnoreCase);
 
         var s = Render(Schema(Build.Table("Prehled", ["X"], isView: true)));
-        Assert.Contains("pohled", s.Markup, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("view", s.Markup, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -44,7 +44,7 @@ public class PrehledTests : TestContext
         var schema = Schema(Build.Table("Objednavky", ["Id"], ["Id"]) with { RowCountEstimate = 12345 });
 
         // Nedělitelná mezera po tisících, nezávisle na kultuře stroje.
-        Assert.Contains("12 345", Render(schema).Markup, StringComparison.Ordinal);
+        Assert.Contains("12,345", Render(schema).Markup, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -100,7 +100,7 @@ public class PrehledTests : TestContext
             ],
         };
 
-        Assert.Contains("Nic nápadného", Render(schema).Markup, StringComparison.Ordinal);
+        Assert.Contains("Nothing notable", Render(schema).Markup, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -110,7 +110,7 @@ public class PrehledTests : TestContext
 
         var markup = Render(schema).Markup;
 
-        Assert.Contains("Bez primárního klíče", markup, StringComparison.Ordinal);
+        Assert.Contains("Without a primary key", markup, StringComparison.Ordinal);
         Assert.Contains("ImportniDavka", markup, StringComparison.Ordinal);
     }
 
@@ -121,7 +121,7 @@ public class PrehledTests : TestContext
             Build.Table("Objednavky", ["Id", "ZakaznikId"], ["Id"],
                 foreignKeys: [Build.ForeignKey("FK", ["ZakaznikId"], "Zakaznici")]));
 
-        Assert.Contains("Cizí klíč bez indexu", Render(schema).Markup, StringComparison.Ordinal);
+        Assert.Contains("Foreign key without an index", Render(schema).Markup, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -168,7 +168,7 @@ public class PrehledTests : TestContext
 
         var markup = Render(Schema(tables)).Markup;
 
-        Assert.Contains("a další 2 položky", markup, StringComparison.Ordinal);
+        Assert.Contains("and another 2 items", markup, StringComparison.Ordinal);
         Assert.DoesNotContain("Bez10", markup, StringComparison.Ordinal);
     }
 
@@ -181,7 +181,7 @@ public class PrehledTests : TestContext
                 foreignKeys: [Build.ForeignKey("FK", ["CizId"], "Jina")]))
             .ToArray();
 
-        Assert.Contains("a další 2 položky", Render(Schema(tables)).Markup, StringComparison.Ordinal);
+        Assert.Contains("and another 2 items", Render(Schema(tables)).Markup, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -198,7 +198,7 @@ public class PrehledTests : TestContext
 
         var markup = Render(schema).Markup;
 
-        Assert.Contains("Schémata", markup, StringComparison.Ordinal);
+        Assert.Contains("Schemas", markup, StringComparison.Ordinal);
         Assert.Contains("sales", markup, StringComparison.Ordinal);
     }
 
@@ -212,7 +212,7 @@ public class PrehledTests : TestContext
 
         var markup = Render(schema).Markup;
 
-        Assert.Contains("Migrace", markup, StringComparison.Ordinal);
+        Assert.Contains("Migrations", markup, StringComparison.Ordinal);
         Assert.Contains("20260202_Ceny", markup, StringComparison.Ordinal);
     }
 

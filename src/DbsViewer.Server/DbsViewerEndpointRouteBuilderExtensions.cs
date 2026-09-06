@@ -404,7 +404,7 @@ public sealed record DbsViewerMeta
 
     internal static DbsViewerMeta From(SchemaProvider provider, DbsViewerOptions options) => new()
     {
-        Title = options.Title ?? "Schéma databáze",
+        Title = options.Title ?? "Database schema",
         RoutePrefix = options.RoutePrefix,
         Views = [.. provider.AvailableViews.Select(static v => v.ToString().ToLowerInvariant())],
         CanDiff = provider.CanDiff,

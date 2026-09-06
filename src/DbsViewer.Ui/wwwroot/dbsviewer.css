@@ -1379,3 +1379,69 @@ tr.zmena-ubylo .mono { text-decoration: line-through; opacity: 0.75; }
     color: var(--text-3);
     font-size: 12px;
 }
+
+/* ---------- přepínač jazyka a modální okno ---------- */
+
+/* Nabídka jazyků stojí mezi ostatními nástroji vpravo nahoře a řídí se jejich stylem. */
+.jazyky { min-width: 92px; }
+
+/*
+   Zakrytí plochy pod oknem. Není to jen ztmavení: dokud okno stojí, nesmí jít klikat
+   do prohlížečky pod ním a měnit stav, o který uživatel po přepnutí stejně přijde.
+*/
+.modal-pozadi {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgb(0 0 0 / 35%);
+    padding: 16px;
+}
+
+.modal {
+    max-width: 460px;
+    background: var(--panel);
+    border: 1px solid var(--linka);
+    border-radius: 8px;
+    padding: 20px 24px;
+    box-shadow: 0 8px 32px rgb(0 0 0 / 25%);
+}
+
+.modal h2 {
+    margin: 0 0 12px;
+    font-size: 16px;
+}
+
+.modal p {
+    margin: 0 0 12px;
+    color: var(--text-2);
+    line-height: 1.5;
+}
+
+.modal .modal-cil {
+    color: var(--text);
+}
+
+.modal-tlacitka {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    margin-top: 18px;
+}
+
+.modal-tlacitka button {
+    padding: 6px 14px;
+    border: 1px solid var(--linka);
+    border-radius: 4px;
+    background: var(--pozadi);
+    cursor: pointer;
+}
+
+/* Potvrzení je zvýrazněné — je to ta akce, kvůli které se okno otevřelo. */
+.modal-tlacitka button.hlavni {
+    background: var(--akcent);
+    border-color: var(--akcent);
+    color: #fff;
+}

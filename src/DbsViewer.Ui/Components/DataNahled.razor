@@ -19,27 +19,27 @@ else
             <div class="data-souhrn">
                 @if (Preview is null)
                 {
-                    <span class="nacita">Načítám data…</span>
+                    <span class="nacita">@Texts.LoadingData</span>
                 }
                 else if (Preview.TotalRows is { } celkem)
                 {
-                    <span>@Cestina.Radky(celkem)</span>
+                    <span>@Counts.Rows(celkem)</span>
 
                     @if (MaFiltr)
                     {
-                        <span class="podminka">po filtrech</span>
+                        <span class="podminka">@Texts.AfterFilters</span>
                     }
                 }
                 else
                 {
                     <span>Stránka @(Preview.Page + 1)</span>
-                    <span class="podminka" title="Celkový počet se nepodařilo zjistit">bez celkového počtu</span>
+                    <span class="podminka" title="@Texts.TotalCountUnknownTitle">@Texts.TotalCountUnknown</span>
                 }
             </div>
 
             <div class="data-ovladani">
                 <label>
-                    Na stránku
+                    @Texts.PageSize
                     <select value="@PageSize" @onchange="ZmenVelikost">
                         @foreach (var velikost in Velikosti)
                         {
@@ -50,15 +50,15 @@ else
 
                 @if (MaFiltr)
                 {
-                    <button class="odkaz" @onclick="ZrusFiltry">Zrušit filtry</button>
+                    <button class="odkaz" @onclick="ZrusFiltry">@Texts.ClearFilters</button>
                 }
 
-                <button class="odkaz" @onclick="() => NactiAsync(Stranka)" title="Načíst znovu">Obnovit</button>
+                <button class="odkaz" @onclick="() => NactiAsync(Stranka)" title="@Texts.ReloadTitle">@Texts.Refresh</button>
 
                 @if (MuzeVkladat && !NovyRadek)
                 {
                     <button class="odkaz" @onclick="ZacniVkladani"
-                            title="Založit nový řádek">+ Nový řádek</button>
+                            title="@Texts.NewRowTitle">@Texts.NewRow</button>
                 }
             </div>
         </header>
@@ -67,7 +67,7 @@ else
         {
             <p class="chyba zapis-chyba">
                 @zapis
-                <button class="odkaz" @onclick="SkryjChybu" title="Skrýt hlášku">Zavřít</button>
+                <button class="odkaz" @onclick="SkryjChybu" title="@Texts.HideMessage">@Texts.Close</button>
             </p>
         }
 
@@ -93,13 +93,13 @@ else
                         <tr class="hlavicky">
                             @if (JsouAkce)
                             {
-                                <th class="akce" title="Úpravy řádku"></th>
+                                <th class="akce" title="@Texts.RowActions"></th>
                             }
                             @foreach (var column in Sloupce)
                             {
                                 <th class="@(IsMasked(column) ? "maskovany" : "")">
                                     <button class="razeni" @onclick="() => SeradAsync(column)"
-                                            title="Seřadit podle @column">
+                                            title="@Texts.SortBy @column">
                                         <span>@column</span>
                                         <span class="sipka">@SmerRazeni(column)</span>
                                     </button>
@@ -128,10 +128,10 @@ else
                         {
                             <tr class="novy">
                                 <td class="akce">
-                                    <button class="odkaz ulozit" title="Vložit řádek"
-                                            @onclick="VlozAsync">Vložit</button>
-                                    <button class="odkaz" title="Zahodit nový řádek"
-                                            @onclick="Zrus">Zrušit</button>
+                                    <button class="odkaz ulozit" title="@Texts.InsertRowTitle"
+                                            @onclick="VlozAsync">@Texts.Insert</button>
+                                    <button class="odkaz" title="@Texts.DiscardNewRow"
+                                            @onclick="Zrus">@Texts.Cancel</button>
                                 </td>
 
                                 @foreach (var sloupec in Sloupce)
@@ -148,7 +148,7 @@ else
 
                                             @if (JeNullovatelny(sloupec))
                                             {
-                                                <label class="null-prepinac" title="Uložit NULL">
+                                                <label class="null-prepinac" title="@Texts.StoreNull">
                                                     <input type="checkbox"
                                                            checked="@(Upravovana(sloupec) is null)"
                                                            @onchange="e => PrepniNull(sloupec, e.Value is true)" />
@@ -176,29 +176,29 @@ else
                                     <td class="akce">
                                         @if (EditovanyRadek == radek)
                                         {
-                                            <button class="odkaz ulozit" title="Uložit změny"
-                                                    @onclick="() => UlozAsync(radek)">Uložit</button>
-                                            <button class="odkaz" title="Zahodit změny"
-                                                    @onclick="Zrus">Zrušit</button>
+                                            <button class="odkaz ulozit" title="@Texts.SaveChanges"
+                                                    @onclick="() => UlozAsync(radek)">@Texts.Save</button>
+                                            <button class="odkaz" title="@Texts.DiscardChanges"
+                                                    @onclick="Zrus">@Texts.Cancel</button>
                                         }
                                         else if (MazanyRadek == radek)
                                         {
-                                            <span class="potvrzeni">Smazat?</span>
-                                            <button class="odkaz nebezpecne" title="Opravdu smazat"
-                                                    @onclick="() => SmazAsync(radek)">Ano</button>
-                                            <button class="odkaz" @onclick="Zrus">Ne</button>
+                                            <span class="potvrzeni">@Texts.DeleteConfirm</span>
+                                            <button class="odkaz nebezpecne" title="@Texts.DeleteReally"
+                                                    @onclick="() => SmazAsync(radek)">@Texts.Yes</button>
+                                            <button class="odkaz" @onclick="Zrus">@Texts.No</button>
                                         }
                                         else
                                         {
                                             @if (MuzeUpravovat)
                                             {
-                                                <button class="odkaz" title="Upravit řádek"
-                                                        @onclick="() => ZacniUpravu(radek)">Upravit</button>
+                                                <button class="odkaz" title="@Texts.EditRowTitle"
+                                                        @onclick="() => ZacniUpravu(radek)">@Texts.Edit</button>
                                             }
                                             @if (MuzeMazat)
                                             {
-                                                <button class="odkaz nebezpecne" title="Smazat řádek"
-                                                        @onclick="() => ZacniMazani(radek)">Smazat</button>
+                                                <button class="odkaz nebezpecne" title="@Texts.DeleteRowTitle"
+                                                        @onclick="() => ZacniMazani(radek)">@Texts.Delete</button>
                                             }
                                         }
                                     </td>
@@ -220,7 +220,7 @@ else
 
                                             @if (JeNullovatelny(sloupec))
                                             {
-                                                <label class="null-prepinac" title="Uložit NULL">
+                                                <label class="null-prepinac" title="@Texts.StoreNull">
                                                     <input type="checkbox"
                                                            checked="@(Upravovana(sloupec) is null)"
                                                            @onchange="e => PrepniNull(sloupec, e.Value is true)" />
@@ -249,7 +249,7 @@ else
             @if (Radky.Count == 0 && !Nacita)
             {
                 <p class="prazdno">
-                    @(MaFiltr ? "Filtrům neodpovídá žádný řádek." : "Tabulka je prázdná.")
+                    @(MaFiltr ? Texts.NoRowsMatchFilter : Texts.TableEmpty)
                 </p>
             }
         }
@@ -258,7 +258,7 @@ else
         {
             <nav class="strankovani">
                 <button disabled="@(nahled.Page == 0 || Nacita)" @onclick="() => NactiAsync(0)"
-                        title="První stránka">«</button>
+                        title="@Texts.FirstPage">«</button>
                 <button disabled="@(nahled.Page == 0 || Nacita)" @onclick="() => NactiAsync(nahled.Page - 1)">
                     ‹ Předchozí
                 </button>
@@ -266,11 +266,11 @@ else
                 <span class="pozice">
                     @if (nahled.PageCount is { } stranek)
                     {
-                        @($"Stránka {Cestina.Cislo(nahled.Page + 1)} z {Cestina.Cislo(stranek)}")
+                        @($"{Texts.Page} {Plural.Number(nahled.Page + 1)} / {Plural.Number(stranek)}")
                     }
                     else
                     {
-                        @($"Stránka {Cestina.Cislo(nahled.Page + 1)}")
+                        @($"{Texts.Page} {Plural.Number(nahled.Page + 1)}")
                     }
                 </span>
 
@@ -279,7 +279,7 @@ else
                 </button>
                 <button disabled="@(nahled.PageCount is null || !nahled.HasMore || Nacita)"
                         @onclick="() => NactiAsync((int)(nahled.PageCount!.Value - 1))"
-                        title="Poslední stránka">»</button>
+                        title="@Texts.LastPage">»</button>
             </nav>
         }
     </div>
@@ -519,16 +519,16 @@ else
     /// <summary>Proč se v téhle tabulce nedá adresovat řádek.</summary>
     internal static string DuvodBezKlice(DbTable table) => table switch
     {
-        { IsView: true } => "pohled se přes prohlížečku neupravuje",
-        { PrimaryKey: null or { Columns.Count: 0 } } => "tabulka nemá primární klíč",
-        _ => "primární klíč není v mřížce celý čitelný",
+        { IsView: true } => Texts.ReasonView,
+        { PrimaryKey: null or { Columns.Count: 0 } } => Texts.ReasonNoPrimaryKey,
+        _ => Texts.ReasonKeyNotReadable,
     };
 
     /// <summary>Proč se hodnota sloupce nedá měnit, nebo <c>null</c>, když měnit jde.</summary>
     internal string? DuvodNeeditovatelnosti(string column) =>
         Table?.FindColumn(column) is { } sloupec
             ? RowEditing.ReadOnlyReason(sloupec, Preview?.MaskedColumns)
-            : "sloupec ve schématu není";
+            : Texts.ReasonColumnMissing;
 
     private bool JeNullovatelny(string column) => Table?.FindColumn(column) is { IsNullable: true };
 
@@ -597,7 +597,7 @@ else
     internal string? DuvodNevyplnitelnosti(string column) =>
         Table?.FindColumn(column) is { } sloupec
             ? RowEditing.NewRowReadOnlyReason(sloupec, Preview?.MaskedColumns)
-            : "sloupec ve schématu není";
+            : Texts.ReasonColumnMissing;
 
     /// <summary>Co se do sloupce dostane, když ho uživatel nevyplní.</summary>
     private string Vychozi(string column) => Table?.FindColumn(column) switch
@@ -657,7 +657,7 @@ else
 
         if (hodnoty.Count == 0)
         {
-            ChybaZapisu = "Nový řádek nemá vyplněný ani jeden sloupec.";
+            ChybaZapisu = Texts.NewRowEmpty;
             return;
         }
 
@@ -682,7 +682,7 @@ else
 
         if (klic.Count == 0)
         {
-            ChybaZapisu = "Řádek se nedá jednoznačně určit, takže se s ním nedá nic dělat.";
+            ChybaZapisu = Texts.RowNotIdentifiable;
             return;
         }
 

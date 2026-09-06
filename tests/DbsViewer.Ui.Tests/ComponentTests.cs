@@ -45,7 +45,7 @@ public class ErDiagramTests : TestContext
         var component = RenderComponent<ErDiagram>(p => p.Add(
             x => x.Layout, new DiagramLayoutResult { Nodes = [], Edges = [] }));
 
-        Assert.Contains("Žádné tabulky", component.Markup, StringComparison.Ordinal);
+        Assert.Contains("No tables", component.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -366,7 +366,7 @@ public class TableDetailTests : TestContext
         Name = new DbObjectName("dbo", "Orders"),
         Comment = "Objednávky",
         EntityClrNames = ["Order"],
-        DiscriminatorColumn = "Typ",
+        DiscriminatorColumn = "Type",
         RowCountEstimate = 4200,
         Columns =
         [
@@ -431,7 +431,7 @@ public class TableDetailTests : TestContext
     {
         var component = RenderComponent<TableDetail>();
 
-        Assert.Contains("Vyber tabulku", component.Markup, StringComparison.Ordinal);
+        Assert.Contains("Pick a table", component.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -457,8 +457,8 @@ public class TableDetailTests : TestContext
 
         var component = RenderComponent<TableDetail>(p => p.Add(x => x.Table, table));
 
-        Assert.Contains("pohled", component.Markup, StringComparison.Ordinal);
-        Assert.Contains("vazební N:M", component.Markup, StringComparison.Ordinal);
+        Assert.Contains("view", component.Markup, StringComparison.Ordinal);
+        Assert.Contains("join N:M", component.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -496,7 +496,7 @@ public class TableDetailTests : TestContext
         Assert.Contains("INCLUDE (Total)", component.Markup, StringComparison.Ordinal);
         Assert.Contains("WHERE [Total] &gt; 0", component.Markup, StringComparison.Ordinal);
         Assert.Contains("clustered", component.Markup, StringComparison.Ordinal);
-        Assert.Contains("sestupně", component.Markup, StringComparison.Ordinal);
+        Assert.Contains("descending", component.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -644,10 +644,10 @@ public class TableDetailTests : TestContext
     }
 
     [Theory]
-    [InlineData(DetailTab.Columns, "Sloupce")]
-    [InlineData(DetailTab.Indexes, "Indexy")]
-    [InlineData(DetailTab.ForeignKeys, "Cizí klíče")]
-    [InlineData(DetailTab.ReferencedBy, "Odkazuje sem")]
+    [InlineData(DetailTab.Columns, "Columns")]
+    [InlineData(DetailTab.Indexes, "Indexes")]
+    [InlineData(DetailTab.ForeignKeys, "Foreign keys")]
+    [InlineData(DetailTab.ReferencedBy, "Referenced by")]
     [InlineData(DetailTab.Data, "Data")]
     public void Popisky_zalozek(DetailTab tab, string expected) =>
         Assert.Equal(expected, TableDetail.TabLabel(tab));
@@ -723,7 +723,7 @@ public class DataNahledTests : TestContext
         var component = RenderComponent<DataNahled>(p => p.Add(x => x.Table, Tabulka()));
 
         Assert.Contains("Id", component.Markup, StringComparison.Ordinal);
-        Assert.Contains("Načítám data", component.Markup, StringComparison.Ordinal);
+        Assert.Contains("Loading data", component.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -733,7 +733,7 @@ public class DataNahledTests : TestContext
             .Add(x => x.Table, Tabulka())
             .Add(x => x.Preview, new RowPreview { Columns = ["Id"], Rows = [], PageSize = 10 }));
 
-        Assert.Contains("Tabulka je prázdná", component.Markup, StringComparison.Ordinal);
+        Assert.Contains("The table is empty", component.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -789,8 +789,8 @@ public class DataNahledTests : TestContext
     {
         var component = Mrizka(Stranka(0, celkem: 1234));
 
-        // Cestina.Cislo odděluje tisíce nedělitelnou mezerou, ne obyčejnou.
-        Assert.Contains("1\u00a0234 řádků", component.Markup, StringComparison.Ordinal);
+        // V angličtině odděluje tisíce čárka, v češtině nedělitelná mezera.
+        Assert.Contains("1,234 rows", component.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -799,7 +799,7 @@ public class DataNahledTests : TestContext
         var preview = Stranka(2, celkem: null) with { HasMore = true };
         var component = Mrizka(preview);
 
-        Assert.Contains("bez celkového počtu", component.Markup, StringComparison.Ordinal);
+        Assert.Contains("no total count", component.Markup, StringComparison.Ordinal);
         Assert.Contains("Stránka 3", component.Markup, StringComparison.Ordinal);
     }
 
@@ -1021,7 +1021,7 @@ public class DataNahledTests : TestContext
             x => x.Preview,
             new RowPreview { Columns = ["Id", "Nazev"], Rows = [], PageSize = 50, TotalRows = 0 }));
 
-        Assert.Contains("neodpovídá žádný řádek", component.Markup, StringComparison.Ordinal);
+        Assert.Contains("No row matches", component.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1087,9 +1087,9 @@ public class DataNahledTests : TestContext
     }
 
     [Theory]
-    [InlineData(ZmenaStav.Pribylo, "Přibylo")]
-    [InlineData(ZmenaStav.Ubylo, "teď už není")]
-    [InlineData(ZmenaStav.Zmeneno, "Změnilo se")]
+    [InlineData(ZmenaStav.Pribylo, "Added")]
+    [InlineData(ZmenaStav.Ubylo, "gone now")]
+    [InlineData(ZmenaStav.Zmeneno, "Changed")]
     public void Diagram_vysvetli_kazdy_stav(ZmenaStav stav, string cast) =>
         Assert.Contains(cast, ErDiagram.StavPopis(stav)!, StringComparison.Ordinal);
 
@@ -1112,9 +1112,9 @@ public class DataNahledTests : TestContext
     }
 
     [Theory]
-    [InlineData(ZmenaStav.Pribylo, "Přibylo")]
-    [InlineData(ZmenaStav.Ubylo, "teď už není")]
-    [InlineData(ZmenaStav.Zmeneno, "Změnilo se")]
+    [InlineData(ZmenaStav.Pribylo, "Added")]
+    [InlineData(ZmenaStav.Ubylo, "gone now")]
+    [InlineData(ZmenaStav.Zmeneno, "Changed")]
     public void Detail_vysvetli_kazdy_stav(ZmenaStav stav, string cast) =>
         Assert.Contains(cast, TableDetail.StavPopis(stav)!, StringComparison.Ordinal);
 
@@ -1205,7 +1205,7 @@ public class DiffPrehledTests : TestContext
     {
         var component = RenderComponent<DiffPrehled>();
 
-        Assert.Contains("Načítám porovnání", component.Markup, StringComparison.Ordinal);
+        Assert.Contains("Loading the comparison", component.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1214,7 +1214,7 @@ public class DiffPrehledTests : TestContext
         var component = RenderComponent<DiffPrehled>(p => p.Add(
             x => x.Diff, new SchemaDiff { Findings = [] }));
 
-        Assert.Contains("shodují", component.Markup, StringComparison.Ordinal);
+        Assert.Contains("match", component.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1222,8 +1222,8 @@ public class DiffPrehledTests : TestContext
     {
         var component = RenderComponent<DiffPrehled>(p => p.Add(x => x.Diff, Vzorek.Diff()));
 
-        Assert.Contains("1 chyb", component.Markup, StringComparison.Ordinal);
-        Assert.Contains("1 varování", component.Markup, StringComparison.Ordinal);
+        Assert.Contains("1 error", component.Markup, StringComparison.Ordinal);
+        Assert.Contains("1 warning", component.Markup, StringComparison.Ordinal);
         Assert.Single(component.FindAll("section.chyba"));
         Assert.Single(component.FindAll("section.varovani"));
     }
@@ -1283,14 +1283,14 @@ public class DiffPrehledTests : TestContext
 
         var component = RenderComponent<DiffPrehled>(p => p.Add(x => x.Diff, diff));
 
-        Assert.Contains("schéma", component.Markup, StringComparison.Ordinal);
-        Assert.Contains("Informace", component.Markup, StringComparison.Ordinal);
+        Assert.Contains("schema", component.Markup, StringComparison.Ordinal);
+        Assert.Contains("Information", component.Markup, StringComparison.Ordinal);
     }
 
     [Theory]
-    [InlineData(DiffSeverity.Error, "Chyby", "chyba")]
-    [InlineData(DiffSeverity.Warning, "Varování", "varovani")]
-    [InlineData(DiffSeverity.Info, "Informace", "info")]
+    [InlineData(DiffSeverity.Error, "Errors", "chyba")]
+    [InlineData(DiffSeverity.Warning, "Warnings", "varovani")]
+    [InlineData(DiffSeverity.Info, "Information", "info")]
     public void Popisky_zavaznosti(DiffSeverity severity, string label, string css)
     {
         Assert.Equal(label, DiffPrehled.SeverityLabel(severity));
@@ -1316,35 +1316,78 @@ public class DiffPrehledTests : TestContext
 
         var component = RenderComponent<DiffPrehled>(p => p.Add(x => x.Diff, diff));
 
-        Assert.Contains("v modelu není", component.Markup, StringComparison.Ordinal);
-        Assert.Contains("Databáze", component.Markup, StringComparison.Ordinal);
+        // Mimo historii se použije věta k druhu nálezu, ne ta ze snapshotové historie
+        // („Sloupec přibyl.") — a už vůbec ne česká věta ze serveru.
+        Assert.Contains("in the database but not in the model", component.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("v modelu není", component.Markup, StringComparison.Ordinal);
+        Assert.Contains("Database", component.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Neznamy_druh_nalezu_spadne_na_zpravu_ze_serveru()
+    {
+        // Kdyby přibyl DiffKind, na který UI ještě nemá text, nesmí zůstat prázdný řádek.
+        var diff = new SchemaDiff
+        {
+            Findings =
+            [
+                new DiffFinding
+                {
+                    Kind = (DiffKind)999,
+                    Severity = DiffSeverity.Info,
+                    Message = "Zpráva ze serveru.",
+                    Table = new DbObjectName(null, "Orders"),
+                },
+            ],
+        };
+
+        var component = RenderComponent<DiffPrehled>(p => p.Add(x => x.Diff, diff));
+
+        Assert.Contains("Zpráva ze serveru.", component.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
     public void Nalezy_o_migracich_se_neprekladaji()
     {
-        // Stav migrací se mezi dvěma snapshoty neporovnává — původní zpráva sedí.
+        // Stav migrací se mezi dvěma snapshoty neporovnává, takže historickou větu nemají.
         Assert.Null(DiffPrehled.HistorickaZprava(DiffKind.MigrationPending));
         Assert.Null(DiffPrehled.HistorickaZprava(DiffKind.MigrationOrphaned));
+
+        // Mimo historii ale text mají, jinak by se nálezy o migracích neuměly přeložit.
+        Assert.NotNull(DiffPrehled.Zneni(DiffKind.MigrationPending));
+        Assert.NotNull(DiffPrehled.Zneni(DiffKind.MigrationOrphaned));
+    }
+
+    [Fact]
+    public void Kazdy_druh_nalezu_ma_bezne_zneni()
+    {
+        // Nový DiffKind bez textu by se v prohlížečce projevil serverovou českou větou.
+        // Test to odhalí dřív, než se to dostane k uživateli.
+        foreach (var kind in Enum.GetValues<DiffKind>())
+        {
+            Assert.False(
+                string.IsNullOrWhiteSpace(DiffPrehled.Zneni(kind)),
+                $"Druh nálezu {kind} nemá v UI vlastní větu.");
+        }
     }
 
     [Theory]
-    [InlineData(DiffKind.TableMissingInModel, "Tabulka přibyla.")]
-    [InlineData(DiffKind.TableMissingInDatabase, "Tabulka zanikla.")]
-    [InlineData(DiffKind.ColumnMissingInDatabase, "Sloupec zanikl.")]
-    [InlineData(DiffKind.ColumnTypeMismatch, "Sloupec změnil typ.")]
-    [InlineData(DiffKind.ColumnNullabilityMismatch, "Sloupec změnil povinnost.")]
-    [InlineData(DiffKind.ColumnLengthMismatch, "Sloupec změnil délku.")]
-    [InlineData(DiffKind.ColumnDefaultMismatch, "Sloupec změnil výchozí hodnotu.")]
-    [InlineData(DiffKind.IndexMissingInModel, "Index přibyl.")]
-    [InlineData(DiffKind.IndexMissingInDatabase, "Index zanikl.")]
-    [InlineData(DiffKind.IndexUniquenessMismatch, "Index změnil unikátnost.")]
-    [InlineData(DiffKind.IndexColumnsMismatch, "Index změnil sloupce.")]
-    [InlineData(DiffKind.PrimaryKeyMismatch, "Primární klíč se změnil.")]
-    [InlineData(DiffKind.ForeignKeyMissingInModel, "Cizí klíč přibyl.")]
-    [InlineData(DiffKind.ForeignKeyMissingInDatabase, "Cizí klíč zanikl.")]
-    [InlineData(DiffKind.ForeignKeyDeleteBehaviorMismatch, "Cizí klíč změnil chování při mazání.")]
-    [InlineData(DiffKind.ForeignKeyTargetMismatch, "Cizí klíč změnil cíl.")]
+    [InlineData(DiffKind.TableMissingInModel, "The table was added.")]
+    [InlineData(DiffKind.TableMissingInDatabase, "The table is gone.")]
+    [InlineData(DiffKind.ColumnMissingInDatabase, "The column is gone.")]
+    [InlineData(DiffKind.ColumnTypeMismatch, "The column changed its type.")]
+    [InlineData(DiffKind.ColumnNullabilityMismatch, "The column changed its nullability.")]
+    [InlineData(DiffKind.ColumnLengthMismatch, "The column changed its length.")]
+    [InlineData(DiffKind.ColumnDefaultMismatch, "The column changed its default value.")]
+    [InlineData(DiffKind.IndexMissingInModel, "The index was added.")]
+    [InlineData(DiffKind.IndexMissingInDatabase, "The index is gone.")]
+    [InlineData(DiffKind.IndexUniquenessMismatch, "The index changed its uniqueness.")]
+    [InlineData(DiffKind.IndexColumnsMismatch, "The index changed its columns.")]
+    [InlineData(DiffKind.PrimaryKeyMismatch, "The primary key changed.")]
+    [InlineData(DiffKind.ForeignKeyMissingInModel, "The foreign key was added.")]
+    [InlineData(DiffKind.ForeignKeyMissingInDatabase, "The foreign key is gone.")]
+    [InlineData(DiffKind.ForeignKeyDeleteBehaviorMismatch, "The foreign key changed its delete behaviour.")]
+    [InlineData(DiffKind.ForeignKeyTargetMismatch, "The foreign key changed its target.")]
     public void Kazdy_druh_nalezu_ma_historicke_zneni(DiffKind kind, string expected) =>
         Assert.Equal(expected, DiffPrehled.HistorickaZprava(kind));
 

@@ -49,7 +49,7 @@ public class MigrationHistoryTests
 
         // Unikátní index na e-mailu je součástí základu.
         Assert.Contains(zmeny, z => z.Kind == SchemaChangeKind.CreateIndex
-                                    && z.Description.Contains("unikátní", StringComparison.Ordinal));
+                                    && z.Description.Contains("unique", StringComparison.Ordinal));
     }
 
     [Fact]

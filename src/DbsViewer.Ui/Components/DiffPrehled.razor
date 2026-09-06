@@ -5,20 +5,20 @@
 
 @if (Diff is null)
 {
-    <p class="nacita">Načítám porovnání…</p>
+    <p class="nacita">@Texts.LoadingDiff</p>
 }
 else if (Diff.Findings.Count == 0)
 {
     <div class="diff-cisty">
-        <p class="ok">✓ Model a databáze se shodují.</p>
+        <p class="ok">✓ @Texts.DiffClean</p>
     </div>
 }
 else
 {
     <div class="diff">
         <header class="diff-souhrn">
-            <span class="pocet chyba">@Cestina.Chyby(Diff.ErrorCount)</span>
-            <span class="pocet varovani">@Cestina.Varovani(Diff.WarningCount)</span>
+            <span class="pocet chyba">@Counts.Errors(Diff.ErrorCount)</span>
+            <span class="pocet varovani">@Counts.Warnings(Diff.WarningCount)</span>
         </header>
 
         @foreach (var group in Diff.Findings.GroupBy(static f => f.Severity))
@@ -29,10 +29,10 @@ else
                 <table class="mrizka">
                     <thead>
                         <tr>
-                            <th>Objekt</th>
-                            <th>Nález</th>
-                            <th>@(Historical ? "Starší verze" : "Model")</th>
-                            <th>@(Historical ? "Novější verze" : "Databáze")</th>
+                            <th>@Texts.ColumnObject</th>
+                            <th>@Texts.ColumnFinding</th>
+                            <th>@(Historical ? Texts.OlderVersion : Texts.Model)</th>
+                            <th>@(Historical ? Texts.NewerVersion : Texts.Database)</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -52,7 +52,7 @@ else
                                     }
                                     else
                                     {
-                                        <span>@(finding.Object ?? "schéma")</span>
+                                        <span>@(finding.Object ?? Texts.SchemaLower)</span>
                                     }
                                 </td>
                                 <td>@Zprava(finding)</td>
@@ -90,32 +90,67 @@ else
     {
         ArgumentNullException.ThrowIfNull(finding);
 
-        return Historical ? HistorickaZprava(finding.Kind) ?? finding.Message : finding.Message;
+        return (Historical ? HistorickaZprava(finding.Kind) : null)
+            ?? Zneni(finding.Kind)
+            ?? finding.Message;
     }
 
     /// <summary>
     /// Překlad nálezu do řeči historie. „V modelu" je starší verze, „v databázi"
     /// novější — porovnávač dostává verze v tomhle pořadí.
     /// </summary>
+    /// <summary>
+    /// Věta k druhu nálezu.
+    /// </summary>
+    /// <remarks>
+    /// Nález skládá server a jeho <c>Message</c> je vždy anglická — slouží HTTP API
+    /// a nástroji <c>dbsview</c>. V prohlížečce se ale text sestaví znovu z <c>Kind</c>,
+    /// aby šel přeložit. Neznámý druh spadne na serverovou větu, takže nový <c>DiffKind</c>
+    /// nezpůsobí prázdný řádek.
+    /// </remarks>
+    internal static string? Zneni(DiffKind kind) => kind switch
+    {
+        DiffKind.TableMissingInDatabase => Texts.DiffTableMissingInDatabase,
+        DiffKind.TableMissingInModel => Texts.DiffTableMissingInModel,
+        DiffKind.ColumnMissingInDatabase => Texts.DiffColumnMissingInDatabase,
+        DiffKind.ColumnMissingInModel => Texts.DiffColumnMissingInModel,
+        DiffKind.ColumnTypeMismatch => Texts.DiffColumnTypeMismatch,
+        DiffKind.ColumnNullabilityMismatch => Texts.DiffColumnNullabilityMismatch,
+        DiffKind.ColumnLengthMismatch => Texts.DiffColumnLengthMismatch,
+        DiffKind.ColumnDefaultMismatch => Texts.DiffColumnDefaultMismatch,
+        DiffKind.PrimaryKeyMismatch => Texts.DiffPrimaryKeyMismatch,
+        DiffKind.IndexMissingInDatabase => Texts.DiffIndexMissingInDatabase,
+        DiffKind.IndexMissingInModel => Texts.DiffIndexMissingInModel,
+        DiffKind.IndexUniquenessMismatch => Texts.DiffIndexUniquenessMismatch,
+        DiffKind.IndexColumnsMismatch => Texts.DiffIndexColumnsMismatch,
+        DiffKind.ForeignKeyMissingInDatabase => Texts.DiffForeignKeyMissingInDatabase,
+        DiffKind.ForeignKeyMissingInModel => Texts.DiffForeignKeyMissingInModel,
+        DiffKind.ForeignKeyTargetMismatch => Texts.DiffForeignKeyTargetMismatch,
+        DiffKind.ForeignKeyDeleteBehaviorMismatch => Texts.DiffForeignKeyDeleteBehaviorMismatch,
+        DiffKind.MigrationPending => Texts.DiffMigrationPending,
+        DiffKind.MigrationOrphaned => Texts.DiffMigrationOrphaned,
+        _ => null,
+    };
+
     internal static string? HistorickaZprava(DiffKind kind) => kind switch
     {
-        DiffKind.TableMissingInModel => "Tabulka přibyla.",
-        DiffKind.TableMissingInDatabase => "Tabulka zanikla.",
-        DiffKind.ColumnMissingInModel => "Sloupec přibyl.",
-        DiffKind.ColumnMissingInDatabase => "Sloupec zanikl.",
-        DiffKind.ColumnTypeMismatch => "Sloupec změnil typ.",
-        DiffKind.ColumnNullabilityMismatch => "Sloupec změnil povinnost.",
-        DiffKind.ColumnLengthMismatch => "Sloupec změnil délku.",
-        DiffKind.ColumnDefaultMismatch => "Sloupec změnil výchozí hodnotu.",
-        DiffKind.IndexMissingInModel => "Index přibyl.",
-        DiffKind.IndexMissingInDatabase => "Index zanikl.",
-        DiffKind.IndexUniquenessMismatch => "Index změnil unikátnost.",
-        DiffKind.IndexColumnsMismatch => "Index změnil sloupce.",
-        DiffKind.PrimaryKeyMismatch => "Primární klíč se změnil.",
-        DiffKind.ForeignKeyMissingInModel => "Cizí klíč přibyl.",
-        DiffKind.ForeignKeyMissingInDatabase => "Cizí klíč zanikl.",
-        DiffKind.ForeignKeyDeleteBehaviorMismatch => "Cizí klíč změnil chování při mazání.",
-        DiffKind.ForeignKeyTargetMismatch => "Cizí klíč změnil cíl.",
+        DiffKind.TableMissingInModel => Texts.HistoricalTableMissingInModel,
+        DiffKind.TableMissingInDatabase => Texts.HistoricalTableMissingInDatabase,
+        DiffKind.ColumnMissingInModel => Texts.HistoricalColumnMissingInModel,
+        DiffKind.ColumnMissingInDatabase => Texts.HistoricalColumnMissingInDatabase,
+        DiffKind.ColumnTypeMismatch => Texts.HistoricalColumnTypeMismatch,
+        DiffKind.ColumnNullabilityMismatch => Texts.HistoricalColumnNullabilityMismatch,
+        DiffKind.ColumnLengthMismatch => Texts.HistoricalColumnLengthMismatch,
+        DiffKind.ColumnDefaultMismatch => Texts.HistoricalColumnDefaultMismatch,
+        DiffKind.IndexMissingInModel => Texts.HistoricalIndexMissingInModel,
+        DiffKind.IndexMissingInDatabase => Texts.HistoricalIndexMissingInDatabase,
+        DiffKind.IndexUniquenessMismatch => Texts.HistoricalIndexUniquenessMismatch,
+        DiffKind.IndexColumnsMismatch => Texts.HistoricalIndexColumnsMismatch,
+        DiffKind.PrimaryKeyMismatch => Texts.HistoricalPrimaryKeyMismatch,
+        DiffKind.ForeignKeyMissingInModel => Texts.HistoricalForeignKeyMissingInModel,
+        DiffKind.ForeignKeyMissingInDatabase => Texts.HistoricalForeignKeyMissingInDatabase,
+        DiffKind.ForeignKeyDeleteBehaviorMismatch => Texts.HistoricalForeignKeyDeleteBehaviorMismatch,
+        DiffKind.ForeignKeyTargetMismatch => Texts.HistoricalForeignKeyTargetMismatch,
 
         // Stav migrací se mezi dvěma snapshoty neporovnává — původní zpráva sedí.
         _ => null,
@@ -123,9 +158,9 @@ else
 
     internal static string SeverityLabel(DiffSeverity severity) => severity switch
     {
-        DiffSeverity.Error => "Chyby",
-        DiffSeverity.Warning => "Varování",
-        _ => "Informace",
+        DiffSeverity.Error => Texts.SeverityErrors,
+        DiffSeverity.Warning => Texts.SeverityWarnings,
+        _ => Texts.SeverityInfo,
     };
 
     internal static string SeverityClass(DiffSeverity severity) => severity switch

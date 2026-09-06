@@ -159,7 +159,7 @@ public static class Program
 
         await File.WriteAllTextAsync(path, json, Encoding.UTF8).ConfigureAwait(false);
         output.WriteLine(
-            $"JSON zapsán do {Path.GetFullPath(path)} ({Ui.Model.Cestina.Cislo(json.Length)} znaků)");
+            $"JSON zapsán do {Path.GetFullPath(path)} ({Ui.Model.Plural.Number(json.Length)} znaků)");
     }
 
     private static async Task WriteExportAsync(

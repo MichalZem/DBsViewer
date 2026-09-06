@@ -69,7 +69,7 @@ public class SchemaFilterTests
 
     [Fact]
     public void Nic_nenalezeno_vrati_prazdny_seznam() =>
-        Assert.Empty(SchemaFilter.Search(Tables, "neexistuje"));
+        Assert.Empty(SchemaFilter.Search(Tables, "does not exist"));
 
     [Fact]
     public void Tabulka_bez_shody_v_zadnem_poli_neprojde()

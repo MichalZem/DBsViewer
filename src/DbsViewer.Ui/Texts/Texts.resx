@@ -1,0 +1,764 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType><xsd:choice maxOccurs="unbounded">
+        <xsd:element name="data"><xsd:complexType><xsd:sequence>
+          <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+        </xsd:sequence><xsd:attribute name="name" type="xsd:string" msdata:Ordinal="1" />
+        <xsd:attribute name="xml:space" type="xsd:string" /></xsd:complexType></xsd:element>
+        <xsd:element name="resheader"><xsd:complexType><xsd:sequence>
+          <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+        </xsd:sequence><xsd:attribute name="name" type="xsd:string" use="required" /></xsd:complexType></xsd:element>
+      </xsd:choice></xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+  <data name="AfterFilters" xml:space="preserve">
+    <value>after filters</value>
+  </data>
+  <data name="AfterMigration" xml:space="preserve">
+    <value>after</value>
+  </data>
+  <data name="AllGroups" xml:space="preserve">
+    <value>All groups</value>
+  </data>
+  <data name="AllSchemas" xml:space="preserve">
+    <value>All schemas</value>
+  </data>
+  <data name="AndMore" xml:space="preserve">
+    <value>and another</value>
+  </data>
+  <data name="AppliedMigration_Few" xml:space="preserve">
+    <value>applied</value>
+  </data>
+  <data name="AppliedMigration_One" xml:space="preserve">
+    <value>applied</value>
+  </data>
+  <data name="AppliedMigration_Other" xml:space="preserve">
+    <value>applied</value>
+  </data>
+  <data name="BackToCurrent" xml:space="preserve">
+    <value>← Back to current schema</value>
+  </data>
+  <data name="BeforeFirstMigration" xml:space="preserve">
+    <value>before the first migration</value>
+  </data>
+  <data name="Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="ChangeAdded" xml:space="preserve">
+    <value>Added compared to the other version</value>
+  </data>
+  <data name="ChangeAddedShort" xml:space="preserve">
+    <value>added</value>
+  </data>
+  <data name="ChangeLegendHint" xml:space="preserve">
+    <value>Changes read in the direction of the arrow</value>
+  </data>
+  <data name="ChangeModified" xml:space="preserve">
+    <value>Changed compared to the other version</value>
+  </data>
+  <data name="ChangeModifiedShort" xml:space="preserve">
+    <value>different</value>
+  </data>
+  <data name="ChangeRemoved" xml:space="preserve">
+    <value>Present in the other version, gone now</value>
+  </data>
+  <data name="ChangeRemovedShort" xml:space="preserve">
+    <value>missing</value>
+  </data>
+  <data name="ChangedSince" xml:space="preserve">
+    <value>What changed since</value>
+  </data>
+  <data name="ClearFilters" xml:space="preserve">
+    <value>Clear filters</value>
+  </data>
+  <data name="Close" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <data name="CloseComparison" xml:space="preserve">
+    <value>Close the comparison</value>
+  </data>
+  <data name="ColumnColumn" xml:space="preserve">
+    <value>Column</value>
+  </data>
+  <data name="ColumnColumns" xml:space="preserve">
+    <value>Columns</value>
+  </data>
+  <data name="ColumnFinding" xml:space="preserve">
+    <value>Finding</value>
+  </data>
+  <data name="ColumnIndex" xml:space="preserve">
+    <value>Index</value>
+  </data>
+  <data name="ColumnKey" xml:space="preserve">
+    <value>Key</value>
+  </data>
+  <data name="ColumnNavigation" xml:space="preserve">
+    <value>Navigation</value>
+  </data>
+  <data name="ColumnNote" xml:space="preserve">
+    <value>Note</value>
+  </data>
+  <data name="ColumnObject" xml:space="preserve">
+    <value>Object</value>
+  </data>
+  <data name="ColumnOnDelete" xml:space="preserve">
+    <value>On delete</value>
+  </data>
+  <data name="ColumnRelation" xml:space="preserve">
+    <value>Relation</value>
+  </data>
+  <data name="ColumnTable" xml:space="preserve">
+    <value>Table</value>
+  </data>
+  <data name="ColumnTarget" xml:space="preserve">
+    <value>Target</value>
+  </data>
+  <data name="ColumnType" xml:space="preserve">
+    <value>Type</value>
+  </data>
+  <data name="ColumnUnique" xml:space="preserve">
+    <value>Unique</value>
+  </data>
+  <data name="Column_Few" xml:space="preserve">
+    <value>columns</value>
+  </data>
+  <data name="Column_One" xml:space="preserve">
+    <value>column</value>
+  </data>
+  <data name="Column_Other" xml:space="preserve">
+    <value>columns</value>
+  </data>
+  <data name="Compare" xml:space="preserve">
+    <value>Compare</value>
+  </data>
+  <data name="CompareNone" xml:space="preserve">
+    <value>don't compare</value>
+  </data>
+  <data name="CompareTo" xml:space="preserve">
+    <value>to</value>
+  </data>
+  <data name="DataOnlyInCurrent" xml:space="preserve">
+    <value>Data can only be browsed in the current schema — it does not exist in a historical version.</value>
+  </data>
+  <data name="DataPreviewOff" xml:space="preserve">
+    <value>The data preview is off.</value>
+  </data>
+  <data name="DataUnavailableHistorical" xml:space="preserve">
+    <value>Data cannot be browsed in a historical version.</value>
+  </data>
+  <data name="Database" xml:space="preserve">
+    <value>Database</value>
+  </data>
+  <data name="DatabaseLower" xml:space="preserve">
+    <value>database</value>
+  </data>
+  <data name="DefaultSchema" xml:space="preserve">
+    <value>default</value>
+  </data>
+  <data name="Delete" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="DeleteConfirm" xml:space="preserve">
+    <value>Delete?</value>
+  </data>
+  <data name="DeleteReally" xml:space="preserve">
+    <value>Really delete</value>
+  </data>
+  <data name="DeleteRowTitle" xml:space="preserve">
+    <value>Delete the row</value>
+  </data>
+  <data name="Descending" xml:space="preserve">
+    <value>descending</value>
+  </data>
+  <data name="DiagramEmpty" xml:space="preserve">
+    <value>No tables to show. Try changing the filter or turning focus off.</value>
+  </data>
+  <data name="DiffClean" xml:space="preserve">
+    <value>The model and the database match.</value>
+  </data>
+  <data name="DiffColumnDefaultMismatch" xml:space="preserve">
+    <value>The default value differs.</value>
+  </data>
+  <data name="DiffColumnLengthMismatch" xml:space="preserve">
+    <value>The column length differs.</value>
+  </data>
+  <data name="DiffColumnMissingInDatabase" xml:space="preserve">
+    <value>The column is in the model but missing in the database.</value>
+  </data>
+  <data name="DiffColumnMissingInModel" xml:space="preserve">
+    <value>The column is in the database but not in the model. EF does not use it.</value>
+  </data>
+  <data name="DiffColumnNullabilityMismatch" xml:space="preserve">
+    <value>The column nullability differs.</value>
+  </data>
+  <data name="DiffColumnTypeMismatch" xml:space="preserve">
+    <value>The column type differs. Values may be silently truncated, or it may throw at runtime.</value>
+  </data>
+  <data name="DiffForeignKeyDeleteBehaviorMismatch" xml:space="preserve">
+    <value>The delete behaviour differs. The cascade behaves differently than the model claims.</value>
+  </data>
+  <data name="DiffForeignKeyMissingInDatabase" xml:space="preserve">
+    <value>The foreign key is in the model but missing in the database. Integrity is not enforced.</value>
+  </data>
+  <data name="DiffForeignKeyMissingInModel" xml:space="preserve">
+    <value>The foreign key is in the database but not in the model.</value>
+  </data>
+  <data name="DiffForeignKeyTargetMismatch" xml:space="preserve">
+    <value>The foreign key points to a different table than the model expects.</value>
+  </data>
+  <data name="DiffIndexColumnsMismatch" xml:space="preserve">
+    <value>The index columns differ.</value>
+  </data>
+  <data name="DiffIndexMissingInDatabase" xml:space="preserve">
+    <value>The index is in the model but missing in the database. Queries over it will be slow.</value>
+  </data>
+  <data name="DiffIndexMissingInModel" xml:space="preserve">
+    <value>The index is in the database but not in the model. Performance tuned by hand, outside migrations.</value>
+  </data>
+  <data name="DiffIndexUniquenessMismatch" xml:space="preserve">
+    <value>The index uniqueness differs.</value>
+  </data>
+  <data name="DiffMigrationOrphaned" xml:space="preserve">
+    <value>The migration is deployed but missing from the code. The database is newer than the application.</value>
+  </data>
+  <data name="DiffMigrationPending" xml:space="preserve">
+    <value>The migration is in the code but not deployed.</value>
+  </data>
+  <data name="DiffPrimaryKeyMismatch" xml:space="preserve">
+    <value>The primary key differs.</value>
+  </data>
+  <data name="DiffTableMissingInDatabase" xml:space="preserve">
+    <value>The table is in the model but missing in the database. Probably an unapplied migration.</value>
+  </data>
+  <data name="DiffTableMissingInModel" xml:space="preserve">
+    <value>The table is in the database but not in the model. A legacy object or a foreign schema.</value>
+  </data>
+  <data name="DiscardChanges" xml:space="preserve">
+    <value>Discard the changes</value>
+  </data>
+  <data name="DiscardNewRow" xml:space="preserve">
+    <value>Discard the new row</value>
+  </data>
+  <data name="DownloadFailed" xml:space="preserve">
+    <value>The file could not be downloaded:</value>
+  </data>
+  <data name="Edit" xml:space="preserve">
+    <value>Edit</value>
+  </data>
+  <data name="EditRowTitle" xml:space="preserve">
+    <value>Edit the row</value>
+  </data>
+  <data name="ErrorBadRequest" xml:space="preserve">
+    <value>The server did not understand the request. Check the selected view.</value>
+  </data>
+  <data name="ErrorFinding_Few" xml:space="preserve">
+    <value>errors</value>
+  </data>
+  <data name="ErrorFinding_One" xml:space="preserve">
+    <value>error</value>
+  </data>
+  <data name="ErrorFinding_Other" xml:space="preserve">
+    <value>errors</value>
+  </data>
+  <data name="ErrorForbidden" xml:space="preserve">
+    <value>Access denied. The feature is off in the configuration, or you lack permission.</value>
+  </data>
+  <data name="ErrorNotFound" xml:space="preserve">
+    <value>The requested object does not exist.</value>
+  </data>
+  <data name="ErrorStatus" xml:space="preserve">
+    <value>The server responded with error {0}.</value>
+  </data>
+  <data name="ErrorUnauthorized" xml:space="preserve">
+    <value>You are not signed in. Sign in and try again.</value>
+  </data>
+  <data name="Export" xml:space="preserve">
+    <value>Export</value>
+  </data>
+  <data name="ExportTitle" xml:space="preserve">
+    <value>Export the schema</value>
+  </data>
+  <data name="FirstPage" xml:space="preserve">
+    <value>First page</value>
+  </data>
+  <data name="FocusDistance" xml:space="preserve">
+    <value>Distance</value>
+  </data>
+  <data name="FocusOnSelected" xml:space="preserve">
+    <value>Focus on the selected table</value>
+  </data>
+  <data name="ForeignKeyWithoutIndex" xml:space="preserve">
+    <value>Foreign key without an index</value>
+  </data>
+  <data name="ForeignKeyWithoutIndexHint" xml:space="preserve">
+    <value>On a JOIN and when deleting the parent, the database must scan the whole table. For small lookup tables it does not matter.</value>
+  </data>
+  <data name="HideMessage" xml:space="preserve">
+    <value>Hide the message</value>
+  </data>
+  <data name="HistoricalColumnDefaultMismatch" xml:space="preserve">
+    <value>The column changed its default value.</value>
+  </data>
+  <data name="HistoricalColumnLengthMismatch" xml:space="preserve">
+    <value>The column changed its length.</value>
+  </data>
+  <data name="HistoricalColumnMissingInDatabase" xml:space="preserve">
+    <value>The column is gone.</value>
+  </data>
+  <data name="HistoricalColumnMissingInModel" xml:space="preserve">
+    <value>The column was added.</value>
+  </data>
+  <data name="HistoricalColumnNullabilityMismatch" xml:space="preserve">
+    <value>The column changed its nullability.</value>
+  </data>
+  <data name="HistoricalColumnTypeMismatch" xml:space="preserve">
+    <value>The column changed its type.</value>
+  </data>
+  <data name="HistoricalForeignKeyDeleteBehaviorMismatch" xml:space="preserve">
+    <value>The foreign key changed its delete behaviour.</value>
+  </data>
+  <data name="HistoricalForeignKeyMissingInDatabase" xml:space="preserve">
+    <value>The foreign key is gone.</value>
+  </data>
+  <data name="HistoricalForeignKeyMissingInModel" xml:space="preserve">
+    <value>The foreign key was added.</value>
+  </data>
+  <data name="HistoricalForeignKeyTargetMismatch" xml:space="preserve">
+    <value>The foreign key changed its target.</value>
+  </data>
+  <data name="HistoricalIndexColumnsMismatch" xml:space="preserve">
+    <value>The index changed its columns.</value>
+  </data>
+  <data name="HistoricalIndexMissingInDatabase" xml:space="preserve">
+    <value>The index is gone.</value>
+  </data>
+  <data name="HistoricalIndexMissingInModel" xml:space="preserve">
+    <value>The index was added.</value>
+  </data>
+  <data name="HistoricalIndexUniquenessMismatch" xml:space="preserve">
+    <value>The index changed its uniqueness.</value>
+  </data>
+  <data name="HistoricalPrimaryKeyMismatch" xml:space="preserve">
+    <value>The primary key changed.</value>
+  </data>
+  <data name="HistoricalTableMissingInDatabase" xml:space="preserve">
+    <value>The table is gone.</value>
+  </data>
+  <data name="HistoricalTableMissingInModel" xml:space="preserve">
+    <value>The table was added.</value>
+  </data>
+  <data name="HistoryStart" xml:space="preserve">
+    <value>the start of history</value>
+  </data>
+  <data name="Index_Few" xml:space="preserve">
+    <value>indexes</value>
+  </data>
+  <data name="Index_One" xml:space="preserve">
+    <value>index</value>
+  </data>
+  <data name="Index_Other" xml:space="preserve">
+    <value>indexes</value>
+  </data>
+  <data name="Insert" xml:space="preserve">
+    <value>Insert</value>
+  </data>
+  <data name="InsertRowTitle" xml:space="preserve">
+    <value>Insert the row</value>
+  </data>
+  <data name="IsolatedTableHint" xml:space="preserve">
+    <value>The table relates to no other — a lookup table, a log, or a leftover.</value>
+  </data>
+  <data name="Item_Few" xml:space="preserve">
+    <value>items</value>
+  </data>
+  <data name="Item_One" xml:space="preserve">
+    <value>item</value>
+  </data>
+  <data name="Item_Other" xml:space="preserve">
+    <value>items</value>
+  </data>
+  <data name="JoinTableBadge" xml:space="preserve">
+    <value>Many-to-many join table</value>
+  </data>
+  <data name="JoinTableHint" xml:space="preserve">
+    <value>They connect two tables and carry no data of their own. The diagram marks them with a badge.</value>
+  </data>
+  <data name="JoinTableShort" xml:space="preserve">
+    <value>join N:M</value>
+  </data>
+  <data name="JoinTable_Few" xml:space="preserve">
+    <value>join tables</value>
+  </data>
+  <data name="JoinTable_One" xml:space="preserve">
+    <value>join table</value>
+  </data>
+  <data name="JoinTable_Other" xml:space="preserve">
+    <value>join tables</value>
+  </data>
+  <data name="LanguageReloadConfirm" xml:space="preserve">
+    <value>Switch</value>
+  </data>
+  <data name="LanguageReloadWarning" xml:space="preserve">
+    <value>The viewer has to reload, because translations are downloaded only for the language it started with. You will lose the selected table, filters and the diagram position.</value>
+  </data>
+  <data name="LanguageSwitchHeading" xml:space="preserve">
+    <value>Switch the language?</value>
+  </data>
+  <data name="LanguageSwitchTo" xml:space="preserve">
+    <value>Switching to</value>
+  </data>
+  <data name="LanguageTitle" xml:space="preserve">
+    <value>Language</value>
+  </data>
+  <data name="LargestTables" xml:space="preserve">
+    <value>Largest tables</value>
+  </data>
+  <data name="LastMigration" xml:space="preserve">
+    <value>last</value>
+  </data>
+  <data name="LastPage" xml:space="preserve">
+    <value>Last page</value>
+  </data>
+  <data name="Legend" xml:space="preserve">
+    <value>Legend</value>
+  </data>
+  <data name="LegendHide" xml:space="preserve">
+    <value>Hide legend</value>
+  </data>
+  <data name="LoadedAt" xml:space="preserve">
+    <value>Loaded</value>
+  </data>
+  <data name="LoadingData" xml:space="preserve">
+    <value>Loading data…</value>
+  </data>
+  <data name="LoadingDiff" xml:space="preserve">
+    <value>Loading the comparison…</value>
+  </data>
+  <data name="LoadingSchema" xml:space="preserve">
+    <value>Loading the schema…</value>
+  </data>
+  <data name="MigrationApplied" xml:space="preserve">
+    <value>applied</value>
+  </data>
+  <data name="MigrationCodeGone" xml:space="preserve">
+    <value>The migration ran, but its code is no longer in the project.</value>
+  </data>
+  <data name="MigrationCodeMissing" xml:space="preserve">
+    <value>The migration code is not in the project</value>
+  </data>
+  <data name="MigrationCurrent" xml:space="preserve">
+    <value>current</value>
+  </data>
+  <data name="MigrationCurrentSchema" xml:space="preserve">
+    <value>current schema</value>
+  </data>
+  <data name="MigrationMissingInCode" xml:space="preserve">
+    <value>missing in code</value>
+  </data>
+  <data name="MigrationNoChange" xml:space="preserve">
+    <value>The migration does not change the schema.</value>
+  </data>
+  <data name="MigrationNoSnapshot" xml:space="preserve">
+    <value>no snapshot</value>
+  </data>
+  <data name="MigrationPending" xml:space="preserve">
+    <value>pending</value>
+  </data>
+  <data name="Migrations" xml:space="preserve">
+    <value>Migrations</value>
+  </data>
+  <data name="Model" xml:space="preserve">
+    <value>Model</value>
+  </data>
+  <data name="ModelLower" xml:space="preserve">
+    <value>model</value>
+  </data>
+  <data name="MostCommonTypes" xml:space="preserve">
+    <value>Most common types</value>
+  </data>
+  <data name="MostConnected" xml:space="preserve">
+    <value>Most connected</value>
+  </data>
+  <data name="NewRow" xml:space="preserve">
+    <value>+ New row</value>
+  </data>
+  <data name="NewRowEmpty" xml:space="preserve">
+    <value>The new row has no column filled in.</value>
+  </data>
+  <data name="NewRowTitle" xml:space="preserve">
+    <value>Create a new row</value>
+  </data>
+  <data name="NewerVersion" xml:space="preserve">
+    <value>Newer version</value>
+  </data>
+  <data name="No" xml:space="preserve">
+    <value>No</value>
+  </data>
+  <data name="NoForeignKeys" xml:space="preserve">
+    <value>The table has no foreign keys.</value>
+  </data>
+  <data name="NoIndexes" xml:space="preserve">
+    <value>The table has no indexes.</value>
+  </data>
+  <data name="NoRowsMatchFilter" xml:space="preserve">
+    <value>No row matches the filters.</value>
+  </data>
+  <data name="NoTableSelectedError" xml:space="preserve">
+    <value>No table is selected.</value>
+  </data>
+  <data name="NothingNotable" xml:space="preserve">
+    <value>Nothing notable. Every table has a primary key, foreign keys are covered by indexes and nothing stands apart.</value>
+  </data>
+  <data name="OfTotal" xml:space="preserve">
+    <value>of</value>
+  </data>
+  <data name="OlderVersion" xml:space="preserve">
+    <value>Older version</value>
+  </data>
+  <data name="Page" xml:space="preserve">
+    <value>Page</value>
+  </data>
+  <data name="PageSize" xml:space="preserve">
+    <value>Per page</value>
+  </data>
+  <data name="PickTable" xml:space="preserve">
+    <value>Pick a table from the list on the left.</value>
+  </data>
+  <data name="ReasonColumnMissing" xml:space="preserve">
+    <value>the column is not in the schema</value>
+  </data>
+  <data name="ReasonKeyNotReadable" xml:space="preserve">
+    <value>the primary key is not fully readable in the grid</value>
+  </data>
+  <data name="ReasonNoPrimaryKey" xml:space="preserve">
+    <value>the table has no primary key</value>
+  </data>
+  <data name="ReasonView" xml:space="preserve">
+    <value>a view is not edited through the viewer</value>
+  </data>
+  <data name="Refresh" xml:space="preserve">
+    <value>Refresh</value>
+  </data>
+  <data name="RefreshTitle" xml:space="preserve">
+    <value>Load the schema again</value>
+  </data>
+  <data name="Relationship_Few" xml:space="preserve">
+    <value>relationships</value>
+  </data>
+  <data name="Relationship_One" xml:space="preserve">
+    <value>relationship</value>
+  </data>
+  <data name="Relationship_Other" xml:space="preserve">
+    <value>relationships</value>
+  </data>
+  <data name="ReloadTitle" xml:space="preserve">
+    <value>Load again</value>
+  </data>
+  <data name="RowActions" xml:space="preserve">
+    <value>Row actions</value>
+  </data>
+  <data name="RowNotIdentifiable" xml:space="preserve">
+    <value>The row cannot be identified, so nothing can be done with it.</value>
+  </data>
+  <data name="Row_Few" xml:space="preserve">
+    <value>rows</value>
+  </data>
+  <data name="Row_One" xml:space="preserve">
+    <value>row</value>
+  </data>
+  <data name="Row_Other" xml:space="preserve">
+    <value>rows</value>
+  </data>
+  <data name="RowsEstimate" xml:space="preserve">
+    <value>(estimate)</value>
+  </data>
+  <data name="RowsEstimateTitle" xml:space="preserve">
+    <value>Estimate from statistics</value>
+  </data>
+  <data name="Save" xml:space="preserve">
+    <value>Save</value>
+  </data>
+  <data name="SaveChanges" xml:space="preserve">
+    <value>Save the changes</value>
+  </data>
+  <data name="SchemaLabel" xml:space="preserve">
+    <value>Schema</value>
+  </data>
+  <data name="SchemaLoadFailed" xml:space="preserve">
+    <value>The schema could not be loaded.</value>
+  </data>
+  <data name="SchemaLower" xml:space="preserve">
+    <value>schema</value>
+  </data>
+  <data name="SchemaSource" xml:space="preserve">
+    <value>Schema source</value>
+  </data>
+  <data name="Schemas" xml:space="preserve">
+    <value>Schemas</value>
+  </data>
+  <data name="SearchPlaceholder" xml:space="preserve">
+    <value>Search for a table or a column…</value>
+  </data>
+  <data name="ServerUnreachable" xml:space="preserve">
+    <value>The server is not responding. Check that the application is running.</value>
+  </data>
+  <data name="SeverityErrors" xml:space="preserve">
+    <value>Errors</value>
+  </data>
+  <data name="SeverityInfo" xml:space="preserve">
+    <value>Information</value>
+  </data>
+  <data name="SeverityWarnings" xml:space="preserve">
+    <value>Warnings</value>
+  </data>
+  <data name="ShowAllColumns" xml:space="preserve">
+    <value>Show all columns</value>
+  </data>
+  <data name="ShowSchema" xml:space="preserve">
+    <value>Show the schema</value>
+  </data>
+  <data name="ShowSchemaAfterMigration" xml:space="preserve">
+    <value>Show the schema after this migration</value>
+  </data>
+  <data name="ShowTableData" xml:space="preserve">
+    <value>Show data of table</value>
+  </data>
+  <data name="Shown" xml:space="preserve">
+    <value>shown</value>
+  </data>
+  <data name="SortBy" xml:space="preserve">
+    <value>Sort by</value>
+  </data>
+  <data name="Source" xml:space="preserve">
+    <value>Source</value>
+  </data>
+  <data name="SourceDatabase" xml:space="preserve">
+    <value>Database</value>
+  </data>
+  <data name="SourceEfModel" xml:space="preserve">
+    <value>EF model</value>
+  </data>
+  <data name="SourceMerged" xml:space="preserve">
+    <value>Merged</value>
+  </data>
+  <data name="StoreNull" xml:space="preserve">
+    <value>Store NULL</value>
+  </data>
+  <data name="TabColumns" xml:space="preserve">
+    <value>Columns</value>
+  </data>
+  <data name="TabData" xml:space="preserve">
+    <value>Data</value>
+  </data>
+  <data name="TabDiagram" xml:space="preserve">
+    <value>Diagram</value>
+  </data>
+  <data name="TabDifferences" xml:space="preserve">
+    <value>Differences</value>
+  </data>
+  <data name="TabForeignKeys" xml:space="preserve">
+    <value>Foreign keys</value>
+  </data>
+  <data name="TabHistory" xml:space="preserve">
+    <value>History</value>
+  </data>
+  <data name="TabIncoming" xml:space="preserve">
+    <value>Referenced by</value>
+  </data>
+  <data name="TabIndexes" xml:space="preserve">
+    <value>Indexes</value>
+  </data>
+  <data name="TabOverview" xml:space="preserve">
+    <value>Overview</value>
+  </data>
+  <data name="TabTables" xml:space="preserve">
+    <value>Tables</value>
+  </data>
+  <data name="TableEmpty" xml:space="preserve">
+    <value>The table is empty.</value>
+  </data>
+  <data name="TableGroup" xml:space="preserve">
+    <value>Table group</value>
+  </data>
+  <data name="Table_Few" xml:space="preserve">
+    <value>tables</value>
+  </data>
+  <data name="Table_One" xml:space="preserve">
+    <value>table</value>
+  </data>
+  <data name="Table_Other" xml:space="preserve">
+    <value>tables</value>
+  </data>
+  <data name="TablesGenitive" xml:space="preserve">
+    <value>tables</value>
+  </data>
+  <data name="TotalCountUnknown" xml:space="preserve">
+    <value>no total count</value>
+  </data>
+  <data name="TotalCountUnknownTitle" xml:space="preserve">
+    <value>The total count could not be determined</value>
+  </data>
+  <data name="TphInheritance" xml:space="preserve">
+    <value>Table-per-hierarchy inheritance</value>
+  </data>
+  <data name="VersionCurrent" xml:space="preserve">
+    <value>Current schema</value>
+  </data>
+  <data name="VersionHistorical" xml:space="preserve">
+    <value>Historical version</value>
+  </data>
+  <data name="VersionLabel" xml:space="preserve">
+    <value>Schema version</value>
+  </data>
+  <data name="ViewBadge" xml:space="preserve">
+    <value>View</value>
+  </data>
+  <data name="View_Few" xml:space="preserve">
+    <value>views</value>
+  </data>
+  <data name="View_One" xml:space="preserve">
+    <value>view</value>
+  </data>
+  <data name="View_Other" xml:space="preserve">
+    <value>views</value>
+  </data>
+  <data name="WarningFinding_Few" xml:space="preserve">
+    <value>warnings</value>
+  </data>
+  <data name="WarningFinding_One" xml:space="preserve">
+    <value>warning</value>
+  </data>
+  <data name="WarningFinding_Other" xml:space="preserve">
+    <value>warnings</value>
+  </data>
+  <data name="WarningsHeading" xml:space="preserve">
+    <value>Some things could not be read while loading</value>
+  </data>
+  <data name="WithoutPrimaryKey" xml:space="preserve">
+    <value>Without a primary key</value>
+  </data>
+  <data name="WithoutPrimaryKeyHint" xml:space="preserve">
+    <value>A row cannot be addressed unambiguously; EF can only read such a table.</value>
+  </data>
+  <data name="WorthAttention" xml:space="preserve">
+    <value>Worth attention</value>
+  </data>
+  <data name="Yes" xml:space="preserve">
+    <value>Yes</value>
+  </data>
+  <data name="ZoomIn" xml:space="preserve">
+    <value>Zoom in</value>
+  </data>
+  <data name="ZoomOut" xml:space="preserve">
+    <value>Zoom out</value>
+  </data>
+  <data name="ZoomReset" xml:space="preserve">
+    <value>Original size</value>
+  </data>
+</root>

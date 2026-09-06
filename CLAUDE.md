@@ -281,6 +281,12 @@ takže přehled, tabulky i diagram fungují beze změny. Porovnání dvou verzí
 v C#, protože JS interop se v testech komponent nedá spustit.
 Viz [ADR-0012](docs/adr/0012-vlastni-layout-diagramu.md).
 
+**Prohlížečka mluví anglicky, česky až na požádání.** Jazyk se bere z adresy
+(`?lang=cs`), protože přepnutí vyžaduje znovunačtení — satelitní assembly s překlady
+se ve WebAssembly stahuje jen pro kulturu, se kterou aplikace nastartovala. Uživatel
+na to je upozorněn dřív, než o rozdělanou práci přijde.
+Viz [ADR-0018](docs/adr/0018-vicejazycne-ui.md).
+
 **Diagram se skládá z bloků, ne do jednoho pruhu sloupců.** Samotné vrstvení dá sloupců
 jen tolik, jak hluboký je řetěz cizích klíčů, takže široké schéma vyjde jako pruh. Proti
 tomu stojí tři kroky: nesouvislé části vedle sebe, zalomení přeplněné vrstvy a mřížka
@@ -322,12 +328,18 @@ Viz [ADR-0011](docs/adr/0011-parovani-podle-sloupcu.md).
   AngleSharp změnil binární podpis, na který je bUnit zkompilovaný.
 - Testovací databáze v paměti musí mít **unikátní jméno** (GUID). xUnit spouští třídy
   paralelně a dvě databáze stejného jména si přepisují obsah.
-- CSS třídy a texty v UI jsou česky, stejně jako zbytek projektu.
-- Počty v UI se **skloňují** přes `Cestina` — „1 tabulka“, ne „1 tabulek“.
-  Výjimka je vazba po předložce (`2 z 5 tabulek`), kde je vždy genitiv plurálu.
+- **Texty v UI jdou do `.resx`, ne do kódu.** Anglický `Texts.resx` je neutrální,
+  český `Texts.cs.resx` je satelitní. Používají se jako `@Texts.TabTables`, takže
+  překlep je chyba buildu. CSS třídy zůstávají česky — nejsou to texty pro uživatele.
+- Počty v UI se **skloňují** přes `Counts` — „1 tabulka“, ne „1 tabulek“. Tvary slov
+  jsou v resx jako `Table_One`/`_Few`/`_Other`, pravidlo výběru je v `Plural`,
+  protože resx ho vyjádřit neumí. Výjimka je vazba po předložce (`2 z 5 tabulek`),
+  kde je vždy genitiv plurálu.
 - **Formátování čísel se nesmí opřít o kulturu stroje.** WebAssembly běží invariantně,
   server může mít jakoukoli a CI zase jinou — `{x:N0}` proto dá pokaždé jiný výsledek.
-  Od toho je `Cestina.Cislo`.
+  Od toho je `Plural.Number`, které oddělovač vybírá podle jazyka prohlížečky.
+- **Testy si připínají kulturu.** Bez toho by na českých Windows četly češtinu
+  a na CI angličtinu; od toho je `Kultura.Pripni` v testovacím projektu.
 
 ---
 
@@ -336,11 +348,11 @@ Viz [ADR-0011](docs/adr/0011-parovani-podle-sloupcu.md).
 **Všech sedm etap je hotových.** Datový model, čtení z EF modelu, živá introspekce obou
 providerů, slučování, diff engine, HTTP API s autorizací a cache, Blazor WASM prohlížečka
 s přehledem databáze, ER diagramem a focus modem, historie schématu z migrací, náhled dat
-včetně úpravy, vkládání a mazání řádků, export a `dotnet tool`. **1425 testů** (EfCore 268,
-Relational 245, Server 318, Tool 51, Ui 543), 100 % pokrytí řádků a metod ve všech pěti
-sadách.
+včetně úpravy, vkládání a mazání řádků, export a `dotnet tool`. UI mluví anglicky
+a česky. **1434 testů** (EfCore 268, Relational 245, Server 318, Tool 51, Ui 552),
+100 % pokrytí řádků a metod ve všech pěti sadách.
 
-Vydáno na NuGetu, poslední stabilní verze je `0.6.0` — všech osm balíčků včetně
+Vydáno na NuGetu, poslední stabilní verze je `0.7.0` — všech osm balíčků včetně
 `DbsViewer.Tool`. Publikuje se přes Trusted Publishing z tagu `v*`.
 
 Ověřeno end-to-end: balíčky se zabalí, nainstalují do čerstvé Web API aplikace, dvěma

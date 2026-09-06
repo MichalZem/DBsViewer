@@ -28,6 +28,20 @@ public class ViewerTests : TestContext
         return RenderComponent<Viewer>();
     }
 
+    /// <summary>
+    /// Ověří hlavičku seznamu „N of M tables". Text je rozdělený na víc řádků, takže
+    /// se hledá po částech, ne jako jeden řetězec.
+    /// </summary>
+    private static void Seznam(IRenderedComponent<Viewer> component, int zobrazeno, int celkem)
+    {
+        var pocet = component.Find("p.pocet").TextContent;
+        var cisla = System.Text.RegularExpressions.Regex.Matches(pocet, @"\d+")
+            .Select(m => m.Value)
+            .ToList();
+
+        Assert.Equal([zobrazeno.ToString(), celkem.ToString()], cisla);
+    }
+
     [Fact]
     public void Po_nacteni_se_ukaze_seznam_tabulek()
     {
@@ -35,7 +49,7 @@ public class ViewerTests : TestContext
 
         Assert.Contains("Testovací schéma", component.Markup, StringComparison.Ordinal);
         Assert.Contains("Customers", component.Markup, StringComparison.Ordinal);
-        Assert.Contains("4 z 4 tabulek", component.Markup, StringComparison.Ordinal);
+        Seznam(component, 4, 4);
     }
 
     [Fact]
@@ -52,7 +66,7 @@ public class ViewerTests : TestContext
 
         var component = RenderComponent<Viewer>();
 
-        Assert.Contains("Načítám schéma", component.Markup, StringComparison.Ordinal);
+        Assert.Contains("Loading the schema", component.Markup, StringComparison.Ordinal);
 
         brana.SetResult();
         component.WaitForAssertion(() =>
@@ -68,7 +82,7 @@ public class ViewerTests : TestContext
 
         var component = Render();
 
-        Assert.Contains("chybou 500", component.Markup, StringComparison.Ordinal);
+        Assert.Contains("error 500", component.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -89,7 +103,7 @@ public class ViewerTests : TestContext
 
         component.Find(".seznam input").Input("order");
 
-        Assert.Contains("1 z 4 tabulek", component.Markup, StringComparison.Ordinal);
+        Seznam(component, 1, 4);
     }
 
     [Fact]
@@ -97,10 +111,10 @@ public class ViewerTests : TestContext
     {
         var component = Render();
 
-        Zalozka(component, "Přehled");
+        Zalozka(component, "Overview");
 
         Assert.NotEmpty(component.FindAll(".prehled-cisla .karta"));
-        Assert.Contains("Co stojí za pozornost", component.Markup, StringComparison.Ordinal);
+        Assert.Contains("Worth attention", component.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -111,7 +125,7 @@ public class ViewerTests : TestContext
         Zalozka(component, "Diagram");
 
         Assert.NotEmpty(component.FindAll(".uzel"));
-        Assert.Contains("Focus na vybranou tabulku", component.Markup, StringComparison.Ordinal);
+        Assert.Contains("Focus on the selected table", component.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -137,7 +151,7 @@ public class ViewerTests : TestContext
 
         component.Find("input[type=range]").Change("0");
 
-        Assert.Contains("Vzdálenost 0", component.Markup, StringComparison.Ordinal);
+        Assert.Contains("Distance 0", component.Markup, StringComparison.Ordinal);
         Assert.Single(component.FindAll(".uzel"));
     }
 
@@ -149,7 +163,7 @@ public class ViewerTests : TestContext
 
         component.Find("input[type=range]").Change("nesmysl");
 
-        Assert.Contains("Vzdálenost 1", component.Markup, StringComparison.Ordinal);
+        Assert.Contains("Distance 1", component.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -170,14 +184,14 @@ public class ViewerTests : TestContext
 
         Assert.Equal(0, _server.DiffCalls);
 
-        Zalozka(component, "Rozdíly");
+        Zalozka(component, "Differences");
 
         Assert.Equal(1, _server.DiffCalls);
-        Assert.Contains("1 chyb", component.Markup, StringComparison.Ordinal);
+        Assert.Contains("1 error", component.Markup, StringComparison.Ordinal);
 
         // Podruhé se už nenačítají.
-        Zalozka(component, "Tabulky");
-        Zalozka(component, "Rozdíly");
+        Zalozka(component, "Tables");
+        Zalozka(component, "Differences");
         Assert.Equal(1, _server.DiffCalls);
     }
 
@@ -185,7 +199,7 @@ public class ViewerTests : TestContext
     public void Klik_v_rozdilech_prepne_na_detail()
     {
         var component = Render();
-        Zalozka(component, "Rozdíly");
+        Zalozka(component, "Differences");
 
         component.FindAll("button.odkaz").ElementAt(0).Click();
 
@@ -197,8 +211,8 @@ public class ViewerTests : TestContext
     public void Nalez_diffu_zvyrazni_tabulku_v_seznamu()
     {
         var component = Render();
-        Zalozka(component, "Rozdíly");
-        Zalozka(component, "Tabulky");
+        Zalozka(component, "Differences");
+        Zalozka(component, "Tables");
 
         Assert.Single(component.FindAll(".seznam li button.nalez-chyba"));
         Assert.Single(component.FindAll(".seznam li button.nalez-varovani"));
@@ -210,9 +224,9 @@ public class ViewerTests : TestContext
         var component = Render();
         _server.FailDiff = true;
 
-        Zalozka(component, "Rozdíly");
+        Zalozka(component, "Differences");
 
-        Assert.Contains("Přístup odepřen", component.Markup, StringComparison.Ordinal);
+        Assert.Contains("Access denied", component.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -254,11 +268,11 @@ public class ViewerTests : TestContext
 
         component.FindAll(".nastroje select").ElementAt(1).Change("Prodej");
 
-        Assert.Contains("1 z 4 tabulek", component.Markup, StringComparison.Ordinal);
+        Seznam(component, 1, 4);
 
         component.FindAll(".nastroje select").ElementAt(1).Change("");
 
-        Assert.Contains("4 z 4 tabulek", component.Markup, StringComparison.Ordinal);
+        Seznam(component, 4, 4);
     }
 
     [Fact]
@@ -267,7 +281,7 @@ public class ViewerTests : TestContext
         var component = Render();
         var pred = _server.SchemaCalls;
 
-        component.FindAll(".nastroje button").Last().Click();
+        component.FindAll(".nastroje button").First(b => b.TextContent.Trim() == "Refresh").Click();
 
         Assert.Equal(1, _server.RefreshCalls);
         Assert.True(_server.SchemaCalls > pred);
@@ -279,9 +293,9 @@ public class ViewerTests : TestContext
         var component = Render();
         _server.FailRefresh = true;
 
-        component.FindAll(".nastroje button").Last().Click();
+        component.FindAll(".nastroje button").First(b => b.TextContent.Trim() == "Refresh").Click();
 
-        Assert.Contains("Přístup odepřen", component.Markup, StringComparison.Ordinal);
+        Assert.Contains("Access denied", component.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -310,7 +324,7 @@ public class ViewerTests : TestContext
         component.FindAll(".seznam li button").ElementAt(1).Click();
         component.FindAll(".zalozky button").ElementAt(4).Click();
 
-        Assert.Contains("Přístup odepřen", component.Markup, StringComparison.Ordinal);
+        Assert.Contains("Access denied", component.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -396,7 +410,7 @@ public class ViewerTests : TestContext
         await component.InvokeAsync(async () =>
             chyba = await component.Instance.UpdateRowAsync(new DataUpdate()));
 
-        Assert.Equal("Není vybraná žádná tabulka.", chyba);
+        Assert.Equal("No table is selected.", chyba);
         Assert.Equal(0, _server.WriteCalls);
     }
 
@@ -487,7 +501,7 @@ public class ViewerTests : TestContext
         var component = Render();
 
         // Vzorek má tabulky bez schématu, takže se přepínač nezobrazuje.
-        Assert.Equal(2, component.FindAll(".nastroje select").Count);
+        Assert.Equal(2, component.FindAll(".nastroje select:not(.jazyky)").Count);
     }
 
     [Fact]
@@ -505,19 +519,19 @@ public class ViewerTests : TestContext
 
         var component = Render();
 
-        Assert.Equal(3, component.FindAll(".nastroje select").Count);
+        Assert.Equal(3, component.FindAll(".nastroje select:not(.jazyky)").Count);
 
         component.FindAll(".nastroje select").ElementAt(2).Change("sales");
-        Assert.Contains("1 z 3 tabulek", component.Markup, StringComparison.Ordinal);
+        Seznam(component, 1, 3);
 
         component.FindAll(".nastroje select").ElementAt(2).Change("");
-        Assert.Contains("3 z 3 tabulek", component.Markup, StringComparison.Ordinal);
+        Seznam(component, 3, 3);
     }
 
     [Theory]
     [InlineData("ef", "EF model")]
-    [InlineData("live", "Databáze")]
-    [InlineData("merged", "Sloučeno")]
+    [InlineData("live", "Database")]
+    [InlineData("merged", "Merged")]
     public void Popisky_zdroju(string view, string expected) =>
         Assert.Equal(expected, Viewer.SourceLabel(view));
 
@@ -533,8 +547,8 @@ public class ViewerTests : TestContext
     public void Vyjimky_se_prekladaji_na_hlasky()
     {
         Assert.Equal("vlastní", Viewer.Describe(new DbsViewerClientException("vlastní")));
-        Assert.Contains("neodpovídá", Viewer.Describe(new HttpRequestException()), StringComparison.Ordinal);
-        Assert.Contains("nepodařilo", Viewer.Describe(new InvalidOperationException()), StringComparison.Ordinal);
+        Assert.Contains("not responding", Viewer.Describe(new HttpRequestException()), StringComparison.Ordinal);
+        Assert.Contains("could not be loaded", Viewer.Describe(new InvalidOperationException()), StringComparison.Ordinal);
     }
 
     /// <summary>Server v paměti. Umí odpovídat i selhávat, aby šly otestovat obě cesty.</summary>
@@ -744,7 +758,7 @@ public class ViewerTests : TestContext
     {
         _server.Meta = Vzorek.Meta() with { CanBrowseHistory = false };
 
-        Assert.DoesNotContain("Historie", Render().Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("History", Render().Markup, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -752,7 +766,7 @@ public class ViewerTests : TestContext
     {
         _server.Meta = Vzorek.Meta() with { CanBrowseHistory = true };
 
-        Assert.Contains("Historie", Render().Markup, StringComparison.Ordinal);
+        Assert.Contains("History", Render().Markup, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -761,7 +775,7 @@ public class ViewerTests : TestContext
         _server.Meta = Vzorek.Meta() with { CanBrowseHistory = true };
 
         var component = Render();
-        Zalozka(component, "Historie");
+        Zalozka(component, "History");
 
         Assert.Contains("Zaklad", component.Markup, StringComparison.Ordinal);
         Assert.Contains("Sloupec", component.Markup, StringComparison.Ordinal);
@@ -773,12 +787,12 @@ public class ViewerTests : TestContext
         _server.Meta = Vzorek.Meta() with { CanBrowseHistory = true };
 
         var component = Render();
-        Zalozka(component, "Historie");
+        Zalozka(component, "History");
         component.FindAll(".prepnout").ElementAt(0).Click();
 
         // Schéma se načte s parametrem migrace, ne podle zdroje.
         Assert.Contains("migration=", _server.LastSchemaUrl, StringComparison.Ordinal);
-        Assert.Contains("Historická verze", component.Markup, StringComparison.Ordinal);
+        Assert.Contains("Historical version", component.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -788,10 +802,10 @@ public class ViewerTests : TestContext
         _server.Meta = Vzorek.Meta(canPreview: true) with { CanBrowseHistory = true };
 
         var component = Render();
-        Zalozka(component, "Historie");
+        Zalozka(component, "History");
         component.FindAll(".prepnout").ElementAt(0).Click();
 
-        Zalozka(component, "Tabulky");
+        Zalozka(component, "Tables");
         component.FindAll(".seznam li button").ElementAt(0).Click();
 
         var dataZalozka = component.FindAll(".zalozky button")
@@ -806,12 +820,12 @@ public class ViewerTests : TestContext
         _server.Meta = Vzorek.Meta() with { CanBrowseHistory = true };
 
         var component = Render();
-        Zalozka(component, "Historie");
+        Zalozka(component, "History");
         component.FindAll(".prepnout").ElementAt(0).Click();
 
         component.Find(".zpet-na-aktualni").Click();
 
-        Assert.DoesNotContain("Historická verze", component.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("Historical version", component.Markup, StringComparison.Ordinal);
         Assert.DoesNotContain("migration=", _server.LastSchemaUrl, StringComparison.Ordinal);
     }
 
@@ -821,7 +835,7 @@ public class ViewerTests : TestContext
         _server.Meta = Vzorek.Meta() with { CanBrowseHistory = true };
 
         var component = Render();
-        Zalozka(component, "Historie");
+        Zalozka(component, "History");
 
         // Přepnutí na porovnání od začátku historie.
         component.FindAll(".porovnani select").ElementAt(0).Change("");
@@ -836,7 +850,7 @@ public class ViewerTests : TestContext
         _server.Meta = Vzorek.Meta() with { CanBrowseHistory = true };
 
         var component = Render();
-        Zalozka(component, "Historie");
+        Zalozka(component, "History");
         component.Find(".porovnani button.hlavni").Click();
 
         Assert.Equal(1, _server.MigrationDiffCalls);
@@ -849,12 +863,12 @@ public class ViewerTests : TestContext
         _server.Meta = Vzorek.Meta() with { CanBrowseHistory = true };
 
         var component = Render();
-        Zalozka(component, "Historie");
+        Zalozka(component, "History");
 
         _server.Fail = HttpStatusCode.InternalServerError;
         component.Find(".porovnani button.hlavni").Click();
 
-        Assert.Contains("chyba", component.Markup, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("error", component.Markup, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -867,7 +881,7 @@ public class ViewerTests : TestContext
 
         Assert.Single(component.FindAll(".verze-pruh"));
         Assert.Empty(component.FindAll(".verze-pruh.historicka"));
-        Assert.Contains("Aktuální schéma", component.Markup, StringComparison.Ordinal);
+        Assert.Contains("Current schema", component.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -889,7 +903,7 @@ public class ViewerTests : TestContext
 
         // Popisky nesou i to, které migraci aktuální schéma odpovídá.
         Assert.Equal(3, volby.Count);
-        Assert.StartsWith("Aktuální schéma", volby[0], StringComparison.Ordinal);
+        Assert.StartsWith("Current schema", volby[0], StringComparison.Ordinal);
         Assert.Contains("Sloupec", volby[0], StringComparison.Ordinal);
         Assert.Contains("Sloupec", volby[1], StringComparison.Ordinal);
         Assert.Equal("Zaklad", volby[2]);
@@ -940,7 +954,7 @@ public class ViewerTests : TestContext
         var volba = component.FindAll(".verze-pruh option").ElementAt(1);
 
         Assert.True(volba.HasAttribute("disabled"));
-        Assert.Contains("bez schématu", volba.TextContent, StringComparison.Ordinal);
+        Assert.Contains("no snapshot", volba.TextContent, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1076,7 +1090,7 @@ public class ViewerTests : TestContext
 
         component.FindAll(".verze-pruh select").ElementAt(1).Change("20260101_Zaklad");
 
-        Assert.Contains("chyba", component.Markup, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("error", component.Markup, StringComparison.OrdinalIgnoreCase);
         Assert.Empty(component.FindAll(".legenda-zmen"));
     }
 
@@ -1094,7 +1108,7 @@ public class ViewerTests : TestContext
         Assert.Contains("Zaklad", smer, StringComparison.Ordinal);
         Assert.Contains("→", smer, StringComparison.Ordinal);
         // Cíl porovnání nese i jméno migrace, které aktuální schéma odpovídá.
-        Assert.Contains("aktuální", smer, StringComparison.Ordinal);
+        Assert.Contains("current", smer, StringComparison.Ordinal);
         Assert.Contains("Sloupec", smer, StringComparison.Ordinal);
     }
 
@@ -1119,7 +1133,7 @@ public class ViewerTests : TestContext
         _server.Meta = Vzorek.Meta() with { CanBrowseHistory = true };
 
         // „Porovnat vůči" nechávalo směr na domyšlení; „Co se změnilo od" ne.
-        Assert.Contains("Co se změnilo od", Render().Markup, StringComparison.Ordinal);
+        Assert.Contains("What changed since", Render().Markup, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1132,7 +1146,7 @@ public class ViewerTests : TestContext
         var volba = Render().FindAll(".verze-pruh select").ElementAt(0)
             .QuerySelectorAll("option").ElementAt(0).TextContent.Trim();
 
-        Assert.Contains("Aktuální schéma", volba, StringComparison.Ordinal);
+        Assert.Contains("Current schema", volba, StringComparison.Ordinal);
         Assert.Contains("Sloupec", volba, StringComparison.Ordinal);
     }
 
@@ -1164,8 +1178,8 @@ public class ViewerTests : TestContext
             .QuerySelectorAll("option").Select(o => o.TextContent.Trim()).ToList();
 
         Assert.Contains("Nasazena", volby[0], StringComparison.Ordinal);
-        Assert.Contains("čeká na nasazení", volby[1], StringComparison.Ordinal);
-        Assert.Contains("= aktuální schéma", volby[2], StringComparison.Ordinal);
+        Assert.Contains("pending", volby[1], StringComparison.Ordinal);
+        Assert.Contains("= current schema", volby[2], StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1186,7 +1200,7 @@ public class ViewerTests : TestContext
         var volba = Render().FindAll(".verze-pruh select").ElementAt(0)
             .QuerySelectorAll("option").ElementAt(0).TextContent.Trim();
 
-        Assert.Equal("Aktuální schéma", volba);
+        Assert.Equal("Current schema", volba);
     }
 
     /// <summary>

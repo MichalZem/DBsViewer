@@ -1,5 +1,7 @@
+using System.Globalization;
 using DbsViewer.Ui;
 using DbsViewer.Ui.Model;
+using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 
@@ -17,4 +19,15 @@ builder.Services.AddScoped(_ => new HttpClient
 
 builder.Services.AddScoped<DbsViewerClient>();
 
-await builder.Build().RunAsync();
+var host = builder.Build();
+
+// Jazyk se bere z adresy (?lang=cs). Musí se nastavit před prvním vykreslením, protože
+// ResourceManager čte kulturu až v okamžiku, kdy se text načítá — a satelitní assembly
+// se v WebAssembly stahuje jen pro tu, se kterou aplikace nastartovala.
+var language = LanguageChoice.FromUri(host.Services.GetRequiredService<NavigationManager>().Uri);
+var culture = LanguageChoice.Culture(language);
+
+CultureInfo.DefaultThreadCurrentCulture = culture;
+CultureInfo.DefaultThreadCurrentUICulture = culture;
+
+await host.RunAsync();

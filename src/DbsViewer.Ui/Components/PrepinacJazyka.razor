@@ -1,0 +1,87 @@
+@inject NavigationManager Navigation
+
+@*
+    Přepínač jazyka. Stojí vpravo nahoře mezi ostatními nástroji.
+
+    Přepnutí znamená znovunačtení celé prohlížečky: satelitní assembly s překlady se
+    ve WebAssembly stahuje jen pro kulturu, se kterou aplikace nastartovala. Uživatel
+    proto dostane varování dřív, než o rozdělanou práci přijde. Okno je vlastní, ne
+    dialog prohlížeče — ten by šel otevřít jen JavaScriptem a projekt ho jinde nepoužívá.
+*@
+
+<select class="jazyky" title="@Texts.LanguageTitle"
+        value="@LanguageChoice.Code(Current)"
+        @onchange="Zeptej">
+    @foreach (var jazyk in Jazyky)
+    {
+        <option value="@LanguageChoice.Code(jazyk)">@LanguageChoice.NativeName(jazyk)</option>
+    }
+</select>
+
+@if (Zvoleny is { } cilovy)
+{
+    @*
+        Zakrytí plochy pod oknem není jen kosmetika: bez něj by šlo klikat do prohlížečky
+        pod dialogem a měnit stav, o který uživatel za chvíli stejně přijde.
+    *@
+    <div class="modal-pozadi" @onclick="Zrus">
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="jazyk-nadpis"
+             @onclick:stopPropagation="true">
+
+            <h2 id="jazyk-nadpis">@Texts.LanguageSwitchHeading</h2>
+
+            <p>@Texts.LanguageReloadWarning</p>
+
+            <p class="modal-cil">
+                @Texts.LanguageSwitchTo <strong>@LanguageChoice.NativeName(cilovy)</strong>
+            </p>
+
+            <div class="modal-tlacitka">
+                <button class="hlavni" @onclick="Prepni">@Texts.LanguageReloadConfirm</button>
+                <button @onclick="Zrus">@Texts.Cancel</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    /// <summary>Nabízené jazyky. Pořadí je pevné, aby nabídka neposkakovala.</summary>
+    internal static readonly Language[] Jazyky = [Language.English, Language.Czech];
+
+    /// <summary>Jazyk, na který se čeká na potvrzení. Bez potvrzení se nepřepíná.</summary>
+    private Language? Zvoleny { get; set; }
+
+    /// <summary>Právě běžící jazyk. Bere se z adresy, ne z nastavení komponenty.</summary>
+    internal Language Current => LanguageChoice.FromUri(Navigation.Uri);
+
+    /// <summary>
+    /// Volba v nabídce jazyk ještě nepřepne — jen otevře okno s dotazem.
+    /// </summary>
+    /// <remarks>
+    /// Nabídka po zrušení sama nepřeskočí zpátky na původní hodnotu, protože se překreslí
+    /// z <see cref="Current"/>, které se nezměnilo.
+    /// </remarks>
+    private void Zeptej(ChangeEventArgs e)
+    {
+        var jazyk = LanguageChoice.FromCode(e.Value?.ToString());
+
+        Zvoleny = jazyk == Current ? null : jazyk;
+    }
+
+    private void Zrus() => Zvoleny = null;
+
+    /// <summary>
+    /// Přejde na adresu s novým jazykem a vynutí znovunačtení.
+    /// </summary>
+    /// <remarks>
+    /// <c>forceLoad</c> je nutné: bez něj by Blazor jen přerouteroval uvnitř aplikace,
+    /// běhové prostředí by zůstalo se starou kulturou a texty by se nezměnily.
+    /// </remarks>
+    private void Prepni()
+    {
+        var cil = LanguageChoice.UrlFor(Navigation.Uri, Zvoleny!.Value);
+
+        Zvoleny = null;
+        Navigation.NavigateTo(cil, forceLoad: true);
+    }
+}

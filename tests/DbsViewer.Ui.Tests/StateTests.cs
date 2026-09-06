@@ -483,11 +483,11 @@ public class DbsViewerClientTests
     }
 
     [Theory]
-    [InlineData(HttpStatusCode.Forbidden, "Přístup odepřen")]
-    [InlineData(HttpStatusCode.Unauthorized, "Nejsi přihlášený")]
-    [InlineData(HttpStatusCode.NotFound, "neexistuje")]
-    [InlineData(HttpStatusCode.BadRequest, "nerozuměl")]
-    [InlineData(HttpStatusCode.InternalServerError, "chybou 500")]
+    [InlineData(HttpStatusCode.Forbidden, "Access denied")]
+    [InlineData(HttpStatusCode.Unauthorized, "not signed in")]
+    [InlineData(HttpStatusCode.NotFound, "does not exist")]
+    [InlineData(HttpStatusCode.BadRequest, "did not understand")]
+    [InlineData(HttpStatusCode.InternalServerError, "error 500")]
     public async Task Chyby_maji_srozumitelne_hlasky(HttpStatusCode status, string expected)
     {
         var client = Client(status);

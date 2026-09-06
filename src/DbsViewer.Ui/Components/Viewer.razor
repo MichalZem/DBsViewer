@@ -18,14 +18,14 @@
         *@
         <div class="verze-pruh @(State.IsHistorical ? "historicka" : "")">
             <label class="vyber">
-                <span class="stitek">@(State.IsHistorical ? "Historická verze" : "Verze schématu")</span>
+                <span class="stitek">@(State.IsHistorical ? Texts.VersionHistorical : Texts.VersionLabel)</span>
 
                 <select value="@(State.SelectedMigration ?? "")" @onchange="OnVerzeChangedAsync">
                     @*
                         Samotné „Aktuální schéma" nestačí: v seznamu verzí stojí vedle
                         jmen migrací a nebylo poznat, které z nich odpovídá.
                     *@
-                    <option value="">Aktuální schéma@(PosledniAplikovanaPopis)</option>
+                    <option value="">@Texts.VersionCurrent@(PosledniAplikovanaPopis)</option>
 
                     @foreach (var migrace in VerzeOdNejnovejsi)
                     {
@@ -42,10 +42,10 @@
                     a zobrazená verze je cíl. Bez toho nebylo z jednoho dropdownu poznat,
                     která strana je která, a člověk si směr domýšlel opačně.
                 *@
-                <span class="stitek">Co se změnilo od</span>
+                <span class="stitek">@Texts.ChangedSince</span>
 
                 <select value="@(State.BaselineMigration ?? "")" @onchange="OnPorovnaniChangedAsync">
-                    <option value="">neporovnávat</option>
+                    <option value="">@Texts.CompareNone</option>
 
                     @foreach (var migrace in VerzeOdNejnovejsi.Where(m => m.HasSnapshot))
                     {
@@ -62,21 +62,21 @@
                     <span class="mono">@ZobrazenaVerze</span>
                 </span>
 
-                <span class="legenda-zmen" title="Změny se čtou ve směru šipky">
-                    <span class="vzorek pribylo">+</span> přibylo
-                    <span class="vzorek ubylo">−</span> chybí
-                    <span class="vzorek zmeneno">~</span> jiné
+                <span class="legenda-zmen" title="@Texts.ChangeLegendHint">
+                    <span class="vzorek pribylo">+</span> @Texts.ChangeAddedShort
+                    <span class="vzorek ubylo">−</span> @Texts.ChangeRemovedShort
+                    <span class="vzorek zmeneno">~</span> @Texts.ChangeModifiedShort
                 </span>
             }
             else if (State.IsHistorical)
             {
-                <span class="popis">Data se v historické verzi prohlížet nedají.</span>
+                <span class="popis">@Texts.DataUnavailableHistorical</span>
             }
 
             @if (State.IsHistorical)
             {
                 <button class="zpet-na-aktualni" @onclick="ZobrazAktualniAsync">
-                    ← Zpět na aktuální schéma
+                    @Texts.BackToCurrent
                 </button>
             }
         </div>
@@ -87,24 +87,24 @@
 
         <nav class="pohledy">
             <button class="@Active(ViewerPane.Overview)" @onclick="() => SetPane(ViewerPane.Overview)">
-                Přehled
+                @Texts.TabOverview
             </button>
             <button class="@Active(ViewerPane.Browser)" @onclick="() => SetPane(ViewerPane.Browser)">
-                Tabulky
+                @Texts.TabTables
             </button>
             <button class="@Active(ViewerPane.Diagram)" @onclick="() => SetPane(ViewerPane.Diagram)">
-                Diagram
+                @Texts.TabDiagram
             </button>
             @if (State.Meta.CanDiff)
             {
                 <button class="@Active(ViewerPane.Diff)" @onclick="ShowDiffAsync">
-                    Rozdíly@(DiffBadge())
+                    @Texts.TabDifferences@(DiffBadge())
                 </button>
             }
             @if (State.Meta.CanBrowseHistory)
             {
                 <button class="@Active(ViewerPane.History)" @onclick="ShowHistoryAsync">
-                    Historie
+                    @Texts.TabHistory
                 </button>
             }
         </nav>
@@ -112,7 +112,7 @@
         <div class="nastroje">
             @if (State.Meta.Views.Count > 1)
             {
-                <select value="@State.Source" @onchange="OnSourceChangedAsync" title="Zdroj schématu">
+                <select value="@State.Source" @onchange="OnSourceChangedAsync" title="@Texts.SchemaSource">
                     @foreach (var view in State.Meta.Views)
                     {
                         <option value="@view">@SourceLabel(view)</option>
@@ -120,9 +120,9 @@
                 </select>
             }
 
-            <select value="@(State.Group ?? "")" @onchange="OnGroupChanged" title="Skupina tabulek"
+            <select value="@(State.Group ?? "")" @onchange="OnGroupChanged" title="@Texts.TableGroup"
                     hidden="@(State.Meta.Groups.Count == 0)">
-                <option value="">Všechny skupiny</option>
+                <option value="">@Texts.AllGroups</option>
                 @foreach (var group in State.Meta.Groups.Keys)
                 {
                     <option value="@group">@group</option>
@@ -131,8 +131,8 @@
 
             @if (Schemas.Count > 1)
             {
-                <select value="@(State.SchemaName ?? "")" @onchange="OnSchemaChanged" title="Schéma">
-                    <option value="">Všechna schémata</option>
+                <select value="@(State.SchemaName ?? "")" @onchange="OnSchemaChanged" title="@Texts.SchemaLabel">
+                    <option value="">@Texts.AllSchemas</option>
                     @foreach (var schema in Schemas)
                     {
                         <option value="@schema">@schema</option>
@@ -141,7 +141,7 @@
             }
 
             <div class="export">
-                <button @onclick="ToggleExport" title="Export schématu">Export ▾</button>
+                <button @onclick="ToggleExport" title="@Texts.ExportTitle">@Texts.Export ▾</button>
                 @if (_exportOtevreny)
                 {
                     <ul class="export-nabidka">
@@ -155,7 +155,9 @@
                 }
             </div>
 
-            <button @onclick="RefreshAsync" title="Načíst schéma znovu">Obnovit</button>
+            <button @onclick="RefreshAsync" title="@Texts.RefreshTitle">@Texts.Refresh</button>
+
+            <PrepinacJazyka />
         </div>
     </header>
 
@@ -166,7 +168,7 @@
 
     @if (State.IsLoading)
     {
-        <p class="nacita">Načítám schéma…</p>
+        <p class="nacita">@Texts.LoadingSchema</p>
     }
     else
     {
@@ -197,12 +199,18 @@
             {
                 <aside class="seznam">
                     <input type="search"
-                           placeholder="Hledat tabulku nebo sloupec…"
+                           placeholder="@Texts.SearchPlaceholder"
                            value="@State.Search"
                            @oninput="OnSearchChanged" />
 
-                    @* Po předložce „z" je vždy genitiv plurálu, takže se tu neskloňuje. *@
-                    <p class="pocet">@FilteredTables.Count z @State.DisplaySchema.Tables.Count tabulek</p>
+                    @*
+                        Po předložce „z" je v češtině vždy genitiv plurálu, takže se tu
+                        neskloňuje — proto zvláštní klíč a ne Counts.Tables.
+                    *@
+                    <p class="pocet">
+                        @FilteredTables.Count @Texts.OfTotal
+                        @State.DisplaySchema.Tables.Count @Texts.TablesGenitive
+                    </p>
 
                     <ul>
                         @foreach (var table in FilteredTables)
@@ -215,7 +223,7 @@
                                     @if (table.Name.Schema is { Length: > 0 } schema)
                                     {
                                         <span class="schema-prefix" style="@SchemaBarvy.Styl(schema)"
-                                              title="Schéma @schema">@schema<span class="tecka">.</span></span>
+                                              title="@Texts.SchemaLabel @schema">@schema<span class="tecka">.</span></span>
                                     }
 
                                     <span class="jmeno">@table.Name.Name</span>
@@ -250,11 +258,11 @@
                                 <input type="checkbox"
                                        checked="@State.FocusEnabled"
                                        @onchange="OnFocusToggled" />
-                                Focus na vybranou tabulku
+                                @Texts.FocusOnSelected
                             </label>
 
                             <label class="hops">
-                                Vzdálenost @State.FocusHops
+                                @Texts.FocusDistance @State.FocusHops
                                 <input type="range" min="0" max="3" step="1"
                                        value="@State.FocusHops"
                                        disabled="@(!State.FocusEnabled)"
@@ -262,10 +270,10 @@
                             </label>
 
                             <span class="pocet">
-                                @Cestina.Tabulky(DiagramTables.Count), @Cestina.Vazby(Layout.Edges.Count)
+                                @Counts.Tables(DiagramTables.Count), @Counts.Relationships(Layout.Edges.Count)
                                 @if (JeVyrez)
                                 {
-                                    <span class="z-celku">z @Cestina.Cislo(State.Schema.Tables.Count)</span>
+                                    <span class="z-celku">@Texts.OfTotal @Plural.Number(State.Schema.Tables.Count)</span>
                                 }
                             </span>
                         </div>
@@ -445,7 +453,7 @@
     {
         if (State.SelectedTable is not { } table)
         {
-            return "Není vybraná žádná tabulka.";
+            return Texts.NoTableSelectedError;
         }
 
         try
@@ -594,8 +602,8 @@
     private string ZobrazenaVerze =>
         HistorieSchematu.Kratce(State.SelectedMigration)
         ?? (PosledniAplikovana is { } posledni
-            ? $"aktuální ({HistorieSchematu.Kratce(posledni.Id)})"
-            : "aktuální schéma");
+            ? $"{Texts.MigrationCurrent} ({HistorieSchematu.Kratce(posledni.Id)})"
+            : Texts.MigrationCurrentSchema);
 
     /// <summary>
     /// Poslední migrace, která je opravdu v databázi — tomu odpovídá aktuální schéma.
@@ -615,21 +623,21 @@
     {
         if (!migrace.HasSnapshot)
         {
-            return " (bez schématu)";
+            return $" ({Texts.MigrationNoSnapshot})";
         }
 
         if (migrace.IsPending)
         {
-            return " (čeká na nasazení)";
+            return $" ({Texts.MigrationPending})";
         }
 
-        return migrace.Id == PosledniAplikovana?.Id ? " (= aktuální schéma)" : string.Empty;
+        return migrace.Id == PosledniAplikovana?.Id ? $" (= {Texts.MigrationCurrentSchema})" : string.Empty;
     }
 
     /// <summary>Doplněk k popisku „Aktuální schéma" se jménem odpovídající migrace.</summary>
     private string PosledniAplikovanaPopis =>
         PosledniAplikovana is { } posledni
-            ? $" — po {HistorieSchematu.Kratce(posledni.Id)}"
+            ? $" — {Texts.AfterMigration} {HistorieSchematu.Kratce(posledni.Id)}"
             : string.Empty;
 
     /// <summary>
@@ -723,7 +731,7 @@
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            State.Error = $"Stažení souboru se nepovedlo: {ex.Message}";
+            State.Error = $"{Texts.DownloadFailed} {ex.Message}";
         }
     }
 
@@ -741,9 +749,9 @@
 
     internal static string SourceLabel(string view) => view switch
     {
-        "ef" => "EF model",
-        "live" => "Databáze",
-        _ => "Sloučeno",
+        "ef" => Texts.SourceEfModel,
+        "live" => Texts.SourceDatabase,
+        _ => Texts.SourceMerged,
     };
 
     /// <summary>Prázdná volba v rozbalovacím seznamu znamená „bez filtru".</summary>
@@ -753,8 +761,8 @@
     internal static string Describe(Exception exception) => exception switch
     {
         DbsViewerClientException known => known.Message,
-        HttpRequestException => "Server neodpovídá. Zkontroluj, jestli aplikace běží.",
-        _ => "Schéma se nepodařilo načíst.",
+        HttpRequestException => Texts.ServerUnreachable,
+        _ => Texts.SchemaLoadFailed,
     };
 
     public void Dispose()

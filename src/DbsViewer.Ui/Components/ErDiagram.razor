@@ -5,7 +5,7 @@
 
 @if (Layout.Nodes.Count == 0)
 {
-    <p class="prazdno">Žádné tabulky k zobrazení. Zkus změnit filtr nebo vypnout focus.</p>
+    <p class="prazdno">@Texts.DiagramEmpty</p>
 }
 else
 {
@@ -83,17 +83,17 @@ else
                                         celou skupinu dřív, než přečte prefix.
                                     *@
                                     <span class="uzel-schema" style="@SchemaBarvy.Styl(schemaName)"
-                                          title="Schéma @schemaName">@schemaName<span class="tecka">.</span></span>
+                                          title="@Texts.SchemaLabel @schemaName">@schemaName<span class="tecka">.</span></span>
                                 }
 
                                 <span class="uzel-jmeno">@node.Table.Name.Name</span>
                                 @if (node.Table.IsJoinTable)
                                 {
-                                    <span class="odznak" title="Vazební tabulka N:M">N:M</span>
+                                    <span class="odznak" title="@Texts.JoinTableBadge">N:M</span>
                                 }
                                 @if (node.Table.IsView)
                                 {
-                                    <span class="odznak" title="Pohled">VIEW</span>
+                                    <span class="odznak" title="@Texts.ViewBadge">VIEW</span>
                                 }
                                 @if (CanPreviewData)
                                 {
@@ -103,12 +103,12 @@ else
                                         seznam vlevo a záložku Data.
                                     *@
                                     <button class="uzel-data"
-                                            title="Zobrazit data tabulky @node.Table.Name.Name"
+                                            title="@Texts.ShowTableData @node.Table.Name.Name"
                                             @onclick:stopPropagation="true"
                                             @onclick="() => OnShowData.InvokeAsync(node.Table.Name)">▤</button>
                                 }
                                 <button class="uzel-prepinac"
-                                        title="Zobrazit všechny sloupce"
+                                        title="@Texts.ShowAllColumns"
                                         @onclick:stopPropagation="true"
                                         @onclick="() => OnToggleExpand.InvokeAsync(node.Table.Name)">
                                     @(IsExpanded(node.Table.Name) ? "−" : "+")
@@ -135,16 +135,16 @@ else
         </svg>
 
         <div class="diagram-ovladani">
-            <button title="Přiblížit" @onclick="() => Zoom(1.2)">+</button>
-            <button title="Oddálit" @onclick="() => Zoom(1 / 1.2)">−</button>
-            <button title="Původní velikost" @onclick="ResetView">⌂</button>
+            <button title="@Texts.ZoomIn" @onclick="() => Zoom(1.2)">+</button>
+            <button title="@Texts.ZoomOut" @onclick="() => Zoom(1 / 1.2)">−</button>
+            <button title="@Texts.ZoomReset" @onclick="ResetView">⌂</button>
             <span class="zoom-hodnota">@((int)(_zoom * 100)) %</span>
         </div>
 
         <div class="diagram-legenda @(_legendaOtevrena ? "" : "sbalena")">
             @if (_legendaOtevrena)
             {
-                <span class="nadpis">Vysvětlivky</span>
+                <span class="nadpis">@Texts.Legend</span>
 
                 <span class="polozka">
                     <span class="vzorek kaskada"></span>
@@ -171,7 +171,7 @@ else
             }
 
             <button class="prepinac" @onclick="() => _legendaOtevrena = !_legendaOtevrena">
-                @(_legendaOtevrena ? "Skrýt vysvětlivky" : "Vysvětlivky")
+                @(_legendaOtevrena ? Texts.LegendHide : Texts.Legend)
             </button>
         </div>
     </div>
@@ -239,9 +239,9 @@ else
 
     internal static string? StavPopis(ZmenaStav stav) => stav switch
     {
-        ZmenaStav.Pribylo => "Přibylo oproti porovnávané verzi",
-        ZmenaStav.Ubylo => "V porovnávané verzi bylo, teď už není",
-        ZmenaStav.Zmeneno => "Změnilo se oproti porovnávané verzi",
+        ZmenaStav.Pribylo => Texts.ChangeAdded,
+        ZmenaStav.Ubylo => Texts.ChangeRemoved,
+        ZmenaStav.Zmeneno => Texts.ChangeModified,
         _ => null,
     };
 

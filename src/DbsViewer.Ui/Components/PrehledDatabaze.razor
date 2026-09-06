@@ -8,63 +8,63 @@
 
     <section class="prehled-cisla">
         <div class="karta">
-            <span class="hodnota">@Cestina.Cislo(Summary.TableCount)</span>
-            <span class="popis">@Cestina.Tvar(Summary.TableCount, "tabulka", "tabulky", "tabulek")</span>
+            <span class="hodnota">@Plural.Number(Summary.TableCount)</span>
+            <span class="popis">@Counts.TableForm(Summary.TableCount)</span>
         </div>
 
         @if (Summary.ViewCount > 0)
         {
             <div class="karta">
-                <span class="hodnota">@Cestina.Cislo(Summary.ViewCount)</span>
-                <span class="popis">@Cestina.Tvar(Summary.ViewCount, "pohled", "pohledy", "pohledů")</span>
+                <span class="hodnota">@Plural.Number(Summary.ViewCount)</span>
+                <span class="popis">@Counts.ViewForm(Summary.ViewCount)</span>
             </div>
         }
 
         <div class="karta">
-            <span class="hodnota">@Cestina.Cislo(Summary.ColumnCount)</span>
-            <span class="popis">@Cestina.Tvar(Summary.ColumnCount, "sloupec", "sloupce", "sloupců")</span>
+            <span class="hodnota">@Plural.Number(Summary.ColumnCount)</span>
+            <span class="popis">@Counts.ColumnForm(Summary.ColumnCount)</span>
         </div>
 
         <div class="karta">
-            <span class="hodnota">@Cestina.Cislo(Summary.RelationshipCount)</span>
-            <span class="popis">@Cestina.Tvar(Summary.RelationshipCount, "vazba", "vazby", "vazeb")</span>
+            <span class="hodnota">@Plural.Number(Summary.RelationshipCount)</span>
+            <span class="popis">@Counts.RelationshipForm(Summary.RelationshipCount)</span>
         </div>
 
         <div class="karta">
-            <span class="hodnota">@Cestina.Cislo(Summary.IndexCount)</span>
-            <span class="popis">@Cestina.Tvar(Summary.IndexCount, "index", "indexy", "indexů")</span>
+            <span class="hodnota">@Plural.Number(Summary.IndexCount)</span>
+            <span class="popis">@Counts.IndexForm(Summary.IndexCount)</span>
         </div>
 
         @if (Summary.TotalRowEstimate is { } radky)
         {
             <div class="karta">
-                <span class="hodnota">@Cestina.Cislo(radky)</span>
-                <span class="popis">@Cestina.Tvar(radky, "řádek", "řádky", "řádků") @(" (odhad)")</span>
+                <span class="hodnota">@Plural.Number(radky)</span>
+                <span class="popis">@Counts.RowForm(radky) @($" {Texts.RowsEstimate}")</span>
             </div>
         }
     </section>
 
     <section class="prehled-puvod">
         <dl>
-            <dt>Databáze</dt>
+            <dt>@Texts.Database</dt>
             <dd>@(Schema.DatabaseName ?? "—")</dd>
 
-            <dt>Zdroj</dt>
+            <dt>@Texts.Source</dt>
             <dd>@(Schema.SourceName ?? Schema.Provider.ToString())</dd>
 
             @if (Summary.SchemaCount > 1)
             {
-                <dt>Schémata</dt>
-                <dd>@string.Join(", ", Summary.BySchema.Select(s => $"{s.Schema ?? "výchozí"} ({s.TableCount})"))</dd>
+                <dt>@Texts.Schemas</dt>
+                <dd>@string.Join(", ", Summary.BySchema.Select(s => $"{s.Schema ?? Texts.DefaultSchema} ({s.TableCount})"))</dd>
             }
 
             @if (Schema.Migrations.Count > 0)
             {
-                <dt>Migrace</dt>
-                <dd>@Cestina.Pocet(Schema.Migrations.Count, "aplikovaná", "aplikované", "aplikovaných"), poslední @Schema.Migrations[^1].Id</dd>
+                <dt>@Texts.Migrations</dt>
+                <dd>@Counts.AppliedMigrations(Schema.Migrations.Count), @Texts.LastMigration @Schema.Migrations[^1].Id</dd>
             }
 
-            <dt>Načteno</dt>
+            <dt>@Texts.LoadedAt</dt>
             <dd>@Schema.GeneratedAtUtc.ToLocalTime().ToString("d. M. yyyy H:mm", System.Globalization.CultureInfo.InvariantCulture)</dd>
         </dl>
     </section>
@@ -72,7 +72,7 @@
     @if (Schema.Warnings.Count > 0)
     {
         <section class="prehled-varovani">
-            <h3>Při načítání se nepovedlo přečíst všechno</h3>
+            <h3>@Texts.WarningsHeading</h3>
             <ul>
                 @foreach (var warning in Schema.Warnings)
                 {
@@ -87,13 +87,13 @@
         @if (Summary.LargestTables.Count > 0)
         {
             <section class="prehled-zebricek">
-                <h3>Největší tabulky</h3>
+                <h3>@Texts.LargestTables</h3>
                 <ul>
                     @foreach (var item in Summary.LargestTables)
                     {
                         <li>
                             <button class="odkaz" @onclick="() => OnSelect.InvokeAsync(item.Table)">@item.Table.Qualified</button>
-                            <span class="cislo">@Cestina.Radky(item.Value)</span>
+                            <span class="cislo">@Counts.Rows(item.Value)</span>
                         </li>
                     }
                 </ul>
@@ -103,13 +103,13 @@
         @if (Summary.MostConnected.Count > 0)
         {
             <section class="prehled-zebricek">
-                <h3>Nejvíc propojené</h3>
+                <h3>@Texts.MostConnected</h3>
                 <ul>
                     @foreach (var item in Summary.MostConnected)
                     {
                         <li>
                             <button class="odkaz" @onclick="() => OnSelect.InvokeAsync(item.Table)">@item.Table.Qualified</button>
-                            <span class="cislo">@Cestina.Vazby((int)item.Value)</span>
+                            <span class="cislo">@Counts.Relationships((int)item.Value)</span>
                         </li>
                     }
                 </ul>
@@ -119,13 +119,13 @@
         @if (Summary.CommonTypes.Count > 0)
         {
             <section class="prehled-zebricek">
-                <h3>Nejčastější typy</h3>
+                <h3>@Texts.MostCommonTypes</h3>
                 <ul>
                     @foreach (var item in Summary.CommonTypes)
                     {
                         <li>
                             <span class="mono">@item.Type</span>
-                            <span class="cislo">@Cestina.Pocet(item.Count, "sloupec", "sloupce", "sloupců")</span>
+                            <span class="cislo">@Counts.Columns(item.Count)</span>
                         </li>
                     }
                 </ul>
@@ -134,11 +134,11 @@
     </div>
 
     <section class="prehled-podnety">
-        <h3>Co stojí za pozornost</h3>
+        <h3>@Texts.WorthAttention</h3>
 
         @if (!MaPodnety)
         {
-            <p class="ok">✓ Nic nápadného. Každá tabulka má primární klíč, cizí klíče jsou pokryté indexy a nic nestojí stranou.</p>
+            <p class="ok">✓ @Texts.NothingNotable</p>
         }
         else
         {
@@ -146,8 +146,8 @@
                 @if (Summary.WithoutPrimaryKey.Count > 0)
                 {
                     <li>
-                        <strong>Bez primárního klíče</strong>
-                        <span class="vysvetleni">Řádek nejde jednoznačně adresovat; EF s takovou tabulkou umí pracovat jen pro čtení.</span>
+                        <strong>@Texts.WithoutPrimaryKey</strong>
+                        <span class="vysvetleni">@Texts.WithoutPrimaryKeyHint</span>
                         @Seznam(Summary.WithoutPrimaryKey)
                     </li>
                 }
@@ -155,8 +155,8 @@
                 @if (Summary.UnindexedForeignKeys.Count > 0)
                 {
                     <li>
-                        <strong>Cizí klíč bez indexu</strong>
-                        <span class="vysvetleni">Při JOINu i při mazání rodiče musí databáze projít celou tabulku. U malých číselníků to nevadí.</span>
+                        <strong>@Texts.ForeignKeyWithoutIndex</strong>
+                        <span class="vysvetleni">@Texts.ForeignKeyWithoutIndexHint</span>
                         <ul class="hodnoty">
                             @foreach (var item in Summary.UnindexedForeignKeys.Take(ZobrazitNejvyse))
                             {
@@ -171,7 +171,7 @@
                 {
                     <li>
                         <strong>Bez vazeb</strong>
-                        <span class="vysvetleni">Tabulka nesouvisí s žádnou jinou — číselník, log, nebo pozůstatek.</span>
+                        <span class="vysvetleni">@Texts.IsolatedTableHint</span>
                         @Seznam(Summary.Isolated)
                     </li>
                 }
@@ -179,8 +179,8 @@
                 @if (Summary.JoinTableCount > 0)
                 {
                     <li>
-                        <strong>@Cestina.Pocet(Summary.JoinTableCount, "vazební tabulka", "vazební tabulky", "vazebních tabulek") N:M</strong>
-                        <span class="vysvetleni">Spojují dvě tabulky bez vlastních dat. V diagramu jsou označené odznakem.</span>
+                        <strong>@Counts.JoinTables(Summary.JoinTableCount) N:M</strong>
+                        <span class="vysvetleni">@Texts.JoinTableHint</span>
                     </li>
                 }
             </ul>
@@ -244,7 +244,7 @@
         {
             builder.OpenElement(0, "p");
             builder.AddAttribute(1, "class", "zbytek");
-            builder.AddContent(2, $"a další {Cestina.Pocet(celkem - ZobrazitNejvyse, "položka", "položky", "položek")}");
+            builder.AddContent(2, $"{Texts.AndMore} {Counts.Items(celkem - ZobrazitNejvyse)}");
             builder.CloseElement();
         };
 }

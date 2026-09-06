@@ -25,7 +25,7 @@ public class EndpointTests
 
         var meta = await ReadAsync<DbsViewerMeta>(await app.Client.GetAsync("/dbschema/api/meta"));
 
-        Assert.Equal("Schéma databáze", meta.Title);
+        Assert.Equal("Database schema", meta.Title);
         Assert.Equal("/dbschema", meta.RoutePrefix);
         Assert.Equal(["ef", "live", "merged"], meta.Views.ToList());
         Assert.True(meta.CanDiff);

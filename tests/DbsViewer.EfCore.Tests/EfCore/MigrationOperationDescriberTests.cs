@@ -22,7 +22,7 @@ public class MigrationOperationDescriberTests
 
         Assert.Equal(SchemaChangeKind.CreateTable, zmena.Kind);
         Assert.Equal("prodej", zmena.Table?.Schema);
-        Assert.Contains("2 sloupce", zmena.Description, StringComparison.Ordinal);
+        Assert.Contains("2 columns", zmena.Description, StringComparison.Ordinal);
         Assert.Equal("Id, Castka", zmena.After);
     }
 
@@ -33,7 +33,7 @@ public class MigrationOperationDescriberTests
             new DropTableOperation { Name = "Stara" });
 
         Assert.Equal(SchemaChangeKind.DropTable, zmena.Kind);
-        Assert.Contains("Odstraněna tabulka Stara", zmena.Description, StringComparison.Ordinal);
+        Assert.Contains("Dropped table Stara", zmena.Description, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -158,7 +158,7 @@ public class MigrationOperationDescriberTests
         });
 
         Assert.Equal(SchemaChangeKind.CreateIndex, zmena.Kind);
-        Assert.Contains("unikátní index", zmena.Description, StringComparison.Ordinal);
+        Assert.Contains("unique index", zmena.Description, StringComparison.Ordinal);
         Assert.Equal("Email", zmena.After);
     }
 
@@ -172,7 +172,7 @@ public class MigrationOperationDescriberTests
             Columns = ["Datum", "Stav"],
         });
 
-        Assert.DoesNotContain("unikátní", zmena.Description, StringComparison.Ordinal);
+        Assert.DoesNotContain("unique", zmena.Description, StringComparison.Ordinal);
         Assert.Equal("Datum, Stav", zmena.After);
     }
 
@@ -291,7 +291,7 @@ public class MigrationOperationDescriberTests
         });
 
         Assert.Equal(SchemaChangeKind.Data, zmena.Kind);
-        Assert.Contains("3 řádky", zmena.Description, StringComparison.Ordinal);
+        Assert.Contains("3 rows", zmena.Description, StringComparison.Ordinal);
         Assert.False(zmena.IsOpaque);
     }
 
@@ -306,7 +306,7 @@ public class MigrationOperationDescriberTests
         });
 
         Assert.Equal(SchemaChangeKind.Data, zmena.Kind);
-        Assert.Contains("1 řádek", zmena.Description, StringComparison.Ordinal);
+        Assert.Contains("1 row", zmena.Description, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -322,7 +322,7 @@ public class MigrationOperationDescriberTests
         });
 
         Assert.Equal(SchemaChangeKind.Data, zmena.Kind);
-        Assert.Contains("5 řádků", zmena.Description, StringComparison.Ordinal);
+        Assert.Contains("5 rows", zmena.Description, StringComparison.Ordinal);
     }
 
     // ---------- neznámé operace ----------

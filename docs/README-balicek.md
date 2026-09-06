@@ -31,6 +31,7 @@ není potřeba.
   i s úpravou, vkládáním a mazáním řádků
 - **Export dokumentace** do Markdownu, Mermaidu a DBML
 - **`dotnet tool dbsview`** pro výpis a diff z příkazové řádky
+- **Anglicky i česky** — výchozí je angličtina, přepínač je vpravo nahoře
 
 Podporované databáze: **Microsoft SQL Server** a **SQLite**.
 

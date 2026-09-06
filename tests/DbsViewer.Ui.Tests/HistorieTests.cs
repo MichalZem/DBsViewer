@@ -95,7 +95,7 @@ public class HistorieTests : TestContext
     {
         var component = Osa([Migrace("20260303_Ceka", applied: false)]);
 
-        Assert.Contains("čeká na nasazení", component.Markup, StringComparison.Ordinal);
+        Assert.Contains("pending", component.Markup, StringComparison.Ordinal);
         Assert.Single(component.FindAll(".casova-osa li.ceka"));
     }
 
@@ -105,7 +105,7 @@ public class HistorieTests : TestContext
         // Migrace proběhla, ale její kód už v projektu není — snapshot k ní neexistuje.
         var component = Osa([Migrace("20251212_Zmizela", inAssembly: false)]);
 
-        Assert.Contains("chybí v kódu", component.Markup, StringComparison.Ordinal);
+        Assert.Contains("missing in code", component.Markup, StringComparison.Ordinal);
         Assert.Contains("schéma není k dispozici", component.Markup, StringComparison.Ordinal);
         Assert.Empty(component.FindAll(".prepnout"));
     }
@@ -115,7 +115,7 @@ public class HistorieTests : TestContext
     {
         var component = Osa([Migrace("20260404_Prazdna")]);
 
-        Assert.Contains("schéma nemění", component.Markup, StringComparison.Ordinal);
+        Assert.Contains("does not change the schema", component.Markup, StringComparison.Ordinal);
     }
 
     // ---------- přepnutí na verzi ----------
@@ -141,7 +141,7 @@ public class HistorieTests : TestContext
         var component = Osa(vybrana: "20260101_Zaklad");
 
         Assert.Single(component.FindAll(".casova-osa li.vybrana"));
-        Assert.Contains("✓ zobrazeno", component.Markup, StringComparison.Ordinal);
+        Assert.Contains("✓ shown", component.Markup, StringComparison.Ordinal);
     }
 
     // ---------- porovnání verzí ----------
@@ -225,10 +225,10 @@ public class HistorieTests : TestContext
             .Add(x => x.Diff, diff));
 
         // Zpráva se v historii překládá do řeči času; tabulka a rozsah zůstávají.
-        Assert.Contains("Sloupec přibyl", component.Markup, StringComparison.Ordinal);
+        Assert.Contains("The column was added", component.Markup, StringComparison.Ordinal);
         Assert.Contains("Clanky", component.Markup, StringComparison.Ordinal);
         // Nadpis říká směr porovnání, aby nešlo splést, která verze je výchozí.
-        Assert.Contains("Co se změnilo od", component.Markup, StringComparison.Ordinal);
+        Assert.Contains("What changed since", component.Markup, StringComparison.Ordinal);
         Assert.Contains("ve směru času", component.Markup, StringComparison.Ordinal);
     }
 
@@ -293,9 +293,9 @@ public class HistorieTests : TestContext
             .Add(x => x.To, "20260202_Sloupec")
             .Add(x => x.Diff, diff));
 
-        Assert.Contains("Sloupec přibyl", component.Markup, StringComparison.Ordinal);
+        Assert.Contains("The column was added", component.Markup, StringComparison.Ordinal);
         Assert.DoesNotContain("v modelu není", component.Markup, StringComparison.Ordinal);
-        Assert.Contains("Starší verze", component.Markup, StringComparison.Ordinal);
+        Assert.Contains("Older version", component.Markup, StringComparison.Ordinal);
     }
 
     [Theory]

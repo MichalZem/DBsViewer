@@ -18,15 +18,17 @@ app.MapDbsViewer();                              // 2 → /dbschema
 *ER diagram of the sample model. The images below come from the running viewer, not from
 a mockup — each one belongs to the [What you'll see](#what-youll-see) chapter.*
 
-> **Note on language:** the project itself is Czech. The viewer's user interface, the
-> command-line output, the diff messages and the architecture decision records are all
-> written in Czech; this README is the English translation of [`README.cs.md`](README.cs.md).
-> The API — option names, endpoints, JSON properties — is English.
+> **Note on language:** the viewer speaks **English by default**; Czech is available
+> from the switcher in the top-right corner, or straight away via `?lang=cs`. The project
+> around it is Czech: the command-line output of `dbsview` and the architecture decision
+> records are written in Czech, and this README is the English translation of
+> [`README.cs.md`](README.cs.md). The API — option names, endpoints, JSON properties — is
+> English.
 
 > **Status:** released on nuget.org. The viewer has a graphical UI with an ER diagram,
 > an HTTP API, drift detection, schema history and a data preview with optional row
 > editing. The latest stable
-> version is [`0.6.0`](https://www.nuget.org/packages/DbsViewer.Server); every push to
+> version is [`0.7.0`](https://www.nuget.org/packages/DbsViewer.Server); every push to
 > `main` additionally produces a prerelease. See [installation](#installing-into-your-own-application).
 
 ---
@@ -174,6 +176,12 @@ whatever sits below it. Details in
 
 The legend for the line types sits in the bottom-left corner of the diagram, collapsed
 into a chip. What the whole diagram looks like is visible [in the image at the top](#dbsviewer).
+
+**Language.** The switcher in the top-right corner offers English and Czech. Switching
+reloads the viewer — in WebAssembly the translations are downloaded only for the language
+the app started with — so it asks first, in its own window rather than a browser dialog.
+The language lives in the address as `?lang=cs`, which means a link carries it along.
+Details in [ADR-0018](docs/adr/0018-vicejazycne-ui.md) (in Czech).
 
 **Focus mode** is on by default and it is the only way to make a diagram with a hundred
 tables readable: pick a table and use the slider to say how far around it should be drawn.

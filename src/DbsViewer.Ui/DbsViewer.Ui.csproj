@@ -4,6 +4,13 @@
     <Description>Blazor WebAssembly UI pro DbsViewer. Publikovaný výstup se embeduje do DbsViewer.Server.</Description>
     <IsPackable>false</IsPackable>
     <InvariantGlobalization>true</InvariantGlobalization>
+
+    <!--
+      Bez tohohle by new CultureInfo("cs") padlo. ResourceManager ale ke satelitní
+      assembly potřebuje jen jméno kultury, ne data ICU — invariantní globalizace
+      tedy může zůstat zapnutá a WASM se o 242 kB nenafoukne.
+    -->
+    <PredefinedCulturesOnly>false</PredefinedCulturesOnly>
     <StaticWebAssetBasePath>/</StaticWebAssetBasePath>
   </PropertyGroup>
 
@@ -15,6 +22,26 @@
   <ItemGroup>
     <ProjectReference Include="..\DbsViewer.Abstractions\DbsViewer.Abstractions.csproj" />
     <ProjectReference Include="..\DbsViewer.Analysis\DbsViewer.Analysis.csproj" />
+  </ItemGroup>
+
+  <!--
+    Silně typovaná třída Texts se generuje MSBuildem, ne custom toolem Visual Studia,
+    takže vzniká i při `dotnet build` na CI. CoreCompileDependsOn je nutné, jinak
+    některé cesty buildu generování přeskočí.
+  -->
+  <PropertyGroup>
+    <CoreCompileDependsOn>PrepareResources;$(CompileDependsOn)</CoreCompileDependsOn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Update="Texts\Texts.resx">
+      <Generator>MSBuild:Compile</Generator>
+      <StronglyTypedFileName>$(IntermediateOutputPath)\Texts.Designer.cs</StronglyTypedFileName>
+      <StronglyTypedLanguage>CSharp</StronglyTypedLanguage>
+      <StronglyTypedNamespace>DbsViewer.Ui.Texts</StronglyTypedNamespace>
+      <StronglyTypedClassName>Texts</StronglyTypedClassName>
+      <PublicClass>true</PublicClass>
+    </EmbeddedResource>
   </ItemGroup>
 
   <ItemGroup>
