@@ -54,3 +54,4 @@ Drobnosti (přejmenování metody, oprava chyby, doplnění testu) ADR nepotřeb
 | [0016](0016-rozvrzeni-velkeho-schematu.md) | Rozvržení velkého schématu: bloky, zalomení vrstev a mřížka | Přijato | 2026-09-05 |
 | [0017](0017-vkladani-radku.md) | Zápis do dat včetně vkládání řádků | Přijato | 2026-09-05 |
 | [0018](0018-vicejazycne-ui.md) | Vícejazyčné UI: silně typované resx a jazyk v adrese | Přijato | 2026-09-06 |
+| [0019](0019-stav-v-adrese.md) | Stav prohlížečky žije v adrese | Přijato | 2026-09-07 |

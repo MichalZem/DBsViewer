@@ -1,5 +1,6 @@
 @inject DbsViewerClient Client
 @inject IJSRuntime Js
+@inject NavigationManager Navigation
 @implements IDisposable
 
 @*
@@ -324,6 +325,17 @@
     private string? _previewChyba;
     private bool _exportOtevreny;
 
+    /// <summary>
+    /// Adresa, kterou naposledy zapsala samotná prohlížečka.
+    /// </summary>
+    /// <remarks>
+    /// Vlastní zápis adresy vyvolá <c>LocationChanged</c> stejně jako tlačítko Zpět.
+    /// Bez tohohle porovnání by prohlížečka na každý svůj klik obnovovala stav z adresy,
+    /// kterou právě sama složila — a rozdělaná práce, která v adrese není (načtený
+    /// náhled dat), by se přitom zahodila.
+    /// </remarks>
+    private string? _posledniAdresa;
+
     /// <summary>Stav prohlížečky. Vystavený kvůli testům, které ho nastaví přímo.</summary>
     [Parameter]
     public ViewerState State { get; set; } = new();
@@ -342,6 +354,8 @@
     private async Task ZobrazCeleSchemaAsync()
     {
         State.FocusEnabled = false;
+        ZapisAdresu();
+
         await Task.CompletedTask;
     }
 
@@ -361,7 +375,113 @@
             ? SchemaFilter.MatchingColumns(table, State.Search)
             : new HashSet<string>();
 
-    protected override async Task OnInitializedAsync() => await LoadAsync(refresh: false);
+    /// <summary>
+    /// Nastartuje prohlížečku do stavu, který popisuje adresa.
+    /// </summary>
+    /// <remarks>
+    /// Verze a zdroj schématu se musí nastavit ještě před načtením — podle nich se
+    /// stahuje samotné schéma. Zbytek stavu se dá promítnout až nad načteným schématem,
+    /// protože se v něm dohledávají jména tabulek.
+    /// </remarks>
+    protected override async Task OnInitializedAsync()
+    {
+        Navigation.LocationChanged += NaZmenuAdresy;
+
+        var adresa = ViewerRoute.FromUri(Navigation.Uri);
+
+        State.SelectedMigration = adresa.Version;
+        State.Source = adresa.Source;
+
+        await LoadAsync(refresh: false);
+        await ObnovZbytekAsync(adresa);
+    }
+
+    /// <summary>
+    /// Obnoví stav po tlačítku Zpět nebo Vpřed.
+    /// </summary>
+    /// <remarks>
+    /// Vlastní zápis adresy se pozná podle <see cref="_posledniAdresa"/> a přeskočí —
+    /// jinak by každý klik stav hned zase přepsal z adresy.
+    /// </remarks>
+    private void NaZmenuAdresy(object? sender, LocationChangedEventArgs e)
+    {
+        if (string.Equals(e.Location, _posledniAdresa, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _ = InvokeAsync(() => ObnovZAdresyAsync(e.Location));
+    }
+
+    /// <summary>Promítne adresu do stavu. Schéma se dotahuje, jen když se změnila verze nebo zdroj.</summary>
+    internal async Task ObnovZAdresyAsync(string uri)
+    {
+        var adresa = ViewerRoute.FromUri(uri);
+
+        if (adresa.Version != State.SelectedMigration || adresa.Source != State.Source)
+        {
+            State.SelectedMigration = adresa.Version;
+            State.Source = adresa.Source;
+            State.Diff = null;
+
+            await LoadAsync(refresh: false);
+        }
+
+        await ObnovZbytekAsync(adresa);
+
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Promítne do stavu to, co jde až nad načteným schématem: základ porovnání, výběr
+    /// tabulky a obsah panelu.
+    /// </summary>
+    private async Task ObnovZbytekAsync(ViewerRoute adresa)
+    {
+        // Základ porovnání musí být dřív než výběr tabulky: porovnání přidá do
+        // zobrazeného schématu i tabulky, které mezitím zmizely, a výběr se hledá v něm.
+        // Dotahuje se ze serveru, takže jen když se opravdu změnil — jinak by každé
+        // Zpět stálo kolo na síti za schéma, které se už drží.
+        if (adresa.Baseline != State.BaselineMigration)
+        {
+            await NastavZakladAsync(adresa.Baseline);
+        }
+
+        adresa.ApplyTo(State);
+
+        if (State.Pane == ViewerPane.Diff)
+        {
+            await NactiDiffAsync();
+        }
+        else if (State.Pane == ViewerPane.History)
+        {
+            await DoplnHistoriiAsync();
+        }
+    }
+
+    /// <summary>
+    /// Zapíše stav do adresy, takže klik přidá záznam do historie prohlížeče.
+    /// </summary>
+    /// <remarks>
+    /// <paramref name="nahradit"/> je pro filtry a hledání: každý znak v hledání by
+    /// jinak byl vlastní krok historie a Zpět by se prokousávalo písmenko po písmenku.
+    ///
+    /// Adresa shodná s tou současnou se nezapisuje — jinak by opakovaný klik na už
+    /// vybranou tabulku plnil historii stejnými záznamy.
+    /// </remarks>
+    private void ZapisAdresu(bool nahradit = false)
+    {
+        var cil = ViewerRoute.From(State).UrlFor(Navigation.Uri);
+
+        if (string.Equals(cil, Navigation.Uri, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _posledniAdresa = cil;
+
+        Navigation.NavigateTo(cil, forceLoad: false, replace: nahradit);
+    }
 
     /// <summary>Načte metadata i schéma. Chyba skončí hláškou v UI, ne výjimkou.</summary>
     internal async Task LoadAsync(bool refresh)
@@ -418,7 +538,14 @@
     private async Task ShowDiffAsync()
     {
         State.Pane = ViewerPane.Diff;
+        ZapisAdresu();
 
+        await NactiDiffAsync();
+    }
+
+    /// <summary>Dotáhne nálezy diffu, pokud ještě nejsou.</summary>
+    private async Task NactiDiffAsync()
+    {
         if (State.Diff is not null)
         {
             return;
@@ -505,13 +632,29 @@
     /// </remarks>
     internal async Task ShowDataAsync(DbObjectName table)
     {
-        await SelectAsync(table);
+        Vyber(table);
 
         State.Pane = ViewerPane.Browser;
         State.Tab = DetailTab.Data;
+
+        // Adresa se zapíše až nakonec, aby z jednoho kliknutí vznikl jeden krok
+        // historie, ne tři — jinak by Zpět vracelo přes mezistavy, které uživatel
+        // nikdy neviděl.
+        ZapisAdresu();
+
+        await Task.CompletedTask;
     }
 
     private async Task SelectAsync(DbObjectName table)
+    {
+        Vyber(table);
+        ZapisAdresu();
+
+        await Task.CompletedTask;
+    }
+
+    /// <summary>Vybere tabulku a zahodí načtený náhled dat. Adresu nechává na volajícím.</summary>
+    private void Vyber(DbObjectName table)
     {
         State.Select(table);
         _preview = null;
@@ -521,31 +664,64 @@
         {
             State.Pane = ViewerPane.Browser;
         }
-
-        await Task.CompletedTask;
     }
 
-    private void SetPane(ViewerPane pane) => State.Pane = pane;
+    private void SetPane(ViewerPane pane)
+    {
+        State.Pane = pane;
+        ZapisAdresu();
+    }
 
-    private void ToggleExpand(DbObjectName table) => State.ToggleExpanded(table);
+    private void ToggleExpand(DbObjectName table)
+    {
+        State.ToggleExpanded(table);
+        ZapisAdresu();
+    }
 
-    private void OnTabChanged(DetailTab tab) => State.Tab = tab;
+    private void OnTabChanged(DetailTab tab)
+    {
+        State.Tab = tab;
+        ZapisAdresu();
+    }
 
-    private void OnSearchChanged(ChangeEventArgs e) => State.Search = e.Value?.ToString() ?? "";
+    // Hledání a filtry adresu přepisují, ne přidávají: psaní do hledání by jinak
+    // nasypalo do historie jeden záznam na každý znak.
+    private void OnSearchChanged(ChangeEventArgs e)
+    {
+        State.Search = e.Value?.ToString() ?? "";
+        ZapisAdresu(nahradit: true);
+    }
 
-    private void OnGroupChanged(ChangeEventArgs e) => State.Group = Empty(e.Value?.ToString());
+    private void OnGroupChanged(ChangeEventArgs e)
+    {
+        State.Group = Empty(e.Value?.ToString());
+        ZapisAdresu(nahradit: true);
+    }
 
-    private void OnSchemaChanged(ChangeEventArgs e) => State.SchemaName = Empty(e.Value?.ToString());
+    private void OnSchemaChanged(ChangeEventArgs e)
+    {
+        State.SchemaName = Empty(e.Value?.ToString());
+        ZapisAdresu(nahradit: true);
+    }
 
-    private void OnFocusToggled(ChangeEventArgs e) => State.FocusEnabled = e.Value is true;
+    private void OnFocusToggled(ChangeEventArgs e)
+    {
+        State.FocusEnabled = e.Value is true;
+        ZapisAdresu();
+    }
 
-    private void OnHopsChanged(ChangeEventArgs e) =>
+    private void OnHopsChanged(ChangeEventArgs e)
+    {
         State.FocusHops = int.TryParse(e.Value?.ToString(), out var hops) ? hops : State.FocusHops;
+        ZapisAdresu();
+    }
 
     private async Task OnSourceChangedAsync(ChangeEventArgs e)
     {
         State.Source = e.Value?.ToString() ?? State.Source;
         State.Diff = null;
+        ZapisAdresu();
+
         await LoadAsync(refresh: false);
     }
 
@@ -554,7 +730,14 @@
     {
         State.Pane = ViewerPane.History;
         State.Diff = null;
+        ZapisAdresu();
 
+        await DoplnHistoriiAsync();
+    }
+
+    /// <summary>Dotáhne seznam migrací a předvyplní porovnání poslední dvojice.</summary>
+    private async Task DoplnHistoriiAsync()
+    {
         try
         {
             if (State.Migrations.Count == 0)
@@ -586,6 +769,7 @@
     internal async Task PrepniNaMigraciAsync(string migrationId)
     {
         State.SelectedMigration = migrationId;
+        ZapisAdresu();
 
         // Výběr tabulky ani rozbalené uzly se nezahazují — o to tu jde. Přepnutím
         // na jinou verzi se má změnit schéma, ne to, na co se člověk zrovna dívá.
@@ -646,11 +830,20 @@
     /// </summary>
     private async Task OnPorovnaniChangedAsync(ChangeEventArgs e)
     {
-        var vybrana = e.Value?.ToString();
+        await NastavZakladAsync(Empty(e.Value?.ToString()));
 
-        State.BaselineMigration = vybrana is { Length: > 0 } ? vybrana : null;
+        // Až po načtení: když základ nejde dotáhnout, do adresy nemá co psát.
+        ZapisAdresu();
+    }
 
-        if (State.BaselineMigration is not { Length: > 0 } zaklad)
+    /// <summary>
+    /// Nastaví základ vizuálního porovnání. Prázdná hodnota porovnání vypne.
+    /// </summary>
+    private async Task NastavZakladAsync(string? migrace)
+    {
+        State.BaselineMigration = migrace;
+
+        if (migrace is not { Length: > 0 } zaklad)
         {
             State.Baseline = null;
             return;
@@ -686,6 +879,7 @@
     internal async Task ZobrazAktualniAsync()
     {
         State.SelectedMigration = null;
+        ZapisAdresu();
 
         await LoadAsync(refresh: false);
     }
@@ -767,6 +961,8 @@
 
     public void Dispose()
     {
+        Navigation.LocationChanged -= NaZmenuAdresy;
+
         _cancellation.Cancel();
         _cancellation.Dispose();
     }

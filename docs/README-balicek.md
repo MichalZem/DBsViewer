@@ -32,6 +32,8 @@ není potřeba.
 - **Export dokumentace** do Markdownu, Mermaidu a DBML
 - **`dotnet tool dbsview`** pro výpis a diff z příkazové řádky
 - **Anglicky i česky** — výchozí je angličtina, přepínač je vpravo nahoře
+- **Odkazovatelný stav** — vybraná tabulka i panel jsou v adrese, takže Zpět
+  funguje uvnitř prohlížečky a odkaz jde poslat kolegovi
 
 Podporované databáze: **Microsoft SQL Server** a **SQLite**.
 

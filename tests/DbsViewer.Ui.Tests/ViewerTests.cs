@@ -18,15 +18,23 @@ public class ViewerTests : TestContext
 {
     private readonly FakeServer _server = new();
 
-    private IRenderedComponent<Viewer> Render()
+    private IRenderedComponent<Viewer> Render(string? uri = null)
     {
         Services.AddSingleton(new DbsViewerClient(
             new HttpClient(_server) { BaseAddress = new Uri("http://test/dbschema/") }));
 
         JSInterop.Mode = JSRuntimeMode.Loose;
 
+        if (uri is not null)
+        {
+            Navigace.NavigateTo(uri);
+        }
+
         return RenderComponent<Viewer>();
     }
+
+    private Bunit.TestDoubles.FakeNavigationManager Navigace =>
+        Services.GetRequiredService<Bunit.TestDoubles.FakeNavigationManager>();
 
     /// <summary>
     /// Ověří hlavičku seznamu „N of M tables". Text je rozdělený na víc řádků, takže
@@ -1201,6 +1209,199 @@ public class ViewerTests : TestContext
             .QuerySelectorAll("option").ElementAt(0).TextContent.Trim();
 
         Assert.Equal("Current schema", volba);
+    }
+
+    [Fact]
+    public void Klik_na_tabulku_se_zapise_do_adresy()
+    {
+        // Bez tohohle byla prohlížečka slepá ulička: Zpět vyskočilo z aplikace ven.
+        var component = Render();
+
+        component.FindAll(".seznam li button").ElementAt(1).Click();
+
+        Assert.Contains("table=Orders", Navigace.Uri, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Prepnuti_panelu_a_zalozky_je_v_adrese()
+    {
+        var component = Render();
+
+        Zalozka(component, "Diagram");
+        Assert.Contains("pane=diagram", Navigace.Uri, StringComparison.Ordinal);
+
+        Zalozka(component, "Tables");
+        component.FindAll(".seznam li button").ElementAt(1).Click();
+        component.FindAll(".zalozky button").First(b => b.TextContent.Contains("Indexes", StringComparison.Ordinal)).Click();
+
+        Assert.Contains("tab=indexes", Navigace.Uri, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Stav_diagramu_je_v_adrese()
+    {
+        var component = Render();
+
+        Zalozka(component, "Diagram");
+        component.Find(".diagram-nastroje input[type=checkbox]").Change(false);
+
+        Assert.Contains("focus=0", Navigace.Uri, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Hledani_adresu_prepise_a_nezanese_historii()
+    {
+        // Jinak by Zpět po napsání „order" znamenalo pět stisků.
+        var component = Render();
+
+        component.Find(".seznam input").Input("order");
+
+        Assert.Contains("q=order", Navigace.Uri, StringComparison.Ordinal);
+        Assert.True(Navigace.History.Last().Options.ReplaceHistoryEntry);
+    }
+
+    [Fact]
+    public void Navigace_naopak_historii_zanasi()
+    {
+        var component = Render();
+
+        component.FindAll(".seznam li button").ElementAt(1).Click();
+
+        Assert.False(Navigace.History.Last().Options.ReplaceHistoryEntry);
+    }
+
+    [Fact]
+    public void Klik_na_uz_vybranou_tabulku_historii_nenafoukne()
+    {
+        var component = Render();
+
+        component.FindAll(".seznam li button").ElementAt(1).Click();
+        var po_prvnim = Navigace.History.Count;
+
+        component.FindAll(".seznam li button").ElementAt(1).Click();
+
+        Assert.Equal(po_prvnim, Navigace.History.Count);
+    }
+
+    [Fact]
+    public void Adresa_urcuje_stav_hned_po_nacteni()
+    {
+        // Odkaz na konkrétní tabulku musí jít poslat kolegovi a F5 nesmí stav zahodit.
+        var component = Render("http://localhost/dbschema/?pane=diagram&table=Orders&hops=2");
+
+        Assert.Equal(ViewerPane.Diagram, component.Instance.State.Pane);
+        Assert.Equal(new DbObjectName(null, "Orders"), component.Instance.State.SelectedTable);
+        Assert.Equal(2, component.Instance.State.FocusHops);
+    }
+
+    [Fact]
+    public void Zpet_v_prohlizeci_obnovi_predchozi_stav()
+    {
+        var component = Render();
+        var pred = Navigace.Uri;
+
+        component.FindAll(".seznam li button").ElementAt(1).Click();
+        Assert.NotNull(component.Instance.State.SelectedTable);
+
+        // Tlačítko Zpět vypadá zevnitř aplikace jako změna adresy, kterou nezpůsobila.
+        Navigace.NavigateTo(pred);
+
+        component.WaitForAssertion(() => Assert.Null(component.Instance.State.SelectedTable));
+    }
+
+    [Fact]
+    public void Zpet_zabali_i_rozbaleny_uzel_diagramu()
+    {
+        var component = Render();
+
+        Zalozka(component, "Diagram");
+        var pred = Navigace.Uri;
+
+        component.FindAll(".uzel-prepinac").ElementAt(0).Click();
+        Assert.NotEmpty(component.Instance.State.ExpandedNodes);
+
+        Navigace.NavigateTo(pred);
+
+        component.WaitForAssertion(() => Assert.Empty(component.Instance.State.ExpandedNodes));
+    }
+
+    [Fact]
+    public void Zdroj_schematu_z_adresy_se_pouzije_uz_pri_nacteni()
+    {
+        Render("http://localhost/dbschema/?source=ef");
+
+        Assert.Contains("source=ef", _server.LastSchemaUrl, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Zmena_zdroje_je_v_adrese_a_zpet_ho_vrati()
+    {
+        var component = Render();
+        var pred = Navigace.Uri;
+
+        component.FindAll(".nastroje select").ElementAt(0).Change("ef");
+        Assert.Contains("source=ef", Navigace.Uri, StringComparison.Ordinal);
+
+        Navigace.NavigateTo(pred);
+
+        component.WaitForAssertion(() => Assert.Equal("merged", component.Instance.State.Source));
+    }
+
+    [Fact]
+    public void Adresa_s_panelem_rozdilu_dotahne_nalezy()
+    {
+        Render("http://localhost/dbschema/?pane=diff");
+
+        Assert.Equal(1, _server.DiffCalls);
+    }
+
+    [Fact]
+    public void Adresa_s_historii_dotahne_migrace()
+    {
+        _server.Meta = Vzorek.Meta() with { CanBrowseHistory = true };
+
+        var component = Render("http://localhost/dbschema/?pane=history");
+
+        Assert.Equal(ViewerPane.History, component.Instance.State.Pane);
+        Assert.NotEmpty(component.Instance.State.Migrations);
+    }
+
+    [Fact]
+    public void Verze_a_zaklad_porovnani_z_adresy_se_nactou()
+    {
+        _server.Meta = Vzorek.Meta() with { CanBrowseHistory = true };
+
+        var component = Render(
+            "http://localhost/dbschema/?version=20260202_Sloupec&base=20260101_Zaklad");
+
+        Assert.Equal("20260202_Sloupec", component.Instance.State.SelectedMigration);
+        Assert.True(component.Instance.State.JeVizualniPorovnani);
+    }
+
+    [Fact]
+    public void Zpet_na_jinou_verzi_dotahne_schema()
+    {
+        _server.Meta = Vzorek.Meta() with { CanBrowseHistory = true };
+
+        var component = Render();
+        var pred = Navigace.Uri;
+
+        component.FindAll(".verze-pruh select").ElementAt(0).Change("20260101_Zaklad");
+        Assert.Contains("version=20260101_Zaklad", Navigace.Uri, StringComparison.Ordinal);
+
+        Navigace.NavigateTo(pred);
+
+        component.WaitForAssertion(() => Assert.Null(component.Instance.State.SelectedMigration));
+    }
+
+    [Fact]
+    public void Volba_jazyka_v_adrese_prezije_klik()
+    {
+        var component = Render("http://localhost/dbschema/?lang=cs");
+
+        component.FindAll(".seznam li button").ElementAt(1).Click();
+
+        Assert.Contains("lang=cs", Navigace.Uri, StringComparison.Ordinal);
     }
 
     /// <summary>

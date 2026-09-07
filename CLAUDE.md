@@ -281,6 +281,12 @@ takže přehled, tabulky i diagram fungují beze změny. Porovnání dvou verzí
 v C#, protože JS interop se v testech komponent nedá spustit.
 Viz [ADR-0012](docs/adr/0012-vlastni-layout-diagramu.md).
 
+**Stav prohlížečky žije v adrese.** Výběr tabulky, panel, záložka, verze schématu
+i rozvržení diagramu se promítají do query stringu, aby Zpět fungovalo uvnitř prohlížečky
+a odkaz šel poslat. Query string, ne cesta — prohlížečka se montuje pod libovolný prefix
+hostitelské aplikace. Navigace přidává záznam do historie, hledání a filtry ten současný
+přepíšou. Skládá to `ViewerRoute`. Viz [ADR-0019](docs/adr/0019-stav-v-adrese.md).
+
 **Prohlížečka mluví anglicky, česky až na požádání.** Jazyk se bere z adresy
 (`?lang=cs`), protože přepnutí vyžaduje znovunačtení — satelitní assembly s překlady
 se ve WebAssembly stahuje jen pro kulturu, se kterou aplikace nastartovala. Uživatel
@@ -352,10 +358,10 @@ Viz [ADR-0011](docs/adr/0011-parovani-podle-sloupcu.md).
 providerů, slučování, diff engine, HTTP API s autorizací a cache, Blazor WASM prohlížečka
 s přehledem databáze, ER diagramem a focus modem, historie schématu z migrací, náhled dat
 včetně úpravy, vkládání a mazání řádků, export a `dotnet tool`. UI mluví anglicky
-a česky. **1442 testů** (EfCore 268, Relational 245, Server 318, Tool 59, Ui 552),
+a česky. **1511 testů** (EfCore 268, Relational 245, Server 318, Tool 59, Ui 621),
 100 % pokrytí řádků a metod ve všech pěti sadách.
 
-Vydáno na NuGetu, poslední stabilní verze je `0.7.0` — všech osm balíčků včetně
+Vydáno na NuGetu, poslední stabilní verze je `0.8.0` — všech osm balíčků včetně
 `DbsViewer.Tool`. Publikuje se přes Trusted Publishing z tagu `v*`.
 
 Ověřeno end-to-end: balíčky se zabalí, nainstalují do čerstvé Web API aplikace, dvěma

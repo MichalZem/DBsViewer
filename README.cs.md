@@ -21,7 +21,7 @@ každý najdeš v kapitole [Co uvidíš](#co-uvidíš).*
 > **Stav:** vydané na nuget.org. Prohlížečka má grafické UI s ER diagramem, HTTP API,
 > detekci rozdílů, historii schématu i náhled dat s volitelnou editací řádků.
 > Poslední stabilní verze je
-> [`0.7.0`](https://www.nuget.org/packages/DbsViewer.Server); z každého pushe na `main`
+> [`0.8.0`](https://www.nuget.org/packages/DbsViewer.Server); z každého pushe na `main`
 > vzniká navíc předběžná verze. Viz [instalace](#instalace-do-vlastní-aplikace).
 
 ---
@@ -169,6 +169,20 @@ ve WebAssembly se překlady stahují jen pro jazyk, se kterým aplikace nastarto
 se nejdřív zeptá, a to vlastním oknem, ne dialogem prohlížeče. Jazyk žije v adrese jako
 `?lang=cs`, takže se dá poslat odkaz i s ním.
 Podrobněji v [ADR-0018](docs/adr/0018-vicejazycne-ui.md).
+
+**Adresa jde za tím, na co se díváš.** Výběr tabulky, přepnutí panelu i záložky, změna
+verze schématu i přeskládání diagramu přepíšou query string, takže **Zpět** a **Vpřed**
+fungují uvnitř prohlížečky a nevyskočí z aplikace ven, F5 vrátí, kde jsi byl, a odkaz
+na konkrétní tabulku se dá poslat kolegovi:
+
+```
+/dbschema?pane=diagram&table=dbo.Orders&hops=2&expand=dbo.Orders
+```
+
+Hledání a filtry skupiny a schématu jsou v adrese také, ale místo přidání záznamu ten
+současný přepíšou — jinak by Zpět po napsání `order` znamenalo pět stisků. Hodnoty
+ve výchozím stavu se vynechávají, takže nedotčená prohlížečka má adresu čistou.
+Podrobněji v [ADR-0019](docs/adr/0019-stav-v-adrese.md).
 
 **Focus mode** je zapnutý ve výchozím stavu a je to jediný způsob, jak udělat diagram
 se stovkou tabulek čitelný: vyber tabulku a posuvníkem urči, jak daleko od ní se má

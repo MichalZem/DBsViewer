@@ -1,5 +1,6 @@
 @*
-    Kořen aplikace. Routování je jednoduché — celá prohlížečka je jedna stránka
-    se stavem v komponentě, protože přechod mezi tabulkami nemá smysl řešit adresou.
+    Kořen aplikace. Routeru netřeba — celá prohlížečka je jedna stránka a montuje se
+    pod libovolný prefix hostitelské aplikace, ke kterému se nesmí vyjadřovat. Stav
+    se proto do adresy promítá query stringem; skládá ho ViewerRoute.
 *@
 <Viewer />

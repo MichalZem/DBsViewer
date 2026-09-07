@@ -62,44 +62,7 @@ public static class LanguageChoice
     /// přichází od uživatele a překlep v ní nesmí prohlížečku shodit.
     /// </summary>
     /// <param name="uri">Celá adresa včetně query stringu.</param>
-    public static Language FromUri(string? uri)
-    {
-        if (uri is null)
-        {
-            return Default;
-        }
-
-        var otaznik = uri.IndexOf('?', StringComparison.Ordinal);
-
-        if (otaznik < 0)
-        {
-            return Default;
-        }
-
-        // Fragment za # do query stringu nepatří.
-        var query = uri[(otaznik + 1)..];
-        var mrizka = query.IndexOf('#', StringComparison.Ordinal);
-
-        if (mrizka >= 0)
-        {
-            query = query[..mrizka];
-        }
-
-        foreach (var dvojice in query.Split('&'))
-        {
-            var rovnitko = dvojice.IndexOf('=', StringComparison.Ordinal);
-
-            if (rovnitko < 0
-                || !dvojice[..rovnitko].Equals(QueryName, StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            return FromCode(dvojice[(rovnitko + 1)..]);
-        }
-
-        return Default;
-    }
+    public static Language FromUri(string? uri) => FromCode(QueryString.Value(uri, QueryName));
 
     /// <summary>Jazyk podle dvoupísmenného kódu; neznámý kód dá výchozí jazyk.</summary>
     public static Language FromCode(string? code) =>
@@ -115,26 +78,6 @@ public static class LanguageChoice
     {
         ArgumentNullException.ThrowIfNull(uri);
 
-        var otaznik = uri.IndexOf('?', StringComparison.Ordinal);
-        var zaklad = otaznik < 0 ? uri : uri[..otaznik];
-        var ostatni = new List<string>();
-
-        if (otaznik >= 0)
-        {
-            foreach (var dvojice in uri[(otaznik + 1)..].Split('&'))
-            {
-                var rovnitko = dvojice.IndexOf('=', StringComparison.Ordinal);
-                var jmeno = rovnitko < 0 ? dvojice : dvojice[..rovnitko];
-
-                if (dvojice.Length > 0 && !jmeno.Equals(QueryName, StringComparison.OrdinalIgnoreCase))
-                {
-                    ostatni.Add(dvojice);
-                }
-            }
-        }
-
-        ostatni.Add($"{QueryName}={Code(language)}");
-
-        return $"{zaklad}?{string.Join("&", ostatni)}";
+        return QueryString.Merge(uri, [QueryName], [new(QueryName, Code(language))]);
     }
 }

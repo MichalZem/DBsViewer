@@ -28,7 +28,7 @@ a mockup — each one belongs to the [What you'll see](#what-youll-see) chapter.
 > **Status:** released on nuget.org. The viewer has a graphical UI with an ER diagram,
 > an HTTP API, drift detection, schema history and a data preview with optional row
 > editing. The latest stable
-> version is [`0.7.0`](https://www.nuget.org/packages/DbsViewer.Server); every push to
+> version is [`0.8.0`](https://www.nuget.org/packages/DbsViewer.Server); every push to
 > `main` additionally produces a prerelease. See [installation](#installing-into-your-own-application).
 
 ---
@@ -182,6 +182,21 @@ reloads the viewer — in WebAssembly the translations are downloaded only for t
 the app started with — so it asks first, in its own window rather than a browser dialog.
 The language lives in the address as `?lang=cs`, which means a link carries it along.
 Details in [ADR-0018](docs/adr/0018-vicejazycne-ui.md) (in Czech).
+
+**The address follows what you are looking at.** Picking a table, switching a panel or
+a tab, changing the schema version or rearranging the diagram all rewrite the query
+string, so **Back** and **Forward** work inside the viewer instead of jumping out of the
+application, F5 returns you where you were, and a link to a particular table can be sent
+to a colleague:
+
+```
+/dbschema?pane=diagram&table=dbo.Orders&hops=2&expand=dbo.Orders
+```
+
+Search and the group and schema filters are in the address too, but they replace the
+current entry instead of adding one — otherwise Back after typing `order` would mean five
+presses. Values that are at their default are left out, so an untouched viewer keeps
+a clean address. Details in [ADR-0019](docs/adr/0019-stav-v-adrese.md) (in Czech).
 
 **Focus mode** is on by default and it is the only way to make a diagram with a hundred
 tables readable: pick a table and use the slider to say how far around it should be drawn.
