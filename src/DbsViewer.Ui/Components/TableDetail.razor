@@ -228,8 +228,10 @@ else
             default:
                 <DataNahled Table="Table" Preview="Preview" Error="@PreviewError"
                             CanEdit="CanEditData" CanDelete="CanDeleteData" CanInsert="CanInsertData"
+                            Links="ChildLinks" Link="DataLink"
                             OnLoad="OnLoadRows" OnUpdate="OnUpdateRow" OnDelete="OnDeleteRow"
-                            OnInsert="OnInsertRow" />
+                            OnInsert="OnInsertRow" OnShowChildren="OnShowChildren"
+                            OnClearLink="OnClearLink" />
                 break;
         }
     </div>
@@ -327,6 +329,22 @@ else
 
     [Parameter]
     public EventCallback<DataQuery> OnLoadRows { get; set; }
+
+    /// <summary>Odkazy z téhle tabulky na podřízené záznamy.</summary>
+    [Parameter]
+    public IReadOnlyList<ChildLink> ChildLinks { get; set; } = [];
+
+    /// <summary>Vazba náhledu dat na nadřazený řádek. Prázdné znamená celou tabulku.</summary>
+    [Parameter]
+    public IReadOnlyList<ChildFilter> DataLink { get; set; } = [];
+
+    /// <summary>Přechod na podřízené záznamy jednoho řádku.</summary>
+    [Parameter]
+    public EventCallback<ChildJump> OnShowChildren { get; set; }
+
+    /// <summary>Zrušení vazby na nadřazený řádek.</summary>
+    [Parameter]
+    public EventCallback OnClearLink { get; set; }
 
     /// <summary>Smí se v mřížce upravovat hodnoty?</summary>
     [Parameter]

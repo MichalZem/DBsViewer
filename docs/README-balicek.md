@@ -29,6 +29,7 @@ není potřeba.
 - **Historie schématu** z EF migrací — pohled na to, jak schéma vypadalo dřív
 - **Náhled dat** se stránkováním, řazením a filtrováním v databázi, volitelně
   i s úpravou, vkládáním a mazáním řádků
+- **Proklik na navázané záznamy** — od řádku rovnou na to, co na něj odkazuje
 - **Export dokumentace** do Markdownu, Mermaidu a DBML
 - **`dotnet tool dbsview`** pro výpis a diff z příkazové řádky
 - **Anglicky i česky** — výchozí je angličtina, přepínač je vpravo nahoře

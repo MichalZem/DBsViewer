@@ -84,8 +84,7 @@ jobs:
             echo "::group::DbsViewer.$projekt.Tests"
 
             if ! dotnet test "tests/DbsViewer.$projekt.Tests/DbsViewer.$projekt.Tests.csproj" \
-                 --configuration Release --no-build \
-                 --logger "trx;LogFileName=$projekt.trx"; then
+                 --configuration Release --no-build; then
               selhalo=1
               echo "::error::Testy DbsViewer.$projekt.Tests selhaly."
             fi
@@ -95,16 +94,11 @@ jobs:
 
           exit $selhalo
 
-      - name: Výsledky testů
-        uses: actions/upload-artifact@v5
-        if: always()
-        with:
-          name: vysledky-testu
-          path: |
-            **/TestResults/*.trx
-            artifacts/coverage/**
-          retention-days: 14
-          if-no-files-found: ignore
+      # Výsledky testů ani report pokrytí se nikam nenahrávají — úložiště artefaktů
+      # se platí a narůstá s každým během. Co je o rozbitém buildu potřeba vědět, je
+      # ve výpisu kroku výš: coverlet tiskne tabulku pokrytí i překročený práh rovnou
+      # do konzole a log běhu se do kvóty artefaktů nepočítá. Kdo potřebuje soubory,
+      # spustí `dotnet test` lokálně — vzniknou v artifacts/coverage/.
 
   publikace:
     name: Vydání na NuGet
@@ -149,12 +143,10 @@ jobs:
           echo "verze=$verze" >> "$GITHUB_OUTPUT"
           echo "Vydávaná verze: $verze"
 
-      - name: Balíčky jako artefakt
-        uses: actions/upload-artifact@v5
-        with:
-          name: balicky-${{ steps.verze.outputs.verze }}
-          path: artifacts/packages/*
-          retention-days: 30
+      # Balíčky se jako artefakt neukládají ze stejného důvodu jako výsledky testů.
+      # Ven odsud vedou dvě cesty: push na nuget.org a u tagů příloha vydání na
+      # GitHubu — to má vlastní úložiště mimo kvótu artefaktů. Jinak balíčky zůstanou
+      # na disku runneru a zmizí s ním.
 
       # Publikuje se přes Trusted Publishing: běh si vymění podepsaný OIDC token
       # od GitHubu za dočasný klíč platný hodinu. Nikde tedy neleží trvalý klíč,
@@ -167,8 +159,7 @@ jobs:
       #   Environment:      (prázdné)
       - name: Přihlášení k NuGetu
         id: nuget-login
-        # Fork proměnnou nemá, takže by krok selhal — raději se přeskočí
-        # a balíčky zůstanou v artefaktech běhu.
+        # Fork proměnnou nemá, takže by krok selhal — raději se přeskočí.
         if: vars.NUGET_USER != ''
         uses: NuGet/login@v1
         with:
@@ -179,7 +170,7 @@ jobs:
         # Symboly (.snupkg) se posílají samy, protože leží vedle balíčků.
         run: |
           if [ -z "${{ vars.NUGET_USER }}" ]; then
-            echo "::warning::Proměnná NUGET_USER není nastavená, publikace se přeskočila. Balíčky jsou v artefaktech běhu."
+            echo "::warning::Proměnná NUGET_USER není nastavená, publikace se přeskočila. Balíčky se nikam neukládají — sestav je lokálně příkazem dotnet pack."
             exit 0
           fi
 

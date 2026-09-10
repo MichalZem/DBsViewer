@@ -28,7 +28,7 @@ a mockup — each one belongs to the [What you'll see](#what-youll-see) chapter.
 > **Status:** released on nuget.org. The viewer has a graphical UI with an ER diagram,
 > an HTTP API, drift detection, schema history and a data preview with optional row
 > editing. The latest stable
-> version is [`0.8.0`](https://www.nuget.org/packages/DbsViewer.Server); every push to
+> version is [`0.9.0`](https://www.nuget.org/packages/DbsViewer.Server); every push to
 > `main` additionally produces a prerelease. See [installation](#installing-into-your-own-application).
 
 ---
@@ -193,8 +193,9 @@ to a colleague:
 /dbschema?pane=diagram&table=dbo.Orders&hops=2&expand=dbo.Orders
 ```
 
-Search and the group and schema filters are in the address too, but they replace the
-current entry instead of adding one — otherwise Back after typing `order` would mean five
+The binding of the data grid to a parent row is in the address as well — see *Related
+rows* below. Search and the group and schema filters are in the address too, but they
+replace the current entry instead of adding one — otherwise Back after typing `order` would mean five
 presses. Values that are at their default are left out, so an untouched viewer keeps
 a clean address. Details in [ADR-0019](docs/adr/0019-stav-v-adrese.md) (in Czech).
 
@@ -249,6 +250,22 @@ paging continues, just without page numbers.
 The filter looks for text anywhere in the value, including over numbers and dates. The
 wildcards `%` and `_` are escaped — someone searching for "100%" really is searching for
 "100%".
+
+**Related rows.** Next to a value that a foreign key points at, the grid shows a **⤷**
+arrow. It switches the viewer to the referencing table narrowed down to that one row —
+from a customer straight to their orders, without looking the table up and retyping the
+key. When more than one table references the value, the arrow opens a short menu; a single
+target opens right away. A composite key sends all of its columns.
+
+The binding is shown above the grid as a chip (*Vázáno na nadřazený řádek*, bound to
+a parent row) and can be dropped there without touching the filters you typed yourself:
+the binding is an exact match, your own filters stay "contains", and they apply on top of
+each other. The arrow is left out where it would lead nowhere — a `NULL` value, a masked
+column, a column outside the loaded page — and it hides while a row is being edited.
+
+The binding lives in the address as `link=<column>=<value>`, so **Back** returns you to the
+parent row and a link to "the orders of this customer" can be sent on. Details in
+[ADR-0020](docs/adr/0020-proklik-na-podrizene-zaznamy.md) (in Czech).
 
 **Editing rows.** When `DataPreview.AllowUpdate` or `AllowDelete` is on, every row gets
 buttons *Upravit* (edit) and *Smazat* (delete). Editing switches the row into input boxes;
@@ -658,7 +675,8 @@ A sample of the generated documentation is in [`docs/schema-ukazka.md`](docs/sch
 - **Resilience** — reading the schema never fails, a partial failure ends up in `warnings`
 - **A graphical UI** — database overview, table browser, ER diagram with focus mode,
   overview of differences, schema history by migration, a paged data grid with optional
-  editing and deleting of rows, export to Mermaid, DBML and Markdown
+  editing and deleting of rows and a jump from a row to the records that reference it,
+  export to Mermaid, DBML and Markdown
 
 Data sources:
 
@@ -804,9 +822,13 @@ Alternatively from the command line: `gh variable set NUGET_USER --body "<name>"
 Optionally also the secret `TEST_SQL_PASSWORD` (the password of the test SQL Server in the
 container) — without it a default value is used.
 
-Without `NUGET_USER` the workflow **doesn't fail** — it merely skips publishing and leaves
-the packages in the run's artifacts, from where they can be downloaded manually. It behaves
-the same way in a fork, which cannot reach the policy.
+Without `NUGET_USER` the workflow **doesn't fail** — it merely skips publishing, and the
+packages stay on the runner's disk and vanish with it. It behaves the same way in a fork,
+which cannot reach the policy; build the packages locally with `dotnet pack` when you need
+them. The run doesn't upload any artifacts at all — neither packages nor test results —
+because artifact storage is billed and grows with every run. What a broken build needs to
+say is in the log: coverlet prints the coverage table and the breached threshold straight to
+the console. Packages of a released version are attached to the GitHub release of the tag.
 
 ### Why SQL Server runs on CI
 

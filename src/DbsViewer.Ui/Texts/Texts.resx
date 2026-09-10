@@ -74,6 +74,15 @@
   <data name="ChangedSince" xml:space="preserve">
     <value>What changed since</value>
   </data>
+  <data name="ChildRows" xml:space="preserve">
+    <value>Related rows</value>
+  </data>
+  <data name="ChildRowsPick" xml:space="preserve">
+    <value>Which table?</value>
+  </data>
+  <data name="ChildRowsTitle" xml:space="preserve">
+    <value>Show the records bound to this row</value>
+  </data>
   <data name="ClearFilters" xml:space="preserve">
     <value>Clear filters</value>
   </data>
@@ -431,6 +440,9 @@
   <data name="LegendHide" xml:space="preserve">
     <value>Hide legend</value>
   </data>
+  <data name="LinkedToRow" xml:space="preserve">
+    <value>Bound to a parent row</value>
+  </data>
   <data name="LoadedAt" xml:space="preserve">
     <value>Loaded</value>
   </data>
@@ -628,6 +640,9 @@
   </data>
   <data name="ShowTableData" xml:space="preserve">
     <value>Show data of table</value>
+  </data>
+  <data name="ShowWholeTable" xml:space="preserve">
+    <value>Show the whole table</value>
   </data>
   <data name="Shown" xml:space="preserve">
     <value>shown</value>

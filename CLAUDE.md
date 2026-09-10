@@ -25,6 +25,20 @@ Commit a push dělá **výhradně uživatel, nebo agent na výslovnou žádost v
 - Změny v pracovním stromu nech být. `git checkout --`, `git reset --hard`, `git stash` ani
   `git clean` nespouštěj bez výslovného pokynu.
 
+**Na konci každé odpovědi napiš, jestli je změna nasazená, nebo ne.** Jednou větou
+a výslovně — „commit ani push jsem neudělal, změny leží v pracovním stromu“, nebo
+„commit `abc1234` je pushnutý na `main`“. Nestačí to mlčky vyvodit z toho, že se
+o commitu nemluví: uživatel jinak neví, jestli se práce jen chystá, nebo už běží na CI
+a míří na nuget.org. Platí to i pro změny, které nakonec nasazené nebyly, protože
+něco selhalo.
+
+**Když commit nebo push uděláš, ověř, že opravdu proběhl** — a teprve pak to napiš.
+Že příkaz skončil bez chyby, nestačí: `git commit` může skončit na hooku, `git push`
+na odmítnutí ze strany serveru nebo na tom, že větev mezitím odskočila. Po commitu
+zkontroluj `git log --oneline -1` a `git status`, po pushi `git status -sb` (nesmí
+hlásit `ahead`) nebo `git rev-parse HEAD origin/main`, jestli obě strany ukazují na
+totéž. Do odpovědi pak napiš ověřený stav včetně hashe commitu, ne to, co jsi zamýšlel.
+
 ### Pokrytí testy je 100 %
 
 `dotnet test` **selže**, když pokrytí řádků nebo metod klesne pod 100 %. Není to metrika,
@@ -265,6 +279,14 @@ u nového řádku naopak vyplnit **musí**. Nevyplněný sloupec se do příkazu
 aby se uplatnila výchozí hodnota z databáze. Proto má `RowEditing` dvě sady pravidel:
 `ReadOnlyReason` pro existující řádek a `NewRowReadOnlyReason` pro nový.
 
+**Z řádku se dá prokliknout na navázané záznamy.** U hodnoty, na kterou ukazuje cizí
+klíč, visí v mřížce šipka na podřízenou tabulku omezenou právě na tenhle řádek. Odvozuje
+se to z cizích klíčů (`ChildLinks` v `Abstractions`), ne z `DbRelationship` — ten slučuje
+N:M do jedné hrany a vazební tabulka se v něm ztratí. Vazba na nadřazený řádek je vlastní
+pojem, ne předvyplněný filtr: jde na přesnou shodu, ukazuje se nad mřížkou jako štítek
+a ruší se zvlášť od filtrů, které si uživatel naťuká sám.
+Viz [ADR-0020](docs/adr/0020-proklik-na-podrizene-zaznamy.md).
+
 **Stránkuje, řadí a filtruje databáze, ne prohlížečka.** Načíst tabulku celou a krájet
 ji až v UI by u milionů řádků neprošlo. Bez `ORDER BY` navíc není stránkování stabilní,
 takže se vždycky řadí — bez zvoleného sloupce podle primárního klíče.
@@ -357,11 +379,11 @@ Viz [ADR-0011](docs/adr/0011-parovani-podle-sloupcu.md).
 **Všech sedm etap je hotových.** Datový model, čtení z EF modelu, živá introspekce obou
 providerů, slučování, diff engine, HTTP API s autorizací a cache, Blazor WASM prohlížečka
 s přehledem databáze, ER diagramem a focus modem, historie schématu z migrací, náhled dat
-včetně úpravy, vkládání a mazání řádků, export a `dotnet tool`. UI mluví anglicky
-a česky. **1511 testů** (EfCore 268, Relational 245, Server 318, Tool 59, Ui 621),
-100 % pokrytí řádků a metod ve všech pěti sadách.
+včetně úpravy, vkládání a mazání řádků i prokliku na navázané záznamy, export
+a `dotnet tool`. UI mluví anglicky a česky. **1567 testů** (EfCore 285, Relational 245,
+Server 318, Tool 59, Ui 660), 100 % pokrytí řádků a metod ve všech pěti sadách.
 
-Vydáno na NuGetu, poslední stabilní verze je `0.8.0` — všech osm balíčků včetně
+Vydáno na NuGetu, poslední stabilní verze je `0.9.0` — všech osm balíčků včetně
 `DbsViewer.Tool`. Publikuje se přes Trusted Publishing z tagu `v*`.
 
 Ověřeno end-to-end: balíčky se zabalí, nainstalují do čerstvé Web API aplikace, dvěma
@@ -374,4 +396,9 @@ mezi nepřekročitelnými pravidly výš. README je ve dvou jazycích — `READM
 Publikaci obstarává GitHub Actions: push na `main` vydá předběžnou verzi, tag `v*`
 stabilní. Publikuje se přes **Trusted Publishing** (OIDC), takže v repozitáři neleží
 žádný klíč — jen proměnná `NUGET_USER` se jménem účtu na nuget.org. Bez ní workflow
-balíčky sestaví a nechá v artefaktech, ale nepublikuje.
+balíčky sestaví, ale nepublikuje a nikam neuloží.
+
+**Workflow neukládá artefakty.** Ani balíčky, ani výsledky testů — úložiště artefaktů
+na GitHubu se platí a narůstá s každým během. Diagnostika rozbitého buildu je v logu
+(coverlet tiskne pokrytí i překročený práh do konzole), balíčky vydané verze jsou
+přiložené k vydání na GitHubu. `actions/upload-artifact` do workflow nepřidávej.

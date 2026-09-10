@@ -71,6 +71,7 @@ public sealed class ViewerState
         if (SelectedTable is { } vybrana && !znameTabulky.Contains(vybrana))
         {
             SelectedTable = null;
+            DataLink = [];
         }
 
         ExpandedNodes.RemoveWhere(n => !znameTabulky.Contains(n));
@@ -174,6 +175,17 @@ public sealed class ViewerState
 
     public DbObjectName? SelectedTable { get; set; }
 
+    /// <summary>
+    /// Vazba náhledu dat na nadřazený řádek. Prázdné znamená celou tabulku.
+    /// </summary>
+    /// <remarks>
+    /// Vzniká proklikem na podřízené záznamy: v mřížce nadřazené tabulky se klikne
+    /// u hodnoty klíče a prohlížečka se přepne na podřízenou tabulku omezenou právě
+    /// na tenhle řádek. Je to podmínka navíc nad filtry, které si uživatel v mřížce
+    /// naťuká sám — ty ji nepřepisují a ona nepřepisuje je.
+    /// </remarks>
+    public IReadOnlyList<ChildFilter> DataLink { get; set; } = [];
+
     /// <summary>Vzdálenost sousedů v diagramu. Nula zobrazí jen vybranou tabulku.</summary>
     public int FocusHops
     {
@@ -257,6 +269,24 @@ public sealed class ViewerState
     {
         SelectedTable = table;
         Tab = DetailTab.Columns;
+
+        // Vazba platila pro předchozí tabulku. Nechat ji by znamenalo filtrovat novou
+        // tabulku podle sloupců, které v ní nejsou.
+        DataLink = [];
+    }
+
+    /// <summary>
+    /// Přepne na podřízenou tabulku omezenou na jeden nadřazený řádek.
+    /// </summary>
+    /// <param name="table">Podřízená tabulka.</param>
+    /// <param name="filters">Podmínka odvozená z nadřazeného řádku.</param>
+    public void SelectChild(DbObjectName table, IReadOnlyList<ChildFilter> filters)
+    {
+        ArgumentNullException.ThrowIfNull(filters);
+
+        Select(table);
+        Tab = DetailTab.Data;
+        DataLink = filters;
     }
 
     /// <summary>Nálezy diffu pro tabulku, když je diff načtený.</summary>

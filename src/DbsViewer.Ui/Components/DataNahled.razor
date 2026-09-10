@@ -5,6 +5,10 @@
     Když to server povolí, dá se v mřížce i zapisovat: hodnoty se upraví přímo v řádku
     a mazání se potvrzuje druhým kliknutím v témže řádku. Prohlížečka nikdy nenabídne to,
     co by server odmítl — o tom, co se smí měnit, rozhoduje sdílené RowEditing.
+
+    U hodnoty, na kterou se odkazuje jiná tabulka, visí šipka na podřízené záznamy.
+    Ta přepne mřížku na podřízenou tabulku omezenou právě na tenhle řádek — vazba se
+    ukazuje nad daty jako štítek a dá se zrušit, aniž by uživatel přišel o vlastní filtry.
 *@
 
 @if (Error is { } chyba)
@@ -25,7 +29,7 @@ else
                 {
                     <span>@Counts.Rows(celkem)</span>
 
-                    @if (MaFiltr)
+                    @if (MaPodminku)
                     {
                         <span class="podminka">@Texts.AfterFilters</span>
                     }
@@ -68,6 +72,16 @@ else
             <p class="chyba zapis-chyba">
                 @zapis
                 <button class="odkaz" @onclick="SkryjChybu" title="@Texts.HideMessage">@Texts.Close</button>
+            </p>
+        }
+
+        @if (Link.Count > 0)
+        {
+            <p class="vazba-na-radek">
+                <span class="stitek">@Texts.LinkedToRow</span>
+                <span class="mono">@PopisVazby</span>
+                <button class="odkaz" @onclick="ZrusVazbu"
+                        title="@Texts.ShowWholeTable">@Texts.ShowWholeTable</button>
             </p>
         }
 
@@ -236,7 +250,32 @@ else
                                     }
                                     else
                                     {
-                                        <td class="@(hodnota is null ? "nullova" : "")">@(hodnota ?? "NULL")</td>
+                                        <td class="@(hodnota is null ? "nullova" : "")">
+                                            @(hodnota ?? "NULL")
+
+                                            @if (OdkazyU(sloupec, radek) is { Count: > 0 } odkazy)
+                                            {
+                                                <span class="deti">
+                                                    <button class="ikona-deti" title="@Texts.ChildRowsTitle"
+                                                            aria-label="@Texts.ChildRows"
+                                                            @onclick="() => OtevriDetiAsync(radek, sloupec, odkazy)">⤷</button>
+
+                                                    @if (JeNabidkaOtevrena(radek, sloupec))
+                                                    {
+                                                        <ul class="nabidka-deti">
+                                                            <li class="nadpis">@Texts.ChildRowsPick</li>
+                                                            @foreach (var odkaz in odkazy)
+                                                            {
+                                                                <li>
+                                                                    <button class="odkaz"
+                                                                            @onclick="() => SkocAsync(odkaz, radek)">@Popis(odkaz)</button>
+                                                                </li>
+                                                            }
+                                                        </ul>
+                                                    }
+                                                </span>
+                                            }
+                                        </td>
                                     }
                                 }
                             </tr>
@@ -249,7 +288,7 @@ else
             @if (Radky.Count == 0 && !Nacita)
             {
                 <p class="prazdno">
-                    @(MaFiltr ? Texts.NoRowsMatchFilter : Texts.TableEmpty)
+                    @(MaPodminku ? Texts.NoRowsMatchFilter : Texts.TableEmpty)
                 </p>
             }
         }
@@ -318,6 +357,12 @@ else
     /// <summary>Proč se poslední zápis nepovedl. Mřížka zůstane, hláška je nad ní.</summary>
     private string? ChybaZapisu { get; set; }
 
+    /// <summary>Vazba, se kterou je načtená stránka. Její změna znamená jiná data.</summary>
+    private string NactenaVazba { get; set; } = "";
+
+    /// <summary>Řádek a sloupec s rozbalenou nabídkou podřízených tabulek.</summary>
+    private (int Radek, string Sloupec)? Nabidka { get; set; }
+
     [Parameter]
     public DbTable? Table { get; set; }
 
@@ -339,9 +384,35 @@ else
     [Parameter]
     public bool CanInsert { get; set; }
 
+    /// <summary>
+    /// Odkazy z téhle tabulky na podřízené záznamy. Prázdné, když na tabulku nic neukazuje.
+    /// </summary>
+    [Parameter]
+    public IReadOnlyList<ChildLink> Links { get; set; } = [];
+
+    /// <summary>
+    /// Vazba na nadřazený řádek. Prázdné znamená celou tabulku.
+    /// </summary>
+    /// <remarks>
+    /// Je to podmínka navíc nad filtry, které si uživatel naťuká v hlavičce: přijde
+    /// z adresy, ukazuje se nad mřížkou jako štítek a ruší se zvlášť. Kdyby se míchala
+    /// s políčky filtrů, uživatel by ji nedopatřením smazal a nevěděl by, proč najednou
+    /// vidí celou tabulku.
+    /// </remarks>
+    [Parameter]
+    public IReadOnlyList<ChildFilter> Link { get; set; } = [];
+
     /// <summary>Načtení stránky. Komponenta si sama neví, jak volat server.</summary>
     [Parameter]
     public EventCallback<DataQuery> OnLoad { get; set; }
+
+    /// <summary>Přechod na podřízené záznamy jednoho řádku.</summary>
+    [Parameter]
+    public EventCallback<ChildJump> OnShowChildren { get; set; }
+
+    /// <summary>Zrušení vazby na nadřazený řádek.</summary>
+    [Parameter]
+    public EventCallback OnClearLink { get; set; }
 
     /// <summary>
     /// Uložení změn. Vrací chybovou hlášku, nebo <c>null</c>, když se zápis povedl.
@@ -362,6 +433,13 @@ else
     public Func<DataInsert, Task<string?>>? OnInsert { get; set; }
 
     private bool MaFiltr => Filtry.Count > 0;
+
+    /// <summary>Je výpis něčím omezený — vlastním filtrem, nebo vazbou na nadřazený řádek?</summary>
+    private bool MaPodminku => MaFiltr || Link.Count > 0;
+
+    /// <summary>Vazba jako text pro štítek nad mřížkou.</summary>
+    private string PopisVazby =>
+        string.Join(", ", Link.Select(static o => $"{o.Column} = {o.Value}"));
 
     /// <summary>
     /// Sloupce mřížky. Dokud data nedorazila, berou se ze schématu, aby hlavičky
@@ -398,24 +476,40 @@ else
     private bool JsouAkce => MuzeUpravovat || MuzeMazat || MuzeVkladat;
 
     /// <summary>
-    /// Data se načtou hned při zobrazení a znovu při přepnutí na jinou tabulku.
-    /// Filtry ani řazení se přitom nepřenášejí — sloupce jsou v každé tabulce jiné.
+    /// Data se načtou hned při zobrazení, při přepnutí na jinou tabulku a při změně
+    /// vazby na nadřazený řádek — ta mění, které řádky do mřížky vůbec patří.
     /// </summary>
+    /// <remarks>
+    /// Filtry a řazení přežijí změnu vazby, ale ne změnu tabulky: sloupce jsou v každé
+    /// tabulce jiné, kdežto skok na jiného rodiče téže tabulky nechává mřížku beze změny
+    /// a zahodit v ní rozepsané filtry by uživatele okradlo o práci.
+    /// </remarks>
     protected override async Task OnParametersSetAsync()
     {
-        if (Table is null || Table.Name == NactenaTabulka)
+        var vazba = KlicVazby();
+
+        if (Table is null || (Table.Name == NactenaTabulka && vazba == NactenaVazba))
         {
             return;
         }
 
+        if (Table.Name != NactenaTabulka)
+        {
+            Filtry.Clear();
+            SloupecRazeni = null;
+            RaditSestupne = false;
+        }
+
         NactenaTabulka = Table.Name;
-        Filtry.Clear();
-        SloupecRazeni = null;
-        RaditSestupne = false;
+        NactenaVazba = vazba;
         ChybaZapisu = null;
 
         await NactiAsync(0);
     }
+
+    /// <summary>Vazba jako jeden řetězec, aby se dala porovnat s tou načtenou.</summary>
+    private string KlicVazby() =>
+        string.Join("\n", Link.Select(static o => $"{o.Column}={o.Value}"));
 
     private async Task NactiAsync(int stranka)
     {
@@ -449,9 +543,13 @@ else
         SortColumn = SloupecRazeni,
         SortDescending = RaditSestupne,
 
-        // Do políčka se píše hledaný text, takže se z něj stane „obsahuje". Přesnou
-        // shodu ani porovnání zatím mřížka nenabízí — na to je detail tabulky.
-        Filters = [.. Filtry.Select(static f => new DataFilter(f.Key, FilterOperator.Contains, f.Value))],
+        // Vazba na nadřazený řádek jde na přesnou shodu — je to cizí klíč, ne hledání.
+        // Do políčka se naopak píše hledaný text, takže se z něj stane „obsahuje".
+        Filters =
+        [
+            .. Link.Select(static o => new DataFilter(o.Column, FilterOperator.Equals, o.Value)),
+            .. Filtry.Select(static f => new DataFilter(f.Key, FilterOperator.Contains, f.Value)),
+        ],
     };
 
     /// <summary>Kliknutí na hlavičku: vzestupně, sestupně, bez řazení.</summary>
@@ -584,12 +682,13 @@ else
         }
     }
 
-    /// <summary>Zahodí rozepsanou úpravu, nový řádek i čekající potvrzení mazání.</summary>
+    /// <summary>Zahodí rozepsanou úpravu, nový řádek, potvrzení mazání i otevřenou nabídku.</summary>
     private void Zrus()
     {
         EditovanyRadek = null;
         MazanyRadek = null;
         NovyRadek = false;
+        Nabidka = null;
         Editace.Clear();
     }
 
@@ -714,6 +813,80 @@ else
 
         return klic;
     }
+
+    // ---------- podřízené záznamy ----------
+
+    /// <summary>
+    /// Odkazy nabízené u jedné buňky. Prázdné, když se z řádku nedá poskládat podmínka.
+    /// </summary>
+    /// <remarks>
+    /// Rozepsaný řádek nabídku nedostane: kliknutí by odnavigovalo pryč a uživatel by
+    /// o neuložené hodnoty přišel.
+    /// </remarks>
+    internal IReadOnlyList<ChildLink> OdkazyU(string column, int radek) =>
+        EditovanyRadek is null && MazanyRadek is null && !NovyRadek
+            ? [.. ChildLinks.At(Links, column).Where(o => Podminka(o, radek) is not null)]
+            : [];
+
+    /// <summary>
+    /// Podmínka pro podřízenou tabulku, nebo <c>null</c>, když ji z řádku poskládat nejde.
+    /// </summary>
+    /// <remarks>
+    /// Zamaskovaný sloupec se chová jako chybějící. V mřížce místo hodnoty stojí maska,
+    /// takže by se filtrovalo podle hvězdiček a výsledek by byl vždy prázdný — a hlavně
+    /// by odkaz předstíral, že hodnotu zná.
+    /// </remarks>
+    private IReadOnlyList<ChildFilter>? Podminka(ChildLink odkaz, int radek)
+    {
+        var row = Radky[radek];
+
+        return odkaz.FilterFor(sloupec =>
+        {
+            var index = IndexSloupce(sloupec);
+
+            return index >= 0 && index < row.Count && !IsMasked(sloupec) ? row[index] : null;
+        });
+    }
+
+    /// <summary>Popis odkazu v nabídce: kam vede a přes které sloupce.</summary>
+    internal static string Popis(ChildLink odkaz)
+    {
+        ArgumentNullException.ThrowIfNull(odkaz);
+
+        return $"{odkaz.Table.Qualified} ({string.Join(", ", odkaz.Columns)})";
+    }
+
+    private bool JeNabidkaOtevrena(int radek, string sloupec) =>
+        Nabidka is { } otevrena
+        && otevrena.Radek == radek
+        && string.Equals(otevrena.Sloupec, sloupec, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Kliknutí na šipku. Jediný cíl se otevře rovnou, u víc cílů se musí vybrat —
+    /// nabídka s jedinou položkou by byla klik navíc bez užitku.
+    /// </summary>
+    private async Task OtevriDetiAsync(int radek, string sloupec, IReadOnlyList<ChildLink> odkazy)
+    {
+        if (odkazy.Count == 1)
+        {
+            await SkocAsync(odkazy[0], radek);
+            return;
+        }
+
+        Nabidka = JeNabidkaOtevrena(radek, sloupec) ? null : (radek, sloupec);
+    }
+
+    private async Task SkocAsync(ChildLink odkaz, int radek)
+    {
+        Nabidka = null;
+
+        if (Podminka(odkaz, radek) is { } podminka)
+        {
+            await OnShowChildren.InvokeAsync(new ChildJump(odkaz.Table, podminka));
+        }
+    }
+
+    private async Task ZrusVazbu() => await OnClearLink.InvokeAsync();
 
     private int IndexSloupce(string column)
     {

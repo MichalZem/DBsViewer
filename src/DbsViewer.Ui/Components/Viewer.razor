@@ -307,10 +307,14 @@
                                      CanEditData="State.Meta.CanEditData && !State.IsHistorical"
                                      CanDeleteData="State.Meta.CanDeleteData && !State.IsHistorical"
                                      CanInsertData="State.Meta.CanInsertData && !State.IsHistorical"
+                                     ChildLinks="Children"
+                                     DataLink="State.DataLink"
                                      OnLoadRows="LoadRowsAsync"
                                      OnUpdateRow="UpdateRowAsync"
                                      OnDeleteRow="DeleteRowAsync"
-                                     OnInsertRow="InsertRowAsync" />
+                                     OnInsertRow="InsertRowAsync"
+                                     OnShowChildren="ShowChildrenAsync"
+                                     OnClearLink="ClearLinkAsync" />
                     }
                 </main>
             }
@@ -366,6 +370,19 @@
 
     private IReadOnlyList<DbRelationship> Incoming =>
         State.SelectedTable is { } table ? State.Graph.IncomingTo(table) : [];
+
+    /// <summary>
+    /// Odkazy z vybrané tabulky na podřízené záznamy.
+    /// </summary>
+    /// <remarks>
+    /// Počítá se ze zobrazeného schématu, ne z načteného: při porovnání verzí jsou
+    /// v něm i tabulky, které mezitím zmizely, a odkaz na ně by jinak nabízel skok
+    /// do prázdna.
+    /// </remarks>
+    private IReadOnlyList<ChildLink> Children =>
+        State.SelectedTable is { } table
+            ? DbsViewer.ChildLinks.For(State.DisplaySchema, table)
+            : [];
 
     private IReadOnlyList<DiffFinding> Findings =>
         State.SelectedTable is { } table ? State.FindingsFor(table) : [];
@@ -648,6 +665,38 @@
     private async Task SelectAsync(DbObjectName table)
     {
         Vyber(table);
+        ZapisAdresu();
+
+        await Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Přechod z řádku nadřazené tabulky na jeho podřízené záznamy.
+    /// </summary>
+    /// <remarks>
+    /// Je to navigace, takže se zapisuje do adresy jako jeden krok historie: Zpět vrátí
+    /// uživatele k nadřazenému řádku a odkaz na „objednávky tohohle zákazníka" jde
+    /// poslat. Načtení dat obstará mřížka sama, jakmile dostane novou vazbu.
+    /// </remarks>
+    internal async Task ShowChildrenAsync(ChildJump jump)
+    {
+        ArgumentNullException.ThrowIfNull(jump);
+
+        _preview = null;
+        _previewChyba = null;
+
+        State.SelectChild(jump.Table, jump.Filters);
+        State.Pane = ViewerPane.Browser;
+
+        ZapisAdresu();
+
+        await Task.CompletedTask;
+    }
+
+    /// <summary>Zruší vazbu na nadřazený řádek a ukáže celou tabulku.</summary>
+    internal async Task ClearLinkAsync()
+    {
+        State.DataLink = [];
         ZapisAdresu();
 
         await Task.CompletedTask;

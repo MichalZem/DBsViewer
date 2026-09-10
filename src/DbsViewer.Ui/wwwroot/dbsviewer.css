@@ -857,6 +857,76 @@ button.hlavni {
 /* Během načítání data zšednou, ale nezmizí — mřížka pod rukama neposkočí. */
 .mrizka.data tbody.nacita { opacity: 0.45; transition: opacity 120ms ease; }
 
+/* ---------- odkaz na podřízené záznamy ---------- */
+
+/* Štítek nad mřížkou říká, že výpis patří k jednomu nadřazenému řádku. Bez něj by
+   omezená tabulka vypadala jako prázdná databáze. */
+.vazba-na-radek {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0 0 8px;
+    padding: 6px 10px;
+    border-left: 3px solid var(--akcent);
+    background: var(--akcent-svetly);
+    font-size: 12px;
+}
+
+.vazba-na-radek .stitek { color: var(--text-2); }
+
+/* Šipka sedí v buňce vedle hodnoty a je vidět až po najetí na řádek — jinak by
+   ve sloupci klíčů šuměla u každého řádku. */
+.deti { position: relative; display: inline-block; margin-left: 6px; }
+
+.ikona-deti {
+    border: 0;
+    background: none;
+    padding: 0 2px;
+    cursor: pointer;
+    color: var(--text-3);
+    font-size: 13px;
+    line-height: 1;
+    opacity: 0.35;
+}
+
+.mrizka.data tbody tr:hover .ikona-deti { opacity: 1; }
+.ikona-deti:hover, .ikona-deti:focus-visible { color: var(--akcent); opacity: 1; }
+
+/* Nabídka se otevírá pod šipkou. Zavírá se dalším kliknutím na šipku nebo výběrem —
+   na klik mimo by bylo potřeba JS, a ten se v prohlížečce nepoužívá. */
+.nabidka-deti {
+    position: absolute;
+    z-index: 5;
+    top: 100%;
+    left: 0;
+    min-width: 200px;
+    margin: 2px 0 0;
+    padding: 4px 0;
+    list-style: none;
+    background: var(--panel);
+    border: 1px solid var(--linka);
+    border-radius: 4px;
+    box-shadow: 0 4px 14px rgb(0 0 0 / 18%);
+    text-align: left;
+}
+
+.nabidka-deti .nadpis {
+    padding: 2px 10px 4px;
+    color: var(--text-3);
+    font-size: 11px;
+}
+
+.nabidka-deti li .odkaz {
+    display: block;
+    width: 100%;
+    padding: 4px 10px;
+    text-align: left;
+    font-size: 12px;
+}
+
+.nabidka-deti li .odkaz:hover { background: var(--panel-2); }
+
 /* ---------- úpravy řádků ---------- */
 
 /* Sloupec s tlačítky je vlevo, aby zůstal na očích i u široké tabulky. */

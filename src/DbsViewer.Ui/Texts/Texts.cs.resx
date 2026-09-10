@@ -74,6 +74,15 @@
   <data name="ChangedSince" xml:space="preserve">
     <value>Co se změnilo od</value>
   </data>
+  <data name="ChildRows" xml:space="preserve">
+    <value>Navázané záznamy</value>
+  </data>
+  <data name="ChildRowsPick" xml:space="preserve">
+    <value>Ze které tabulky?</value>
+  </data>
+  <data name="ChildRowsTitle" xml:space="preserve">
+    <value>Zobrazit záznamy navázané na tenhle řádek</value>
+  </data>
   <data name="ClearFilters" xml:space="preserve">
     <value>Zrušit filtry</value>
   </data>
@@ -431,6 +440,9 @@
   <data name="LegendHide" xml:space="preserve">
     <value>Skrýt vysvětlivky</value>
   </data>
+  <data name="LinkedToRow" xml:space="preserve">
+    <value>Vázáno na nadřazený řádek</value>
+  </data>
   <data name="LoadedAt" xml:space="preserve">
     <value>Načteno</value>
   </data>
@@ -628,6 +640,9 @@
   </data>
   <data name="ShowTableData" xml:space="preserve">
     <value>Zobrazit data tabulky</value>
+  </data>
+  <data name="ShowWholeTable" xml:space="preserve">
+    <value>Zobrazit celou tabulku</value>
   </data>
   <data name="Shown" xml:space="preserve">
     <value>zobrazeno</value>

@@ -504,6 +504,91 @@ public class ViewerTests : TestContext
     }
 
     [Fact]
+    public void Proklik_na_podrizene_zaznamy_prepne_tabulku_i_adresu()
+    {
+        // Vzorek má Orders.CustomerId → Customers.Id, takže u hodnoty Id visí šipka.
+        _server.Meta = Vzorek.Meta(canPreview: true);
+
+        var component = Render();
+        component.FindAll(".seznam li button").ElementAt(0).Click();
+        component.FindAll(".zalozky button").ElementAt(4).Click();
+
+        component.Find("button.ikona-deti").Click();
+
+        Assert.Equal(new DbObjectName(null, "Orders"), component.Instance.State.SelectedTable);
+        Assert.Equal(DetailTab.Data, component.Instance.State.Tab);
+        Assert.Equal("1", Assert.Single(component.Instance.State.DataLink).Value);
+
+        Assert.Contains("table=Orders", Navigace.Uri, StringComparison.Ordinal);
+        Assert.Contains("link=CustomerId%3D1", Navigace.Uri, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Podrizene_zaznamy_se_nactou_omezene_na_nadrazeny_radek()
+    {
+        _server.Meta = Vzorek.Meta(canPreview: true);
+
+        var component = Render();
+        component.FindAll(".seznam li button").ElementAt(0).Click();
+        component.FindAll(".zalozky button").ElementAt(4).Click();
+
+        var pred = _server.RowCalls;
+        component.Find("button.ikona-deti").Click();
+
+        Assert.True(_server.RowCalls > pred);
+        Assert.Contains("CustomerId = 1", component.Find("p.vazba-na-radek").TextContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Zruseni_vazby_ukaze_celou_tabulku()
+    {
+        _server.Meta = Vzorek.Meta(canPreview: true);
+
+        var component = Render();
+        component.FindAll(".seznam li button").ElementAt(0).Click();
+        component.FindAll(".zalozky button").ElementAt(4).Click();
+        component.Find("button.ikona-deti").Click();
+
+        component.Find("p.vazba-na-radek button").Click();
+
+        Assert.Empty(component.Instance.State.DataLink);
+        Assert.Empty(component.FindAll("p.vazba-na-radek"));
+        Assert.DoesNotContain("link=", Navigace.Uri, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Zpet_z_podrizenych_zaznamu_vrati_nadrazeny_radek()
+    {
+        // Proklik je navigace, takže musí jít vzít zpátky — jinak by se uživatel
+        // z podřízené tabulky dostal jen ručním hledáním té nadřazené.
+        _server.Meta = Vzorek.Meta(canPreview: true);
+
+        var component = Render();
+        component.FindAll(".seznam li button").ElementAt(0).Click();
+        component.FindAll(".zalozky button").ElementAt(4).Click();
+
+        var pred = Navigace.Uri;
+        component.Find("button.ikona-deti").Click();
+
+        Navigace.NavigateTo(pred);
+
+        component.WaitForAssertion(() =>
+        {
+            Assert.Equal(new DbObjectName(null, "Customers"), component.Instance.State.SelectedTable);
+            Assert.Empty(component.Instance.State.DataLink);
+        });
+    }
+
+    [Fact]
+    public async Task Skok_na_deti_potrebuje_pozadavek()
+    {
+        var component = Render();
+
+        await Assert.ThrowsAsync<ArgumentNullException>(() =>
+            component.InvokeAsync(() => component.Instance.ShowChildrenAsync(null!)));
+    }
+
+    [Fact]
     public void Filtr_schematu_se_ukaze_jen_pri_vice_schematech()
     {
         var component = Render();

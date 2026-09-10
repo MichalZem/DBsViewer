@@ -21,7 +21,7 @@ každý najdeš v kapitole [Co uvidíš](#co-uvidíš).*
 > **Stav:** vydané na nuget.org. Prohlížečka má grafické UI s ER diagramem, HTTP API,
 > detekci rozdílů, historii schématu i náhled dat s volitelnou editací řádků.
 > Poslední stabilní verze je
-> [`0.8.0`](https://www.nuget.org/packages/DbsViewer.Server); z každého pushe na `main`
+> [`0.9.0`](https://www.nuget.org/packages/DbsViewer.Server); z každého pushe na `main`
 > vzniká navíc předběžná verze. Viz [instalace](#instalace-do-vlastní-aplikace).
 
 ---
@@ -179,6 +179,7 @@ na konkrétní tabulku se dá poslat kolegovi:
 /dbschema?pane=diagram&table=dbo.Orders&hops=2&expand=dbo.Orders
 ```
 
+V adrese je i vazba mřížky dat na nadřazený řádek — viz *Navázané záznamy* níž.
 Hledání a filtry skupiny a schématu jsou v adrese také, ale místo přidání záznamu ten
 současný přepíšou — jinak by Zpět po napsání `order` znamenalo pět stisků. Hodnoty
 ve výchozím stavu se vynechávají, takže nedotčená prohlížečka má adresu čistou.
@@ -231,6 +232,22 @@ jen bez čísel stránek.
 
 Filtr hledá text kdekoli v hodnotě, i nad čísly a daty. Zástupné znaky `%` a `_` se
 escapují — kdo hledá „100%", hledá opravdu „100%".
+
+**Navázané záznamy.** U hodnoty, na kterou ukazuje cizí klíč, visí v mřížce šipka **⤷**.
+Přepne prohlížečku na odkazující tabulku omezenou právě na tenhle řádek — od zákazníka
+rovnou na jeho objednávky, bez hledání tabulky a přepisování klíče. Když na hodnotu
+ukazuje víc tabulek, šipka otevře krátkou nabídku; jediný cíl se otevře rovnou. Složený
+klíč pošle všechny své sloupce.
+
+Vazba se ukazuje nad mřížkou jako štítek *Vázáno na nadřazený řádek* a dá se tam zrušit,
+aniž by se sáhlo na filtry, které sis naťukal sám: vazba jde na přesnou shodu, vlastní
+filtry zůstávají na „obsahuje" a platí zároveň. Šipka se vynechá tam, kde by vedla do
+prázdna — hodnota `NULL`, zamaskovaný sloupec, sloupec mimo načtenou stránku — a schová
+se, dokud je řádek rozepsaný.
+
+Vazba žije v adrese jako `link=<sloupec>=<hodnota>`, takže **Zpět** vrátí nadřazený řádek
+a odkaz na „objednávky tohohle zákazníka" jde poslat. Podrobnosti
+v [ADR-0020](docs/adr/0020-proklik-na-podrizene-zaznamy.md).
 
 **Úprava řádků.** Když je zapnuté `DataPreview.AllowUpdate` nebo `AllowDelete`, dostane
 každý řádek tlačítka *Upravit* a *Smazat*. Úprava přepne řádek do políček; u sloupce, který
@@ -634,7 +651,8 @@ Ukázka vygenerované dokumentace je v [`docs/schema-ukazka.md`](docs/schema-uka
 - **Odolnost** — načtení schématu nikdy nespadne, dílčí selhání skončí ve `warnings`
 - **Grafické UI** — přehled databáze, prohlížeč tabulek, ER diagram s focus modem,
   přehled rozdílů, historie schématu podle migrací, stránkovaná mřížka dat s volitelnou
-  úpravou a mazáním řádků, export do Mermaid, DBML a Markdownu
+  úpravou a mazáním řádků a proklikem na navázané záznamy, export do Mermaid, DBML
+  a Markdownu
 
 Zdroje dat:
 
@@ -777,9 +795,13 @@ Případně z příkazové řádky: `gh variable set NUGET_USER --body "<jméno>
 Volitelně ještě tajemství `TEST_SQL_PASSWORD` (heslo testovacího SQL Serveru
 v kontejneru) — bez něj se použije výchozí hodnota.
 
-Bez `NUGET_USER` workflow **neselže** — jen přeskočí publikaci a nechá balíčky
-v artefaktech běhu, odkud se dají stáhnout ručně. Stejně se zachová i ve forku,
-který na politiku nedosáhne.
+Bez `NUGET_USER` workflow **neselže** — jen přeskočí publikaci a balíčky zůstanou
+na disku runneru, se kterým zmizí. Stejně se zachová i ve forku, který na politiku
+nedosáhne; když je potřebuješ, sestav si je lokálně příkazem `dotnet pack`. Běh
+neukládá žádné artefakty — ani balíčky, ani výsledky testů — protože úložiště
+artefaktů se platí a narůstá s každým během. Co je o rozbitém buildu potřeba vědět,
+je v logu: coverlet tiskne tabulku pokrytí i překročený práh rovnou do konzole.
+Balíčky vydané verze jsou přiložené k vydání na GitHubu u příslušného tagu.
 
 ### Proč běží na CI SQL Server
 

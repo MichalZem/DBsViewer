@@ -33,7 +33,7 @@ internal sealed record ViewerRoute
     internal static readonly string[] QueryNames =
     [
         "pane", "table", "tab", "version", "base",
-        "source", "group", "schema", "q", "focus", "hops", "expand",
+        "source", "group", "schema", "q", "focus", "hops", "expand", "link",
     ];
 
     /// <summary>Zobrazený panel.</summary>
@@ -80,6 +80,21 @@ internal sealed record ViewerRoute
     /// <summary>Uzly diagramu zobrazené se všemi sloupci.</summary>
     public IReadOnlyList<DbObjectName> Expanded { get; init; } = [];
 
+    /// <summary>
+    /// Vazba náhledu dat na nadřazený řádek. Prázdné znamená celou tabulku.
+    /// </summary>
+    /// <remarks>
+    /// Patří do adresy ze stejného důvodu jako výběr tabulky: proklik na podřízené
+    /// záznamy je navigace, takže Zpět se musí vrátit k nadřazenému řádku a odkaz na
+    /// „objednávky tohohle zákazníka" musí jít poslat. Bez toho by po Zpět zůstala
+    /// v mřížce podřízená tabulka bez vazby, tedy úplně jiná data, než jaká uživatel
+    /// před chvílí viděl.
+    ///
+    /// Filtry, které si uživatel naťuká v mřížce sám, v adrese naopak nejsou — jsou to
+    /// hodnoty rozepsané v políčkách, ne krok navigace.
+    /// </remarks>
+    public IReadOnlyList<ChildFilter> Link { get; init; } = [];
+
     /// <summary>Stav prohlížečky jako adresa.</summary>
     public static ViewerRoute From(ViewerState state)
     {
@@ -102,6 +117,8 @@ internal sealed record ViewerRoute
             // Pořadí musí být stabilní, jinak by se adresa měnila jen tím, v jakém
             // pořadí se uzly rozbalovaly, a do historie by přibývaly stejné záznamy.
             Expanded = [.. state.ExpandedNodes.OrderBy(static n => n)],
+
+            Link = state.DataLink,
         };
     }
 
@@ -126,6 +143,17 @@ internal sealed record ViewerRoute
             return null;
         }
 
+        // Vazba na nadřazený řádek může mít víc sloupců, takže se parametr opakuje.
+        // Sloučit je do jedné hodnoty by znamenalo vymýšlet další oddělovač uvnitř
+        // něčeho, co už jeden má.
+        List<string> Hodnoty(string jmeno) =>
+        [
+            .. parametry
+                .Where(d => d.Key.Equals(jmeno, StringComparison.OrdinalIgnoreCase))
+                .Select(static d => d.Value)
+                .Where(static h => h.Length > 0),
+        ];
+
         return new ViewerRoute
         {
             Pane = PanelZKodu(Hodnota("pane")),
@@ -140,6 +168,7 @@ internal sealed record ViewerRoute
             Focus = Hodnota("focus") != "0",
             Hops = int.TryParse(Hodnota("hops"), out var hops) ? Math.Clamp(hops, 0, 3) : 1,
             Expanded = SeznamJmen(Hodnota("expand")),
+            Link = Podminky(Hodnoty("link")),
         };
     }
 
@@ -166,6 +195,9 @@ internal sealed record ViewerRoute
         state.Pane = Pane;
         state.SelectedTable = Najdi(state, Table);
         state.Tab = Tab;
+
+        // Vazba se váže na vybranou tabulku. Když ta v schématu není, nemá co filtrovat.
+        state.DataLink = state.SelectedTable is null ? [] : Link;
         state.Group = Group;
         state.SchemaName = Schema;
         state.Search = Search;
@@ -240,6 +272,11 @@ internal sealed record ViewerRoute
             Pridej("expand", string.Join(",", Expanded.Select(static n => n.Qualified)));
         }
 
+        foreach (var podminka in Link)
+        {
+            Pridej("link", Zapis(podminka));
+        }
+
         return dvojice;
     }
 
@@ -285,6 +322,54 @@ internal sealed record ViewerRoute
         hodnota is { Length: > 0 }
             ? [.. hodnota.Split(',').Select(JmenoZKodu).OfType<DbObjectName>()]
             : [];
+
+    /// <summary>
+    /// Podmínka jako <c>sloupec=hodnota</c>.
+    /// </summary>
+    /// <remarks>
+    /// Obě části se kódují zvlášť, i když adresu kóduje ještě jednou <c>QueryString</c>.
+    /// Bez toho by rovnítko uvnitř jména sloupce nebo hodnoty rozdělilo dvojici na
+    /// špatném místě — a hodnota primárního klíče může být cokoli.
+    /// </remarks>
+    private static string Zapis(ChildFilter podminka) =>
+        $"{Uri.EscapeDataString(podminka.Column)}={Uri.EscapeDataString(podminka.Value)}";
+
+    /// <summary>
+    /// Podmínky z adresy. Co nejde přečíst, se zahodí — adresu píše i uživatel.
+    /// </summary>
+    /// <remarks>
+    /// Prázdný výsledek je kolekční výraz, ne prázdný seznam — stejně jako
+    /// u <see cref="SeznamJmen"/>. Prázdné pole je jedna sdílená instance, takže dvě
+    /// adresy bez vazby vyjdou jako shodný <see cref="ViewerRoute"/>; seznam by se
+    /// porovnával referencí a shodný by nebyl nikdy.
+    /// </remarks>
+    private static IReadOnlyList<ChildFilter> Podminky(IEnumerable<string> hodnoty)
+    {
+        var podminky = new List<ChildFilter>();
+
+        foreach (var hodnota in hodnoty)
+        {
+            var rovnitko = hodnota.IndexOf('=', StringComparison.Ordinal);
+
+            if (rovnitko <= 0)
+            {
+                continue;
+            }
+
+            podminky.Add(new ChildFilter(
+                Uri.UnescapeDataString(hodnota[..rovnitko]),
+                Uri.UnescapeDataString(hodnota[(rovnitko + 1)..])));
+        }
+
+        // Podmíněný výraz by tu nestačil: společným typem obou větví by byl seznam
+        // a prázdná větev by vyrobila nový, ne sdílené prázdné pole.
+        if (podminky.Count == 0)
+        {
+            return [];
+        }
+
+        return podminky;
+    }
 
     private static ViewerPane PanelZKodu(string? hodnota) => hodnota?.ToLowerInvariant() switch
     {
